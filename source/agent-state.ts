@@ -150,9 +150,10 @@ export function statusPaneOf(
  * The pane the TUI's status monitor pinned, read without attaching one: that
  * stays the TUI's job, and attaching from here would race it.
  */
-function pinnedStatusPane(
+export function pinnedStatusPane(
 	session: string,
 	runner: OuterTmuxRunner,
+	socket = statusSocket(),
 ): StatusPane | null {
 	const listing = tmuxOut(runner, [
 		'list-panes',
@@ -163,7 +164,7 @@ function pinnedStatusPane(
 		AGENT_PANE_FORMAT,
 	]);
 	return listing
-		? statusPaneOf(listing.split('\n').filter(Boolean), statusSocket())
+		? statusPaneOf(listing.split('\n').filter(Boolean), socket)
 		: null;
 }
 

@@ -226,7 +226,7 @@ import {listOpenSpaces} from './space-registry.ts';
 import type {StateDaos} from './state-daos.ts';
 import {
 	type RailStatusPatch,
-	findLatestSessionJsonl,
+	findSpaceTranscript,
 	extractRecapFromJsonl,
 } from './space-state.ts';
 import {useRailStatusPolling} from './use-rail-status-polling.ts';
@@ -2443,10 +2443,16 @@ export default function App({
 			const entries: Array<{key: string; patch: RailStatusPatch}> = [];
 			for (const [name, rail] of lookup) {
 				const worktreePath = getWorktreePath(name);
-				const jsonl = worktreePath
-					? await findLatestSessionJsonl(worktreePath)
+				const transcript = await findSpaceTranscript({
+					issueKey: name,
+					worktreePath,
+					spaceState,
+					agentSessions,
+					config: configMemo,
+				});
+				const recap = transcript
+					? await extractRecapFromJsonl(transcript.file, transcript.format)
 					: null;
-				const recap = jsonl ? await extractRecapFromJsonl(jsonl) : null;
 				entries.push({
 					key: name,
 					patch: {

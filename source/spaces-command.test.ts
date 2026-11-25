@@ -4,6 +4,13 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'ava';
 import type {ClaudeSessionState} from './claude-status.ts';
+import type {PappardelleConfig} from './config.ts';
+import {
+	parseStatusPane,
+	type ProgramStatusSnapshot,
+	type StatusPane,
+} from './program-status-monitor.ts';
+import {newSpaceIdentity} from './space-identity.ts';
 import {
 	formatSpaces,
 	gatherSpaces,
@@ -521,4 +528,209 @@ test('an agent still reporting under the bare status name is read until it repor
 	});
 	const after = await gather(home);
 	t.is(after[0]?.status, 'ended');
+});
+
+function makeStatusPane(id: string, pid: string, marker: string): StatusPane {
+	return parseStatusPane(
+		`${id}\t${pid}\t0\t1\t${marker}`,
+		'pappardelle_inner',
+	)!;
+}
+
+function makeSnapshot(options: {
+	key: string;
+	pane: StatusPane;
+	info: ProgramStatusSnapshot['info'];
+	updatedAt: number;
+	authoritative?: boolean;
+}): ProgramStatusSnapshot {
+	return {
+		version: 1,
+		repo: REPO,
+		key: options.key,
+		pane: options.pane,
+		authoritative: options.authoritative ?? true,
+		exited: false,
+		updatedAt: options.updatedAt,
+		records: [],
+		info: options.info,
+	};
+}
+
+test('OSC program status reports live status and minutesAgo for agy and Codex spaces without Claude hooks', async t => {
+	const home = tempHome(t);
+	const now = 1_700_000_600_000;
+	const daos = stores(home);
+	const keys = ['AGY-IDLE', 'AGY-DONE', 'CODEX-WORK', 'AGY-PERM', 'AGY-Q'];
+	openSpaces(home, keys);
+
+	const panes = new Map<string, StatusPane>();
+	const snapshots = new Map<string, ProgramStatusSnapshot>();
+	const addOsc = async (
+		key: string,
+		info: ProgramStatusSnapshot['info'],
+		ageMinutes: number,
+		pid: string,
+	) => {
+		const identity = newSpaceIdentity({
+			repo: REPO,
+			key,
+			worktreePath: path.join(home, '.worktrees', REPO, key),
+			socket: 'pappardelle_inner',
+		});
+		await daos.spaceIdentities.record(identity);
+		const pane = makeStatusPane(`%${pid}`, pid, `${pid}.m`);
+		panes.set(identity.tmux.agentSession, pane);
+		snapshots.set(
+			key,
+			makeSnapshot({key, pane, info, updatedAt: now - ageMinutes * 60_000}),
+		);
+	};
+
+	await addOsc('AGY-IDLE', {status: 'idle', app: 'antigravity'}, 2, '10');
+	await addOsc('AGY-DONE', {status: 'done', app: 'antigravity'}, 5, '11');
+	await addOsc('CODEX-WORK', {status: 'working', app: 'codex'}, 0.5, '12');
+	await addOsc(
+		'AGY-PERM',
+		{status: 'blocked', kind: 'permission', app: 'antigravity'},
+		1,
+		'13',
+	);
+	await addOsc(
+		'AGY-Q',
+		{status: 'blocked', kind: 'question', app: 'antigravity'},
+		3,
+		'14',
+	);
+
+	const spaces = await gather(home, {
+		now,
+		listStatusPanes: async () =>
+			new Map(
+				[...panes].map(([session, pane]) => [session, {pinned: pane.id, pane}]),
+			),
+		programStatus: {
+			async read(key, pane) {
+				const snap = snapshots.get(key);
+				return snap && snap.pane.generation === pane.generation ? snap : null;
+			},
+		},
+	});
+	const byName = new Map(spaces.map(s => [s.name, s]));
+	t.like(byName.get('AGY-IDLE'), {status: 'idle', minutesAgo: 2});
+	t.like(byName.get('AGY-DONE'), {status: 'idle', minutesAgo: 5});
+	t.like(byName.get('CODEX-WORK'), {status: 'working', minutesAgo: 0.5});
+	t.like(byName.get('AGY-PERM'), {status: 'permission', minutesAgo: 1});
+	t.like(byName.get('AGY-Q'), {status: 'question', minutesAgo: 3});
+	t.deepEqual(
+		spaces.map(s => s.name),
+		['CODEX-WORK', 'AGY-PERM', 'AGY-IDLE', 'AGY-Q', 'AGY-DONE'],
+	);
+});
+
+test('non-authoritative OSC snapshots fall back to Claude hook or no_status', async t => {
+	const home = tempHome(t);
+	const now = 1_700_000_000_000;
+	const daos = stores(home);
+	openSpaces(home, ['STA-CLAUDE', 'STA-NEW']);
+	for (const key of ['STA-CLAUDE', 'STA-NEW']) {
+		await daos.spaceIdentities.record(
+			newSpaceIdentity({
+				repo: REPO,
+				key,
+				worktreePath: path.join(home, '.worktrees', REPO, key),
+				socket: 'pappardelle_inner',
+			}),
+		);
+	}
+
+	await writeStatus(home, statusKey('STA-CLAUDE'), {
+		status: 'running_tool',
+		currentTool: 'Edit',
+		lastUpdate: now - 60_000,
+	});
+	const paneClaude = makeStatusPane('%1', '1', '1.m');
+	const paneNew = makeStatusPane('%2', '2', '2.m');
+	const spaces = await gather(home, {
+		now,
+		listStatusPanes: async () =>
+			new Map([
+				[`agent-${REPO}-STA-CLAUDE`, {pinned: '%1', pane: paneClaude}],
+				[`agent-${REPO}-STA-NEW`, {pinned: '%2', pane: paneNew}],
+			]),
+		programStatus: {
+			read: async (key, pane) =>
+				makeSnapshot({
+					key,
+					pane,
+					info: {status: 'unknown'},
+					updatedAt: now,
+					authoritative: false,
+				}),
+		},
+	});
+	const byName = new Map(spaces.map(s => [s.name, s]));
+	t.like(byName.get('STA-CLAUDE'), {
+		status: 'running_tool',
+		currentTool: 'Edit',
+	});
+	t.is(byName.get('STA-NEW')?.status, 'no_status');
+});
+
+test('agy spaces expose their transcript as conversationLog and never fall back to stale Claude logs', async t => {
+	const home = tempHome(t);
+	const now = 1_700_000_000_000;
+	const daos = stores(home);
+	openSpaces(home, ['AGY-WITH-LOG', 'AGY-NO-LOG']);
+	for (const key of ['AGY-WITH-LOG', 'AGY-NO-LOG']) {
+		const worktree = path.join(home, '.worktrees', REPO, key);
+		await daos.spaceIdentities.record(
+			newSpaceIdentity({
+				repo: REPO,
+				key,
+				worktreePath: worktree,
+				socket: 'pappardelle_inner',
+			}),
+		);
+		// Simulate a stale Claude transcript from before switching to agy.
+		const encoded = worktree.replaceAll('/', '-').replaceAll('.', '-');
+		writeJson(
+			path.join(home, '.claude', 'projects', encoded, 'old.jsonl'),
+			'{}',
+		);
+	}
+
+	await daos.spaceState.write('AGY-WITH-LOG', {
+		agentProfile: {name: 'argon', isClaude: false},
+	});
+	await daos.spaceState.write('AGY-NO-LOG', {
+		agentProfile: {name: 'agy', isClaude: false},
+	});
+	writeJson(daos.agentSessions.file('AGY-WITH-LOG'), {
+		argon: {session_id: 'conv-123', pid: 42, started: null},
+	});
+	const agyLog = path.join(
+		home,
+		'.gemini',
+		'antigravity-cli',
+		'brain',
+		'conv-123',
+		'.system_generated',
+		'logs',
+		'transcript.jsonl',
+	);
+	fs.mkdirSync(path.dirname(agyLog), {recursive: true});
+	fs.writeFileSync(agyLog, '{"type":"USER_INPUT","content":"hi"}\n');
+	const config: PappardelleConfig = {
+		version: 1,
+		team_prefix: 'STA',
+		agent_profiles: {argon: {command: 'agy'}},
+		profiles: {dev: {display_name: 'Dev'}},
+	};
+
+	const spaces = await gather(home, {now, config});
+	const byName = new Map(spaces.map(s => [s.name, s]));
+	t.is(byName.get('AGY-WITH-LOG')?.conversationLog, agyLog);
+	t.is(typeof byName.get('AGY-WITH-LOG')?.logMinutesAgo, 'number');
+	t.is(byName.get('AGY-NO-LOG')?.conversationLog, undefined);
 });

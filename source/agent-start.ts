@@ -1,18 +1,22 @@
 import path from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
+import {pinnedStatusPane} from './agent-state.ts';
 import type {ClaudeStatusDao} from './claude-status.ts';
+import type {ProgramStatusDao} from './program-status-monitor.ts';
+import type {SpaceIdentityDao} from './space-identity.ts';
+import {supervisedInnerTmuxRunner, type OuterTmuxRunner} from './tmux.ts';
 
 type StatusReader = Pick<ClaudeStatusDao, 'readState'>;
 
 /**
- * Whether the status record has the space's agent as started since `since`.
+ * Whether the Claude hook record has the space's agent as started since `since`.
  * Only a running agent fires hooks, and the record keeps just the latest
  * event, so any event but SessionEnd counts: a later one can replace
  * SessionStart before the next poll. Status files are named by issue key
  * alone, so the cwd tells this repo's space apart from another repo's with
  * the same key.
  */
-async function agentStarted(
+async function claudeHookStarted(
 	claudeStatus: StatusReader,
 	statusKey: string,
 	worktree: string,
@@ -31,6 +35,39 @@ async function agentStarted(
 }
 
 /**
+ * Whether the space's live agent pane has an authoritative OSC program-status
+ * snapshot. Matching the live pane generation confirms both fresh launches
+ * (whose snapshot updates after `since`) and already-running idle agents
+ * reopened with `--resume`, while rejecting dead panes and exited monitors.
+ */
+async function oscProgramStarted(options: {
+	programStatus?: Pick<ProgramStatusDao, 'read'>;
+	spaceIdentities?: Pick<SpaceIdentityDao, 'get'>;
+	issueKey?: string;
+	runner?: OuterTmuxRunner;
+}): Promise<boolean> {
+	const {programStatus, spaceIdentities, issueKey} = options;
+	if (!programStatus || !spaceIdentities || !issueKey) return false;
+	const identity = spaceIdentities.get(issueKey);
+	if (identity.kind !== 'identity') return false;
+	const {agentSession, socket} = identity.identity.tmux;
+	const pane = pinnedStatusPane(
+		agentSession,
+		options.runner ?? supervisedInnerTmuxRunner,
+		socket,
+	);
+	if (!pane || pane.dead) return false;
+	const snapshot = await programStatus.read(issueKey, pane);
+	return (
+		snapshot !== null &&
+		snapshot.authoritative &&
+		!snapshot.exited &&
+		snapshot.pane.generation === pane.generation &&
+		snapshot.info.status !== 'unknown'
+	);
+}
+
+/**
  * Wait for a space's agent to start. A failed agent launch leaves a login
  * shell in the pane, and `pappardelle send` only checks that the tmux session
  * exists, so sending without this check can run the text as a shell command.
@@ -42,16 +79,21 @@ export async function waitForAgentStart(options: {
 	since: number;
 	timeoutMs: number;
 	pollMs?: number;
+	programStatus?: Pick<ProgramStatusDao, 'read'>;
+	spaceIdentities?: Pick<SpaceIdentityDao, 'get'>;
+	issueKey?: string;
+	runner?: OuterTmuxRunner;
 }): Promise<boolean> {
 	const deadline = Date.now() + options.timeoutMs;
 	for (;;) {
 		if (
-			await agentStarted(
+			(await claudeHookStarted(
 				options.claudeStatus,
 				options.statusKey,
 				options.worktree,
 				options.since,
-			)
+			)) ||
+			(await oscProgramStarted(options))
 		)
 			return true;
 		if (Date.now() >= deadline) return false;

@@ -387,8 +387,7 @@ def record_agent_session(
         launched = stores.launched_agent(pane_space)
         recorded = read_sessions(stores.sessions_file(pane_space)) if launched else None
         entry = recorded.get(launched.profile) if launched and recorded is not None else None
-        # A live agy keeps its first id, so its subagents' ids end here too.
-        if owner_alive(entry, started) and (is_agy or entry_session_id(entry) == session_id):
+        if owner_alive(entry, started) and entry_session_id(entry) == session_id:
             return False
 
     table = process_table()
@@ -432,7 +431,7 @@ def record_agent_session(
             return None
         entry = sessions.get(agent_profile)
         owner = entry.get("pid") if isinstance(entry, dict) else None
-        if (owner != agent_pid or from_daemon or is_agy) and owner_alive(entry, started):
+        if (owner != agent_pid or from_daemon) and owner_alive(entry, started):
             return None
         recording = {"session_id": session_id, "pid": agent_pid, "started": started(agent_pid)}
         if entry == recording:
