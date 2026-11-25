@@ -477,7 +477,6 @@ if (cli.input[0] === 'spaces') {
 	const load = readConfig();
 	if (load.kind === 'invalid') {
 		console.error(formatConfigErrors(load.errors));
-		process.exit(1);
 	}
 
 	const {runSpacesCommand} = await import('./spaces-command.ts');
@@ -510,7 +509,6 @@ if (cli.input[0] === 'read') {
 	const load = readConfig();
 	if (load.kind === 'invalid') {
 		console.error(formatConfigErrors(load.errors));
-		process.exit(1);
 	}
 
 	const {runReadCommand} = await import('./read-command.ts');

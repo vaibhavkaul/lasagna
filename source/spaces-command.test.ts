@@ -530,9 +530,14 @@ test('an agent still reporting under the bare status name is read until it repor
 	t.is(after[0]?.status, 'ended');
 });
 
-function makeStatusPane(id: string, pid: string, marker: string): StatusPane {
+function makeStatusPane(
+	id: string,
+	pid: string,
+	marker: string,
+	dead = false,
+): StatusPane {
 	return parseStatusPane(
-		`${id}\t${pid}\t0\t1\t${marker}`,
+		`${id}\t${pid}\t${dead ? '1' : '0'}\t1\t${marker}`,
 		'pappardelle_inner',
 	)!;
 }
@@ -543,6 +548,7 @@ function makeSnapshot(options: {
 	info: ProgramStatusSnapshot['info'];
 	updatedAt: number;
 	authoritative?: boolean;
+	exited?: boolean;
 }): ProgramStatusSnapshot {
 	return {
 		version: 1,
@@ -550,7 +556,7 @@ function makeSnapshot(options: {
 		key: options.key,
 		pane: options.pane,
 		authoritative: options.authoritative ?? true,
-		exited: false,
+		exited: options.exited ?? false,
 		updatedAt: options.updatedAt,
 		records: [],
 		info: options.info,
@@ -805,4 +811,73 @@ test('agy spaces expose their transcript as conversationLog and never fall back 
 	t.is(byName.get('AGY-WITH-LOG')?.conversationLog, agyLog);
 	t.is(typeof byName.get('AGY-WITH-LOG')?.logMinutesAgo, 'number');
 	t.is(byName.get('AGY-NO-LOG')?.conversationLog, undefined);
+});
+
+test('exited OSC snapshots and dead panes report ended, and Claude ended/compacting hooks win over OSC', async t => {
+	const home = tempHome(t);
+	const now = 1_700_000_000_000;
+	const daos = stores(home);
+	const keys = ['OSC-EXITED', 'PANE-DEAD', 'CLAUDE-ENDED', 'CLAUDE-COMPACT'];
+	openSpaces(home, keys);
+
+	const panes = new Map<string, StatusPane>();
+	const snapshots = new Map<string, ProgramStatusSnapshot>();
+	for (const [index, key] of keys.entries()) {
+		const identity = newSpaceIdentity({
+			repo: REPO,
+			key,
+			worktreePath: path.join(home, '.worktrees', REPO, key),
+			socket: 'pappardelle_inner',
+		});
+		await daos.spaceIdentities.record(identity);
+		const pid = String(20 + index);
+		const pane = makeStatusPane(
+			`%${pid}`,
+			pid,
+			`${pid}.m`,
+			key === 'PANE-DEAD',
+		);
+		panes.set(identity.tmux.agentSession, pane);
+		snapshots.set(
+			key,
+			makeSnapshot({
+				key,
+				pane,
+				info:
+					key === 'CLAUDE-COMPACT'
+						? {status: 'working', app: 'claude-code'}
+						: {status: 'idle', app: 'antigravity'},
+				updatedAt: now - 10_000,
+				exited: key === 'OSC-EXITED',
+			}),
+		);
+	}
+
+	await writeStatus(home, statusKey('CLAUDE-ENDED'), {
+		status: 'ended',
+		lastUpdate: now - 5000,
+	});
+	await writeStatus(home, statusKey('CLAUDE-COMPACT'), {
+		status: 'compacting',
+		lastUpdate: now - 5000,
+	});
+
+	const spaces = await gather(home, {
+		now,
+		listStatusPanes: async () =>
+			new Map(
+				[...panes].map(([session, pane]) => [session, {pinned: pane.id, pane}]),
+			),
+		programStatus: {
+			async read(key, pane) {
+				const snap = snapshots.get(key);
+				return snap && snap.pane.generation === pane.generation ? snap : null;
+			},
+		},
+	});
+	const byName = new Map(spaces.map(s => [s.name, s]));
+	t.is(byName.get('OSC-EXITED')?.status, 'ended');
+	t.is(byName.get('PANE-DEAD')?.status, 'ended');
+	t.is(byName.get('CLAUDE-ENDED')?.status, 'ended');
+	t.is(byName.get('CLAUDE-COMPACT')?.status, 'compacting');
 });

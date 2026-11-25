@@ -267,8 +267,17 @@ export async function gatherSpaces(deps: SpacesDeps): Promise<SpacesReport> {
 			const hookInfo = hookState ? statusInfo(hookState) : null;
 			if (snapshot?.authoritative && pane) {
 				const merged = mergeProgramStatus(hookInfo, snapshot, pane);
-				entry.status = merged ? oscStatusLabel(merged) : 'unknown';
-				entry.currentTool = merged?.tool ?? null;
+				const hookStatus = kind === 'claude' ? hookState?.status : undefined;
+				if (snapshot.exited || pane.dead) {
+					entry.status = 'ended';
+				} else if (hookStatus === 'ended' || hookStatus === 'compacting') {
+					entry.status = hookStatus;
+				} else {
+					entry.status = merged ? oscStatusLabel(merged) : 'unknown';
+				}
+
+				entry.currentTool =
+					entry.status === 'ended' ? null : (merged?.tool ?? null);
 				entry.lastUpdate = hookState
 					? Math.max(snapshot.updatedAt, hookState.lastUpdate)
 					: snapshot.updatedAt;

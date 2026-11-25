@@ -15,11 +15,8 @@ import fs from 'node:fs';
 import {setImmediate as yieldToInput} from 'node:timers/promises';
 import {homedir} from 'node:os';
 import path from 'node:path';
-import {
-	isClaudeCommand,
-	resolveAgentProfileName,
-	type PappardelleConfig,
-} from './config.ts';
+import {resolveAgentProfileName, type PappardelleConfig} from './config.ts';
+import {isClaudeCommand} from './config-launch-flags.ts';
 import {PIPELINE_STATUSES, type PipelineStatus} from './providers/types.ts';
 import type {Unreadable} from './state-db.ts';
 
