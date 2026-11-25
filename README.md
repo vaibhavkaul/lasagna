@@ -1,3 +1,17 @@
+# 🍝 Lasagna 🍝
+
+**Lasagna is a fork of [Pappardelle](https://github.com/chardigio/pappardelle) by [Charlie DiGiovanna](https://github.com/chardigio).** All the core of this tool is Charlie's work (with contributions from the Pappardelle community), and we are grateful for it. If you want the original, stable tool, use Pappardelle.
+
+Where Pappardelle is one wide noodle, Lasagna stacks many layers. This fork is working towards:
+
+- **Many repos at once**: no longer tied to running inside a single git repo.
+- **Cloud workspaces**: sessions that run on remote boxes as well as your machine.
+- **A server for client agents**: so other agents and clients can drive and watch workspaces.
+
+This is early work. Everything below is still Pappardelle's documentation and is being adapted as the fork changes. Pappardelle is MIT licensed and its copyright notice is kept in [LICENSE](LICENSE).
+
+---
+
 # 🦀🍝🦀 Pappardelle 🦀🍝🦀
 
 [![Test](https://github.com/chardigio/pappardelle/actions/workflows/test.yml/badge.svg)](https://github.com/chardigio/pappardelle/actions/workflows/test.yml)
