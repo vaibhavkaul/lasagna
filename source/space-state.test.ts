@@ -4,12 +4,15 @@ import test from 'ava';
 import {contractTest} from '../test/helpers/dao-contract.ts';
 import {testState, type TestState} from '../test/helpers/state.ts';
 import {
+	agyTranscriptPath,
 	extractRecapFromJsonl,
 	findLatestSessionJsonl,
 	parseSpaceState,
+	resolveSpaceAgentKind,
 	type SpaceState,
 	type SpacePrLink,
 } from './space-state.ts';
+import type {PappardelleConfig} from './config.ts';
 import {tempDir} from '../test/helpers/temp-dir.ts';
 
 // ============================================================================
@@ -690,4 +693,67 @@ test('a 20 MiB line spanning chunks preserves its recap and following lines', as
 	t.log(
 		`20 MiB single-line transcript: ${(performance.now() - start).toFixed(1)} ms`,
 	);
+});
+
+test('agyTranscriptPath builds valid paths and rejects empty or traversal ids', t => {
+	t.is(
+		agyTranscriptPath('abc-123', '/h'),
+		'/h/.gemini/antigravity-cli/brain/abc-123/.system_generated/logs/transcript.jsonl',
+	);
+	for (const bad of ['', '.', '..', '../x', 'a/b', 'a\\b']) {
+		t.is(agyTranscriptPath(bad, '/h'), null, `rejected: ${bad}`);
+	}
+});
+
+test('resolveSpaceAgentKind distinguishes claude, agy (including env wrappers), and other agents', t => {
+	const config: PappardelleConfig = {
+		version: 1,
+		team_prefix: 'STA',
+		agent_profiles: {
+			wrapped: {command: 'env -u FOO BAR=1 agy --model x'},
+			codex: {command: 'codex'},
+		},
+		profiles: {dev: {display_name: 'Dev'}},
+	};
+	t.deepEqual(resolveSpaceAgentKind(null, null), {
+		kind: 'claude',
+		agentProfileName: 'claude',
+	});
+	t.deepEqual(
+		resolveSpaceAgentKind(
+			{agentProfile: {name: 'wrapped', isClaude: false}},
+			config,
+		),
+		{kind: 'agy', agentProfileName: 'wrapped'},
+	);
+	t.deepEqual(
+		resolveSpaceAgentKind(
+			{agentProfile: {name: 'codex', isClaude: false}},
+			config,
+		),
+		{kind: 'other', agentProfileName: 'codex'},
+	);
+	t.deepEqual(
+		resolveSpaceAgentKind(
+			{agentProfile: {name: 'custom-missing', isClaude: false}},
+			null,
+		),
+		{kind: 'other', agentProfileName: 'custom-missing'},
+	);
+});
+
+test('extractRecapFromJsonl supports agy truncation and format-scoped caching', async t => {
+	const d = tempDir(t, 'pappardelle-space-state-');
+	const p = path.join(d, 'transcript.jsonl');
+	writeJsonl(p, [
+		{
+			type: 'USER_INPUT',
+			content: '<USER_REQUEST>\nfix bug\n</USER_REQUEST>',
+		},
+		{type: 'PLANNER_RESPONSE', content: 'y'.repeat(700)},
+	]);
+	t.is(await extractRecapFromJsonl(p, 'claude'), null);
+	const recap = await extractRecapFromJsonl(p, 'agy');
+	t.is(recap?.lastPrompt, 'fix bug');
+	t.is(recap?.lastAssistantExcerpt, 'y'.repeat(500));
 });

@@ -228,6 +228,7 @@ import {
 	type RailStatusPatch,
 	findSpaceTranscript,
 	extractRecapFromJsonl,
+	resolveSpaceAgentKind,
 } from './space-state.ts';
 import {useRailStatusPolling} from './use-rail-status-polling.ts';
 import {resolveSpaceEmoji, resolveSpaceProfileName} from './space-emoji.ts';
@@ -2443,10 +2444,12 @@ export default function App({
 			const entries: Array<{key: string; patch: RailStatusPatch}> = [];
 			for (const [name, rail] of lookup) {
 				const worktreePath = getWorktreePath(name);
+				const state = spaceState.read(name);
+				const {kind} = resolveSpaceAgentKind(state, configMemo);
 				const transcript = await findSpaceTranscript({
 					issueKey: name,
 					worktreePath,
-					spaceState,
+					state,
 					agentSessions,
 					config: configMemo,
 				});
@@ -2460,7 +2463,7 @@ export default function App({
 						unresolvedCommentCount: rail.unresolvedCommentCount,
 						prNumber: rail.prNumber,
 						hasConflict: rail.hasConflict ?? false,
-						...(recap ? {recap} : {}),
+						...(recap ? {recap} : kind !== 'claude' ? {recap: undefined} : {}),
 					},
 				});
 			}

@@ -16,7 +16,6 @@ import {setImmediate as yieldToInput} from 'node:timers/promises';
 import {homedir} from 'node:os';
 import path from 'node:path';
 import {
-	commandBasename,
 	isClaudeCommand,
 	resolveAgentProfileName,
 	type PappardelleConfig,
@@ -272,42 +271,80 @@ export async function findLatestSessionJsonl(
 	return newest ? newest.file : null;
 }
 
-/**
- * Determine a space's active agent profile name and whether it runs `agy`.
- */
+export type SpaceAgentKind = 'claude' | 'agy' | 'other';
+
+function unwrappedCommandBasename(command: string): string {
+	const tokens = command.trim().split(/\s+/).filter(Boolean);
+	let i = 0;
+	while (i < tokens.length) {
+		const token = tokens[i]!;
+		if (path.basename(token) === 'env') {
+			i++;
+			while (i < tokens.length && tokens[i]!.startsWith('-')) {
+				const flag = tokens[i]!;
+				i++;
+				if (
+					(flag === '-u' ||
+						flag === '--unset' ||
+						flag === '-C' ||
+						flag === '--chdir' ||
+						flag === '-S' ||
+						flag === '--split-string') &&
+					i < tokens.length
+				) {
+					i++;
+				}
+			}
+
+			continue;
+		}
+
+		if (/^[A-Za-z_]\w*=/.test(token)) {
+			i++;
+			continue;
+		}
+
+		return path.basename(token);
+	}
+
+	return '';
+}
+
 export function resolveSpaceAgentKind(
 	state: SpaceState | null,
 	config?: PappardelleConfig | null,
-): {isAgy: boolean; agentProfileName: string} {
+): {kind: SpaceAgentKind; agentProfileName: string} {
 	const launched = state?.agentProfile;
-	if (launched) {
-		if (launched.isClaude)
-			return {isAgy: false, agentProfileName: launched.name};
-		const defined = config?.agent_profiles?.[launched.name];
-		if (defined) {
-			return {
-				isAgy:
-					defined.is_claude !== true &&
-					commandBasename(defined.command) === 'agy',
-				agentProfileName: launched.name,
-			};
-		}
+	const agentProfileName =
+		launched?.name ??
+		(config
+			? resolveAgentProfileName(config, state?.issueTitle, state?.profile)
+			: 'claude');
+	if (launched?.isClaude === true) {
+		return {kind: 'claude', agentProfileName};
+	}
 
+	const defined = config?.agent_profiles?.[agentProfileName];
+	if (launched?.isClaude === false) {
+		const isAgy = defined
+			? unwrappedCommandBasename(defined.command) === 'agy'
+			: agentProfileName === 'agy';
+		return {kind: isAgy ? 'agy' : 'other', agentProfileName};
+	}
+
+	if (defined) {
+		const isClaude = defined.is_claude ?? isClaudeCommand(defined.command);
+		if (isClaude) return {kind: 'claude', agentProfileName};
 		return {
-			isAgy: launched.name === 'agy',
-			agentProfileName: launched.name,
+			kind:
+				unwrappedCommandBasename(defined.command) === 'agy' ? 'agy' : 'other',
+			agentProfileName,
 		};
 	}
 
-	const agentProfileName = config
-		? resolveAgentProfileName(config, state?.issueTitle, state?.profile)
-		: 'claude';
-	const defined = config?.agent_profiles?.[agentProfileName];
+	if (agentProfileName === 'claude') return {kind: 'claude', agentProfileName};
 	return {
-		isAgy: defined
-			? !(defined.is_claude ?? isClaudeCommand(defined.command)) &&
-				commandBasename(defined.command) === 'agy'
-			: agentProfileName === 'agy',
+		kind: agentProfileName === 'agy' ? 'agy' : 'other',
 		agentProfileName,
 	};
 }
@@ -349,53 +386,51 @@ export interface SpaceTranscript {
 
 /**
  * Locate the transcript for a space based on its active agent profile.
- * An `agy` space resolves only its recorded agy conversation transcript and
- * never falls back to stale Claude logs under `~/.claude/projects`.
+ * Non-Claude spaces never fall back to stale Claude logs under `~/.claude/projects`.
  */
 export async function findSpaceTranscript(options: {
 	issueKey: string;
 	worktreePath: string | null;
+	state?: SpaceState | null;
 	spaceState?: Pick<SpaceStateDao, 'read'>;
 	agentSessions?: Pick<AgentSessionsDao, 'read'>;
 	config?: PappardelleConfig | null;
 	home?: string;
 	claudeProjectsDir?: string;
 }): Promise<SpaceTranscript | null> {
-	const state = options.spaceState?.read(options.issueKey) ?? null;
-	const {isAgy, agentProfileName} = resolveSpaceAgentKind(
-		state,
-		options.config,
-	);
-	if (isAgy) {
+	const state =
+		options.state === undefined
+			? (options.spaceState?.read(options.issueKey) ?? null)
+			: options.state;
+	const {kind, agentProfileName} = resolveSpaceAgentKind(state, options.config);
+	if (kind === 'other') return null;
+
+	let file: string | null = null;
+	let format: TranscriptFormat;
+	if (kind === 'agy') {
 		const conversationId = options.agentSessions?.read(
 			options.issueKey,
 			agentProfileName,
 		);
-		const file = conversationId
+		file = conversationId
 			? agyTranscriptPath(conversationId, options.home)
 			: null;
-		if (!file) return null;
-		try {
-			const stat = await fs.promises.stat(file);
-			return stat.isFile()
-				? {file, format: 'agy', mtimeMs: stat.mtimeMs}
-				: null;
-		} catch {
-			return null;
-		}
+		format = 'agy';
+	} else {
+		if (!options.worktreePath) return null;
+		const projectsDir =
+			options.claudeProjectsDir ??
+			(options.home
+				? path.join(options.home, '.claude', 'projects')
+				: undefined);
+		file = await findLatestSessionJsonl(options.worktreePath, projectsDir);
+		format = 'claude';
 	}
 
-	if (!options.worktreePath) return null;
-	const projectsDir =
-		options.claudeProjectsDir ??
-		(options.home ? path.join(options.home, '.claude', 'projects') : undefined);
-	const file = await findLatestSessionJsonl(options.worktreePath, projectsDir);
 	if (!file) return null;
 	try {
 		const stat = await fs.promises.stat(file);
-		return stat.isFile()
-			? {file, format: 'claude', mtimeMs: stat.mtimeMs}
-			: null;
+		return stat.isFile() ? {file, format, mtimeMs: stat.mtimeMs} : null;
 	} catch {
 		return null;
 	}

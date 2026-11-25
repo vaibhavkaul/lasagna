@@ -1,12 +1,49 @@
+import {spawnSync} from 'node:child_process';
 import path from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
-import {pinnedStatusPane} from './agent-state.ts';
+import {pinnedStatusPaneInfo} from './agent-state.ts';
 import type {ClaudeStatusDao} from './claude-status.ts';
-import type {ProgramStatusDao} from './program-status-monitor.ts';
+import {
+	statusTmuxArgs,
+	type ProgramStatusDao,
+} from './program-status-monitor.ts';
 import type {SpaceIdentityDao} from './space-identity.ts';
-import {supervisedInnerTmuxRunner, type OuterTmuxRunner} from './tmux.ts';
+import {defaultServerTmuxEnv, type OuterTmuxRunner} from './tmux.ts';
 
 type StatusReader = Pick<ClaudeStatusDao, 'readState'>;
+
+const SHELLS = new Set([
+	'sh',
+	'bash',
+	'zsh',
+	'dash',
+	'fish',
+	'ksh',
+	'tcsh',
+	'csh',
+]);
+
+function isShellCommand(command: string | undefined): boolean {
+	if (!command) return true;
+	const base = path.basename(command.trim()).replace(/^-/, '');
+	return !base || SHELLS.has(base);
+}
+
+function socketTmuxRunner(socket: string): OuterTmuxRunner {
+	const env = defaultServerTmuxEnv(process.env);
+	return args =>
+		spawnSync('tmux', statusTmuxArgs([...args], socket), {
+			encoding: 'utf8',
+			env,
+		});
+}
+
+export type OscStartDeps = {
+	programStatus: Pick<ProgramStatusDao, 'read'>;
+	spaceIdentities: Pick<SpaceIdentityDao, 'get'>;
+	issueKey: string;
+	runner?: OuterTmuxRunner;
+};
 
 /**
  * Whether the Claude hook record has the space's agent as started since `since`.
@@ -36,35 +73,38 @@ async function claudeHookStarted(
 
 /**
  * Whether the space's live agent pane has an authoritative OSC program-status
- * snapshot. Matching the live pane generation confirms both fresh launches
- * (whose snapshot updates after `since`) and already-running idle agents
- * reopened with `--resume`, while rejecting dead panes and exited monitors.
+ * snapshot. Fresh launches confirm once the snapshot updates after `since`;
+ * already-running agents opened with `--resume` also confirm when the pane is
+ * not sitting at a bare shell, because an exited agent preserves the same pane
+ * generation while leaving its prior `idle`/`done` snapshot in place.
  */
-async function oscProgramStarted(options: {
-	programStatus?: Pick<ProgramStatusDao, 'read'>;
-	spaceIdentities?: Pick<SpaceIdentityDao, 'get'>;
-	issueKey?: string;
-	runner?: OuterTmuxRunner;
-}): Promise<boolean> {
-	const {programStatus, spaceIdentities, issueKey} = options;
-	if (!programStatus || !spaceIdentities || !issueKey) return false;
-	const identity = spaceIdentities.get(issueKey);
+async function oscProgramStarted(
+	osc: OscStartDeps | undefined,
+	since: number,
+): Promise<boolean> {
+	if (!osc) return false;
+	const identity = osc.spaceIdentities.get(osc.issueKey);
 	if (identity.kind !== 'identity') return false;
 	const {agentSession, socket} = identity.identity.tmux;
-	const pane = pinnedStatusPane(
+	const info = pinnedStatusPaneInfo(
 		agentSession,
-		options.runner ?? supervisedInnerTmuxRunner,
+		osc.runner ?? socketTmuxRunner(socket),
 		socket,
 	);
-	if (!pane || pane.dead) return false;
-	const snapshot = await programStatus.read(issueKey, pane);
-	return (
-		snapshot !== null &&
-		snapshot.authoritative &&
-		!snapshot.exited &&
-		snapshot.pane.generation === pane.generation &&
-		snapshot.info.status !== 'unknown'
-	);
+	if (!info || info.pane.dead) return false;
+	const snapshot = await osc.programStatus.read(osc.issueKey, info.pane);
+	if (
+		snapshot === null ||
+		!snapshot.authoritative ||
+		snapshot.exited ||
+		snapshot.pane.generation !== info.pane.generation ||
+		snapshot.info.status === 'unknown'
+	) {
+		return false;
+	}
+
+	if (snapshot.updatedAt >= since) return true;
+	return !isShellCommand(info.currentCommand);
 }
 
 /**
@@ -79,10 +119,7 @@ export async function waitForAgentStart(options: {
 	since: number;
 	timeoutMs: number;
 	pollMs?: number;
-	programStatus?: Pick<ProgramStatusDao, 'read'>;
-	spaceIdentities?: Pick<SpaceIdentityDao, 'get'>;
-	issueKey?: string;
-	runner?: OuterTmuxRunner;
+	osc?: OscStartDeps;
 }): Promise<boolean> {
 	const deadline = Date.now() + options.timeoutMs;
 	for (;;) {
@@ -93,7 +130,7 @@ export async function waitForAgentStart(options: {
 				options.worktree,
 				options.since,
 			)) ||
-			(await oscProgramStarted(options))
+			(await oscProgramStarted(options.osc, options.since))
 		)
 			return true;
 		if (Date.now() >= deadline) return false;

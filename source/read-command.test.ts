@@ -212,7 +212,6 @@ test('runReadCommand reads agy transcript.jsonl and never falls back to stale Cl
 	t.is(missingCode, 1);
 	t.deepEqual(errLines, ['No conversation log for STA-9']);
 
-	// Record agy conversationId without transcript file on disk yet -> still fails cleanly.
 	fs.mkdirSync(path.dirname(agentSessions.file('STA-9')), {recursive: true});
 	fs.writeFileSync(
 		agentSessions.file('STA-9'),
@@ -232,7 +231,6 @@ test('runReadCommand reads agy transcript.jsonl and never falls back to stale Cl
 	});
 	t.is(noFileCode, 1);
 
-	// Write agy transcript.jsonl and verify read + recap extraction.
 	const agyLog = path.join(
 		home,
 		'.gemini',
@@ -291,4 +289,44 @@ test('runReadCommand reads agy transcript.jsonl and never falls back to stale Cl
 		lastPrompt: 'hello agy',
 		lastAssistantExcerpt: 'hello human',
 	});
+});
+
+test('runReadCommand does not fall back to stale Claude logs for Codex or custom non-Claude spaces', async t => {
+	const home = tempDir(t, 'read-other-');
+	const worktree = path.join(home, 'wt', 'STA-10');
+	const state = testState(t, {home});
+	const {spaceState, agentSessions} = state.daos;
+
+	const encoded = worktree.replaceAll('/', '-').replaceAll('.', '-');
+	const staleClaude = path.join(
+		home,
+		'.claude',
+		'projects',
+		encoded,
+		'old.jsonl',
+	);
+	fs.mkdirSync(path.dirname(staleClaude), {recursive: true});
+	fs.writeFileSync(staleClaude, jsonl(user('stale claude'), assistant('nope')));
+
+	for (const agentProfile of [
+		{name: 'codex', isClaude: false},
+		{name: 'custom-agent', isClaude: false},
+	]) {
+		await spaceState.write('STA-10', {agentProfile});
+		const errLines: string[] = [];
+		const code = await runReadCommand({
+			issueKey: 'STA-10',
+			worktree,
+			spaceState,
+			agentSessions,
+			config: null,
+			home,
+			turns: 5,
+			json: true,
+			out() {},
+			err: line => errLines.push(line),
+		});
+		t.is(code, 1, `profile ${agentProfile.name}`);
+		t.deepEqual(errLines, ['No conversation log for STA-10']);
+	}
 });

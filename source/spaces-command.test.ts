@@ -557,11 +557,18 @@ function makeSnapshot(options: {
 	};
 }
 
-test('OSC program status reports live status and minutesAgo for agy and Codex spaces without Claude hooks', async t => {
+test('OSC program status reports Claude-vocabulary status and minutesAgo for agy and Codex spaces without Claude hooks', async t => {
 	const home = tempHome(t);
 	const now = 1_700_000_600_000;
 	const daos = stores(home);
-	const keys = ['AGY-IDLE', 'AGY-DONE', 'CODEX-WORK', 'AGY-PERM', 'AGY-Q'];
+	const keys = [
+		'AGY-IDLE',
+		'AGY-DONE',
+		'CODEX-WORK',
+		'CODEX-TOOL',
+		'AGY-PERM',
+		'AGY-Q',
+	];
 	openSpaces(home, keys);
 
 	const panes = new Map<string, StatusPane>();
@@ -591,6 +598,12 @@ test('OSC program status reports live status and minutesAgo for agy and Codex sp
 	await addOsc('AGY-DONE', {status: 'done', app: 'antigravity'}, 5, '11');
 	await addOsc('CODEX-WORK', {status: 'working', app: 'codex'}, 0.5, '12');
 	await addOsc(
+		'CODEX-TOOL',
+		{status: 'working', tool: 'Bash', app: 'codex'},
+		0.2,
+		'15',
+	);
+	await addOsc(
 		'AGY-PERM',
 		{status: 'blocked', kind: 'permission', app: 'antigravity'},
 		1,
@@ -617,14 +630,22 @@ test('OSC program status reports live status and minutesAgo for agy and Codex sp
 		},
 	});
 	const byName = new Map(spaces.map(s => [s.name, s]));
-	t.like(byName.get('AGY-IDLE'), {status: 'idle', minutesAgo: 2});
-	t.like(byName.get('AGY-DONE'), {status: 'idle', minutesAgo: 5});
-	t.like(byName.get('CODEX-WORK'), {status: 'working', minutesAgo: 0.5});
-	t.like(byName.get('AGY-PERM'), {status: 'permission', minutesAgo: 1});
-	t.like(byName.get('AGY-Q'), {status: 'question', minutesAgo: 3});
+	t.like(byName.get('AGY-IDLE'), {status: 'waiting_for_input', minutesAgo: 2});
+	t.like(byName.get('AGY-DONE'), {status: 'waiting_for_input', minutesAgo: 5});
+	t.like(byName.get('CODEX-WORK'), {status: 'processing', minutesAgo: 0.5});
+	t.like(byName.get('CODEX-TOOL'), {
+		status: 'running_tool',
+		currentTool: 'Bash',
+		minutesAgo: 0.2,
+	});
+	t.like(byName.get('AGY-PERM'), {
+		status: 'waiting_for_approval',
+		minutesAgo: 1,
+	});
+	t.like(byName.get('AGY-Q'), {status: 'waiting_for_approval', minutesAgo: 3});
 	t.deepEqual(
 		spaces.map(s => s.name),
-		['CODEX-WORK', 'AGY-PERM', 'AGY-IDLE', 'AGY-Q', 'AGY-DONE'],
+		['CODEX-TOOL', 'CODEX-WORK', 'AGY-PERM', 'AGY-IDLE', 'AGY-Q', 'AGY-DONE'],
 	);
 });
 
@@ -675,6 +696,57 @@ test('non-authoritative OSC snapshots fall back to Claude hook or no_status', as
 		currentTool: 'Edit',
 	});
 	t.is(byName.get('STA-NEW')?.status, 'no_status');
+});
+
+test('agy and Codex spaces ignore leftover Claude hook status and Claude session files', async t => {
+	const home = tempHome(t);
+	const now = 1_700_000_000_000;
+	const daos = stores(home);
+	openSpaces(home, ['AGY-SWITCHED', 'CODEX-SWITCHED']);
+	for (const key of ['AGY-SWITCHED', 'CODEX-SWITCHED']) {
+		const worktree = path.join(home, '.worktrees', REPO, key);
+		await daos.spaceIdentities.record(
+			newSpaceIdentity({
+				repo: REPO,
+				key,
+				worktreePath: worktree,
+				socket: 'pappardelle_inner',
+			}),
+		);
+		await writeStatus(home, statusKey(key), {
+			status: 'running_tool',
+			currentTool: 'Bash',
+			sessionId: `stale-claude-${key}`,
+			lastUpdate: now - 30_000,
+		});
+		writeJson(path.join(home, '.claude', 'sessions', `${key}.json`), {
+			pid: 99_999,
+			cwd: worktree,
+		});
+		const encoded = worktree.replaceAll('/', '-').replaceAll('.', '-');
+		writeJson(
+			path.join(home, '.claude', 'projects', encoded, 'stale.jsonl'),
+			'{}',
+		);
+	}
+
+	await daos.spaceState.write('AGY-SWITCHED', {
+		agentProfile: {name: 'agy', isClaude: false},
+	});
+	await daos.spaceState.write('CODEX-SWITCHED', {
+		agentProfile: {name: 'codex', isClaude: false},
+	});
+
+	const spaces = await gather(home, {now});
+	for (const space of spaces) {
+		t.is(space.status, 'no_status');
+		t.is(space.currentTool, undefined);
+		t.is(space.lastUpdate, undefined);
+		t.is(space.sessionId, undefined);
+		t.is(space.pid, undefined);
+		t.is(space.worktreePath, undefined);
+		t.is(space.conversationLog, undefined);
+	}
 });
 
 test('agy spaces expose their transcript as conversationLog and never fall back to stale Claude logs', async t => {

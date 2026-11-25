@@ -106,7 +106,7 @@ test('an agent that starts during the wait is confirmed', async t => {
 
 function oscFixture(
 	t: ExecutionContext,
-	paneState: {dead?: boolean; marker?: string} = {},
+	paneState: {dead?: boolean; marker?: string; command?: string} = {},
 ) {
 	const state = testState(t);
 	const issueKey = 'TEST-1';
@@ -124,11 +124,12 @@ function oscFixture(
 	});
 	const marker = paneState.marker ?? '42.abc';
 	const deadFlag = paneState.dead ? '1' : '0';
+	const command = paneState.command ?? 'agy';
 	const paneLine = `%5\t42\t${deadFlag}\t1\t${marker}`;
 	const pane = parseStatusPane(paneLine, identity.tmux.socket)!;
 	const runner: OuterTmuxRunner = args => {
 		if (args[0] === 'list-panes') {
-			return {status: 0, stdout: `11\t%5\t${paneLine}\n`};
+			return {status: 0, stdout: `11\t%5\t${paneLine}\t${command}\n`};
 		}
 
 		return {status: 1, stdout: ''};
@@ -167,15 +168,17 @@ test('a fresh OSC snapshot arriving during the wait confirms an agy or Codex sta
 	t.true(
 		await waitForAgentStart({
 			claudeStatus: f.state.daos.claudeStatus,
-			programStatus: {read: async () => current},
-			spaceIdentities: f.state.daos.spaceIdentities,
-			runner: f.runner,
-			issueKey: f.issueKey,
 			statusKey: `${f.state.repo}-${f.issueKey}`,
 			worktree: f.worktree,
 			since,
 			timeoutMs: 5000,
 			pollMs: 20,
+			osc: {
+				programStatus: {read: async () => current},
+				spaceIdentities: f.state.daos.spaceIdentities,
+				issueKey: f.issueKey,
+				runner: f.runner,
+			},
 		}),
 	);
 });
@@ -189,17 +192,44 @@ test('an already-running idle OSC pane opened with --resume confirms even when s
 	t.true(
 		await waitForAgentStart({
 			claudeStatus: f.state.daos.claudeStatus,
-			programStatus: {read: async () => prior},
-			spaceIdentities: f.state.daos.spaceIdentities,
-			runner: f.runner,
-			issueKey: f.issueKey,
 			statusKey: `${f.state.repo}-${f.issueKey}`,
 			worktree: f.worktree,
 			since,
 			timeoutMs: 0,
 			pollMs: 20,
+			osc: {
+				programStatus: {read: async () => prior},
+				spaceIdentities: f.state.daos.spaceIdentities,
+				issueKey: f.issueKey,
+				runner: f.runner,
+			},
 		}),
 	);
+});
+
+test('an agent that reported idle and then exited to a shell with the same generation does not confirm', async t => {
+	for (const shell of ['bash', '-zsh']) {
+		const f = oscFixture(t, {command: shell});
+		await f.state.daos.spaceIdentities.record(f.identity);
+		const since = Date.now();
+		const prior = oscSnapshot(f.issueKey, f.pane, {updatedAt: since - 60_000});
+		t.false(
+			await waitForAgentStart({
+				claudeStatus: f.state.daos.claudeStatus,
+				statusKey: `${f.state.repo}-${f.issueKey}`,
+				worktree: f.worktree,
+				since,
+				timeoutMs: 0,
+				osc: {
+					programStatus: {read: async () => prior},
+					spaceIdentities: f.state.daos.spaceIdentities,
+					issueKey: f.issueKey,
+					runner: f.runner,
+				},
+			}),
+			shell,
+		);
+	}
 });
 
 test('a dead pane, exited monitor, unknown status, or mismatched generation does not confirm', async t => {
@@ -209,16 +239,18 @@ test('a dead pane, exited monitor, unknown status, or mismatched generation does
 	t.false(
 		await waitForAgentStart({
 			claudeStatus: dead.state.daos.claudeStatus,
-			programStatus: {
-				read: async () => oscSnapshot(dead.issueKey, dead.pane),
-			},
-			spaceIdentities: dead.state.daos.spaceIdentities,
-			runner: dead.runner,
-			issueKey: dead.issueKey,
 			statusKey: `${dead.state.repo}-${dead.issueKey}`,
 			worktree: dead.worktree,
 			since,
 			timeoutMs: 0,
+			osc: {
+				programStatus: {
+					read: async () => oscSnapshot(dead.issueKey, dead.pane),
+				},
+				spaceIdentities: dead.state.daos.spaceIdentities,
+				issueKey: dead.issueKey,
+				runner: dead.runner,
+			},
 		}),
 	);
 
@@ -237,14 +269,16 @@ test('a dead pane, exited monitor, unknown status, or mismatched generation does
 		t.false(
 			await waitForAgentStart({
 				claudeStatus: live.state.daos.claudeStatus,
-				programStatus: {read: async () => bad},
-				spaceIdentities: live.state.daos.spaceIdentities,
-				runner: live.runner,
-				issueKey: live.issueKey,
 				statusKey: `${live.state.repo}-${live.issueKey}`,
 				worktree: live.worktree,
 				since,
 				timeoutMs: 0,
+				osc: {
+					programStatus: {read: async () => bad},
+					spaceIdentities: live.state.daos.spaceIdentities,
+					issueKey: live.issueKey,
+					runner: live.runner,
+				},
 			}),
 		);
 	}

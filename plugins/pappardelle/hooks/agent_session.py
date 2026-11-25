@@ -54,9 +54,11 @@ own. The id is recorded under the pid of the agent running in the agent
 session's first pane instead, and is never replaced while that agent lives:
 its first conversation keeps it until the agent exits.
 
-agy's subagents fire hooks from the agy process itself, each with its own
-conversation id, so an agy id is never replaced while its process lives either:
-the pane's first conversation keeps it until a relaunch.
+agy fires PreInvocation with each conversation id under the same agy pid, so a
+`/clear` updates the recorded id while that process lives (though if an agy
+subagent fires PreInvocation from the same pid, its id may replace the recorded
+one until the next top-level turn). Another agy process still cannot overwrite a
+live owner's id.
 """
 
 import json

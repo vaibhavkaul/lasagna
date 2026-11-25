@@ -30,7 +30,6 @@ import {
 	spaceSessionNames,
 	getMainWorktreeInfo,
 	INNER_SOCKET,
-	supervisedInnerTmuxRunner,
 } from './tmux.ts';
 import type {PaneLayout} from './types.ts';
 import {
@@ -476,6 +475,11 @@ if (cli.input[0] === 'close') {
 
 if (cli.input[0] === 'spaces') {
 	const load = readConfig();
+	if (load.kind === 'invalid') {
+		console.error(formatConfigErrors(load.errors));
+		process.exit(1);
+	}
+
 	const {runSpacesCommand} = await import('./spaces-command.ts');
 	await exitAfterFlush(
 		await runSpacesCommand({
@@ -504,6 +508,11 @@ if (cli.input[0] === 'read') {
 
 	const issueKey = resolveCliSpaceKey(rawKey);
 	const load = readConfig();
+	if (load.kind === 'invalid') {
+		console.error(formatConfigErrors(load.errors));
+		process.exit(1);
+	}
+
 	const {runReadCommand} = await import('./read-command.ts');
 	await exitAfterFlush(
 		await runReadCommand({
@@ -597,14 +606,15 @@ if (cli.input.length > 0) {
 						worktree !== null &&
 						waitForAgentStart({
 							claudeStatus: daos.claudeStatus,
-							programStatus: daos.programStatus,
-							spaceIdentities: daos.spaceIdentities,
-							runner: supervisedInnerTmuxRunner,
-							issueKey,
 							statusKey: hookStatusKey(getRepoName(), issueKey),
 							worktree,
 							since,
 							timeoutMs: 60_000,
+							osc: {
+								programStatus: daos.programStatus,
+								spaceIdentities: daos.spaceIdentities,
+								issueKey,
+							},
 						})
 					);
 				}

@@ -1,4 +1,4 @@
-// `pappardelle spaces`: every open space with its Claude status, cached rail
+// `pappardelle spaces`: every open space with its agent status, cached rail
 // state and recap, issue title, PR link and branch summary. The JSON keeps
 // the shape of the sous-chef's old gather-spaces.sh, which the board reads,
 // and adds title, prUrl and git.
@@ -7,7 +7,7 @@ import {execFile} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {promisify} from 'node:util';
-import type {ClaudeStatusDao, ClaudeStatusInfo} from './claude-status.ts';
+import {statusInfo, type ClaudeStatusDao} from './claude-status.ts';
 import type {PappardelleConfig} from './config.ts';
 import type {IssueMetaDao} from './issue-meta.ts';
 import {
@@ -152,15 +152,18 @@ function spaceHolding(
 function oscStatusLabel(info: ProgramStatusInfo): string {
 	switch (info.status) {
 		case 'blocked': {
-			return info.kind ?? 'permission';
+			return 'waiting_for_approval';
 		}
 
 		case 'done':
 		case 'idle': {
-			return 'idle';
+			return 'waiting_for_input';
 		}
 
-		case 'working':
+		case 'working': {
+			return info.tool ? 'running_tool' : 'processing';
+		}
+
 		case 'error':
 		case 'unknown': {
 			return info.status;
@@ -242,6 +245,8 @@ export async function gatherSpaces(deps: SpacesDeps): Promise<SpacesReport> {
 		keys.map(async (name): Promise<SpaceEntry> => {
 			const entry: Partial<SpaceEntry> & {name: string} = {name};
 			const identity = identities.get(name);
+			const state = deps.spaceState.read(name);
+			const {kind} = resolveSpaceAgentKind(state, deps.config);
 			const pane = identity
 				? (panesBySocket
 						.get(identity.tmux.socket)
@@ -249,37 +254,36 @@ export async function gatherSpaces(deps: SpacesDeps): Promise<SpacesReport> {
 				: null;
 
 			const [stored, snapshot] = await Promise.all([
-				deps.claudeStatus.readState(
-					await deps.claudeStatus.readableKey(repoName, name),
-				),
+				kind === 'claude'
+					? deps.claudeStatus.readState(
+							await deps.claudeStatus.readableKey(repoName, name),
+						)
+					: Promise.resolve({kind: 'none'} as const),
 				deps.programStatus && pane
 					? deps.programStatus.read(name, pane)
 					: Promise.resolve(null),
 			]);
 			const hookState = stored.kind === 'state' ? stored.state : null;
-			const hookInfo: ClaudeStatusInfo | null = hookState
-				? {status: hookState.status, tool: hookState.currentTool}
-				: null;
+			const hookInfo = hookState ? statusInfo(hookState) : null;
 			if (snapshot?.authoritative && pane) {
 				const merged = mergeProgramStatus(hookInfo, snapshot, pane);
 				entry.status = merged ? oscStatusLabel(merged) : 'unknown';
-				entry.currentTool = merged?.tool ?? hookState?.currentTool ?? null;
+				entry.currentTool = merged?.tool ?? null;
 				entry.lastUpdate = hookState
 					? Math.max(snapshot.updatedAt, hookState.lastUpdate)
 					: snapshot.updatedAt;
-				if (entry.lastUpdate)
-					entry.minutesAgo = roundTenth((now - entry.lastUpdate) / 60_000);
 				if (hookState) entry.sessionId = hookState.sessionId;
 			} else if (hookState) {
 				entry.status = hookState.status;
 				entry.currentTool = hookState.currentTool ?? null;
 				entry.lastUpdate = hookState.lastUpdate;
-				if (entry.lastUpdate)
-					entry.minutesAgo = roundTenth((now - entry.lastUpdate) / 60_000);
 				entry.sessionId = hookState.sessionId;
 			} else {
 				entry.status = stored.kind === 'unreadable' ? 'unknown' : 'no_status';
 			}
+
+			if (entry.lastUpdate)
+				entry.minutesAgo = roundTenth((now - entry.lastUpdate) / 60_000);
 
 			const meta = deps.issueMeta.read(name);
 			if (meta) {
@@ -289,7 +293,6 @@ export async function gatherSpaces(deps: SpacesDeps): Promise<SpacesReport> {
 				};
 			}
 
-			const state = deps.spaceState.read(name);
 			if (state) {
 				for (const field of [
 					'pipeline',
@@ -305,8 +308,7 @@ export async function gatherSpaces(deps: SpacesDeps): Promise<SpacesReport> {
 
 			const prUrl = state?.prLinks?.at(-1)?.url ?? null;
 
-			const {isAgy} = resolveSpaceAgentKind(state, deps.config);
-			if (!isAgy) {
+			if (kind === 'claude') {
 				const session = sessions.get(name);
 				if (session) {
 					entry.pid = session['pid'];
@@ -318,7 +320,7 @@ export async function gatherSpaces(deps: SpacesDeps): Promise<SpacesReport> {
 			const log = await findSpaceTranscript({
 				issueKey: name,
 				worktreePath: worktree,
-				spaceState: {read: () => state},
+				state,
 				agentSessions: deps.agentSessions,
 				config: deps.config,
 				home,
