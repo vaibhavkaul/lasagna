@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Agy has no flag for adding to its system prompt and doesn't show the model an
-# MCP server's instructions, but it reads .agents/rules/ from where it starts.
-# A rule in the worktree reaches only this space's agent, where a global rule
-# would reach every agy session on the machine. Other agents get the rules at
-# launch from agentRulesFlags() in source/companion-rules.ts, or from the server.
+# Agy takes no per-space system-prompt launch flag like claude or codex, and it
+# reads .agents/rules/ from the directory where it starts. Writing the rule in
+# the worktree isolates per-space identity and messaging rules to this space
+# rather than sharing one global rule across every agy session on the machine.
+# Other agents get their rules from agentRulesFlags() in source/companion-rules.ts
+# or from the MCP server instructions.
 #
 # Usage: install-agent-rules.sh <agent command> <worktree> [--space KEY] [--repo NAME] [--role sous-chef|worker]
 
@@ -48,7 +49,17 @@ is_agy_command() {
     return 1
 }
 
+[[ $# -ge 1 ]] || {
+    echo "Usage: install-agent-rules.sh <agent command> <worktree> [--space KEY] [--repo NAME] [--role sous-chef|worker]" >&2
+    exit 2
+}
+
 is_agy_command "$1" || exit 0
+
+[[ $# -ge 2 ]] || {
+    echo "install-agent-rules.sh: missing <worktree> argument" >&2
+    exit 2
+}
 
 worktree="$2"
 shift 2
@@ -58,20 +69,27 @@ repo=""
 role="worker"
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --space)
-            space="${2:-}"
-            shift 2
-            ;;
-        --repo)
-            repo="${2:-}"
-            shift 2
-            ;;
-        --role)
-            role="${2:-worker}"
+        --space|--repo|--role)
+            [[ $# -ge 2 ]] || {
+                echo "install-agent-rules.sh: $1 requires a value" >&2
+                exit 2
+            }
+            case "$1" in
+                --space) space="$2" ;;
+                --repo) repo="$2" ;;
+                --role)
+                    if [[ "$2" != "sous-chef" && "$2" != "worker" ]]; then
+                        echo "install-agent-rules.sh: invalid --role: $2" >&2
+                        exit 2
+                    fi
+                    role="$2"
+                    ;;
+            esac
             shift 2
             ;;
         *)
-            shift
+            echo "install-agent-rules.sh: unknown option: $1" >&2
+            exit 2
             ;;
     esac
 done

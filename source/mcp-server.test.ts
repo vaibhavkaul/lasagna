@@ -17,6 +17,7 @@ async function connect(
 		space?: string;
 		sender?: string;
 		sousChef?: boolean;
+		agy?: boolean;
 		runCli?: RunCli;
 	} = {},
 ) {
@@ -27,6 +28,7 @@ async function connect(
 		space: 'space' in options ? options.space : 'STA-1',
 		...(options.sender !== undefined ? {sender: options.sender} : {}),
 		...(options.sousChef !== undefined ? {sousChef: options.sousChef} : {}),
+		...(options.agy !== undefined ? {agy: options.agy} : {}),
 		repoName: 'repo',
 		runCli:
 			options.runCli ??
@@ -59,14 +61,27 @@ test('a tool call runs its CLI call and returns the output', async t => {
 	t.falsy(result.isError);
 });
 
-test('space_send prepends [from main] for main sous-chef and leaves text bare when caller is unknown', async t => {
-	const main = await connect({space: undefined, sousChef: true});
+test('space_send prepends [from main] only when sender is main, and leaves unknown callers bare even with sousChef configured', async t => {
+	const main = await connect({
+		space: undefined,
+		sender: 'main',
+		sousChef: true,
+	});
 	await main.client.callTool({
 		name: 'space_send',
 		arguments: {key: 'STA-2', text: 'status?'},
 	});
 	t.deepEqual(main.calls, [
 		{args: ['send', 'STA-2'], stdin: '[from main] status?'},
+	]);
+
+	const strayWithSousChef = await connect({space: undefined, sousChef: true});
+	await strayWithSousChef.client.callTool({
+		name: 'space_send',
+		arguments: {key: 'STA-2', text: 'status?'},
+	});
+	t.deepEqual(strayWithSousChef.calls, [
+		{args: ['send', 'STA-2'], stdin: 'status?'},
 	]);
 
 	const external = await connect({space: undefined, sousChef: false});
@@ -77,9 +92,16 @@ test('space_send prepends [from main] for main sous-chef and leaves text bare wh
 	t.deepEqual(external.calls, [{args: ['send', 'STA-2'], stdin: 'status?'}]);
 });
 
-test('space_send skips the [from ...] header for slash and skill commands', async t => {
+test('space_send skips the [from ...] header for slash, skill, shell, and note commands', async t => {
 	const {client, calls} = await connect();
-	for (const text of ['/clear', '/do-with-plan STA-1', ' /compact', '$skill']) {
+	for (const text of [
+		'/clear',
+		'/do-with-plan STA-1',
+		' /compact',
+		'$skill',
+		'!git status',
+		'# remember this',
+	]) {
 		await client.callTool({
 			name: 'space_send',
 			arguments: {key: 'STA-2', text},
@@ -88,8 +110,25 @@ test('space_send skips the [from ...] header for slash and skill commands', asyn
 
 	t.deepEqual(
 		calls.map(call => call.stdin),
-		['/clear', '/do-with-plan STA-1', ' /compact', '$skill'],
+		[
+			'/clear',
+			'/do-with-plan STA-1',
+			' /compact',
+			'$skill',
+			'!git status',
+			'# remember this',
+		],
 	);
+});
+
+test('agy workspace instructions teach space_send instead of SendMessage', t => {
+	const worker = workspaceInstructions('STA-1', 'repo', {
+		sousChef: true,
+		agy: true,
+	});
+	t.regex(worker, /space_send/);
+	t.regex(worker, /never use SendMessage/);
+	t.notRegex(worker, /SendMessage to `sous-chef`/);
 });
 
 test('a command with no output still answers', async t => {

@@ -181,4 +181,19 @@ test('wrapper commands still detect agy and write space identity and role-approp
 	t.regex(mainRule, /space_answer/);
 	t.regex(mainRule, /space_send/);
 	t.notRegex(mainRule, /use SendMessage|reach it with SendMessage/i);
+
+	const script = path.join(
+		import.meta.dirname,
+		'..',
+		'scripts',
+		'install-agent-rules.sh',
+	);
+	const missingValue = spawnSync(script, ['agy', workerTree, '--space'], {
+		encoding: 'utf8',
+	});
+	t.is(missingValue.status, 2);
+	const unknownFlag = spawnSync(script, ['agy', workerTree, '--bogus', '1'], {
+		encoding: 'utf8',
+	});
+	t.is(unknownFlag.status, 2);
 });

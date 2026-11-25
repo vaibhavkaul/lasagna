@@ -7,62 +7,14 @@ import {execFile} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {promisify} from 'node:util';
-import {quoteLaunchValue} from './config-launch-flags.ts';
+import {isAgyCommand, quoteLaunchValue} from './config-launch-flags.ts';
 import {scriptsDir} from './runtime.ts';
 
 const execFileAsync = promisify(execFile);
 const SCRIPTS_DIR = scriptsDir;
 const RULES_PLACEHOLDER = '{rules}';
-const ENV_ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
-const ENV_ARG_FLAGS = new Set([
-	'-u',
-	'--unset',
-	'-C',
-	'--chdir',
-	'-S',
-	'--split-string',
-]);
 
-/**
- * The underlying command token of an agent launch command after skipping leading
- * env assignments and `env` wrappers (e.g. `env FOO=1 /opt/agy` -> `/opt/agy`).
- */
-export function unwrappedCommandWord(command: string): string | null {
-	const tokens = command.trim().split(/\s+/).filter(Boolean);
-	let index = 0;
-	while (index < tokens.length) {
-		const token = tokens[index]!;
-		if (ENV_ASSIGNMENT.test(token)) {
-			index++;
-			continue;
-		}
-
-		if (path.posix.basename(token) === 'env') {
-			index++;
-			while (index < tokens.length) {
-				const arg = tokens[index]!;
-				if (ENV_ARG_FLAGS.has(arg)) {
-					index += 2;
-				} else if (arg.startsWith('-') || ENV_ASSIGNMENT.test(arg)) {
-					index++;
-				} else {
-					break;
-				}
-			}
-
-			continue;
-		}
-
-		return token;
-	}
-
-	return null;
-}
-
-export function isAgyCommand(command: string): boolean {
-	const word = unwrappedCommandWord(command);
-	return word !== null && path.posix.basename(word) === 'agy';
-}
+export {isAgyCommand, unwrappedCommandWord} from './config-launch-flags.ts';
 
 export function companionRules(): string {
 	return fs

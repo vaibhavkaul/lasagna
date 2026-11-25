@@ -35,6 +35,9 @@ export type RunCli = (call: CliCall, signal: AbortSignal) => Promise<CliResult>;
 const MESSAGING =
 	"To message the agent in another space, use SendMessage with the space key as `to` (ListAgents lists them): the agent sees who sent it and can reply. `space_send` types into that agent's TUI as if the user did. Codex, Pi and agy agents can't receive SendMessage, so `space_send` is the only way to reach them.";
 
+const AGY_MESSAGING =
+	'To message the agent in another space or the sous-chef in `main`, list spaces with `spaces_list` and send a prompt with `space_send` — never use SendMessage.';
+
 const MESSAGE_SOUS_CHEF = `The main checkout's agent coordinates the spaces; reach it with SendMessage to \`${SOUS_CHEF_NAME}\`.`;
 
 const SOUS_CHEF =
@@ -47,8 +50,11 @@ export function workspaceInstructions(
 		sousChef?: boolean;
 		/** The SOUS-CHEF.md to point the coordinator at, when there is one. */
 		sousChefFile?: string;
+		/** An agy session reads `.agents/rules/pappardelle.md`, so keep MCP instructions aligned. */
+		agy?: boolean;
 	} = {},
 ): string {
+	const messaging = options.agy ? AGY_MESSAGING : MESSAGING;
 	if (!space) {
 		return [
 			"This repo uses Pappardelle, which gives each issue a git worktree, an agent session and a companion pane. This session isn't in a space, so pass `space` to the companion tools. Use this server's tools rather than tmux. The pappardelle-agent skill covers updating and restarting Pappardelle.",
@@ -58,13 +64,13 @@ export function workspaceInstructions(
 						`The user's own instructions for the sous-chef are in ${options.sousChefFile}. Read it before anything else, and follow it where it differs from this routine.`,
 					]
 				: []),
-			MESSAGING,
+			messaging,
 		].join('\n\n');
 	}
 
 	return `You are in Pappardelle space ${space}${repoName ? ` (repo ${repoName})` : ''}. Pappardelle gives each issue a git worktree, an agent session and a companion pane next to it, and the user watches both. Use this server's tools rather than tmux; they target your own space unless you pass \`space\`. The pappardelle-agent skill covers updating and restarting Pappardelle.
 
-${options.sousChef ? `${MESSAGING} ${MESSAGE_SOUS_CHEF}` : MESSAGING}
+${options.sousChef && !options.agy ? `${messaging} ${MESSAGE_SOUS_CHEF}` : messaging}
 
 ${companionRules()}`;
 }
@@ -85,17 +91,19 @@ export function createMcpServer(options: {
 	repoName?: string;
 	sousChef?: boolean;
 	sousChefFile?: string;
+	agy?: boolean;
 	runCli: RunCli;
 }): McpServer {
-	const {awareness, space, repoName, sousChef, sousChefFile, runCli} = options;
-	const sender =
-		options.sender ?? space ?? (sousChef ? MAIN_WORKTREE_KEY : undefined);
+	const {awareness, space, repoName, sousChef, sousChefFile, agy, runCli} =
+		options;
+	const sender = options.sender ?? space;
 	let instructions: string | undefined;
 	switch (awareness.kind) {
 		case 'on': {
 			instructions = workspaceInstructions(space, repoName, {
 				sousChef,
 				sousChefFile,
+				agy,
 			});
 			break;
 		}
@@ -128,16 +136,7 @@ export function createMcpServer(options: {
 				},
 			},
 			async (input: Record<string, unknown>, extra) => {
-				const call = tool.toCli(input);
-				if (
-					tool.name === 'space_send' &&
-					sender &&
-					call.stdin &&
-					!/^\s*[/$]/.test(call.stdin)
-				) {
-					call.stdin = `[from ${sender}] ${call.stdin}`;
-				}
-
+				const call = tool.toCli(input, {sender});
 				const {code, stdout, stderr} = await runCli(call, extra.signal);
 				// Separate blocks, so a warning on stderr can't corrupt JSON on stdout.
 				const output = [stdout, stderr]
@@ -259,12 +258,8 @@ export async function runMcpServer(): Promise<void> {
 		log.error(invalidConfigInstructions(awareness.errors));
 	const sousChef =
 		awareness.kind === 'on' && sousChefLaunch(config) !== undefined;
-	const sender =
-		caller.kind === 'none'
-			? sousChef
-				? MAIN_WORKTREE_KEY
-				: undefined
-			: caller.key;
+	const sender = caller.kind === 'none' ? undefined : caller.key;
+	const agy = process.env['AGY_CLI_OSC7501'] === 'on';
 	const closed = new Promise(resolve => {
 		process.stdin.once('close', resolve);
 	});
@@ -275,6 +270,7 @@ export async function runMcpServer(): Promise<void> {
 		repoName,
 		sousChef,
 		sousChefFile: sousChef && !space ? findSousChefFile() : undefined,
+		agy,
 		runCli: spawnCli(space),
 	}).connect(new StdioServerTransport());
 	await closed;

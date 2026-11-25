@@ -764,3 +764,42 @@ test('sendKeysToSpaceAgent allows Escape on an agy question and refuses answer k
 	t.is(sendKeysToSpaceAgent('STA-1', ['Escape'], {runner}), 'sent');
 	t.deepEqual(calls, [['send-keys', '-t', '=agent-r-STA-1:', '--', 'Escape']]);
 });
+
+test('sendToSpaceAgent and sendKeysToSpaceAgent block on agy subagent manage view without mislabeling codexDialog', async t => {
+	const {runner: sendRunner, calls: sendCalls} = makeRunner({
+		sessions: ['agent-r-STA-1'],
+		screen: agentScreenFixture('agy-subagent-manage'),
+	});
+	t.is(
+		await sendToSpaceAgent('STA-1', 'hi', {runner: sendRunner, lockDir, sleep}),
+		'prompt',
+	);
+	t.is(
+		await sendToSpaceAgent('STA-1', 'hi', {
+			runner: sendRunner,
+			lockDir,
+			force: true,
+			sleep,
+		}),
+		'prompt',
+	);
+	t.deepEqual(sendCalls, []);
+
+	const keyCalls: string[][] = [];
+	const keyRunner = (args: readonly string[]) => {
+		if (args[0] === 'list-sessions')
+			return {status: 0, stdout: 'agent-r-STA-1\n'};
+		if (args[0] === 'capture-pane')
+			return {status: 0, stdout: agentScreenFixture('agy-subagent-manage')};
+		keyCalls.push([...args]);
+		return {status: 0, stdout: ''};
+	};
+
+	t.is(sendKeysToSpaceAgent('STA-1', ['Enter'], {runner: keyRunner}), 'prompt');
+	t.is(sendKeysToSpaceAgent('STA-1', ['1'], {runner: keyRunner}), 'prompt');
+	t.deepEqual(keyCalls, []);
+	t.is(sendKeysToSpaceAgent('STA-1', ['Escape'], {runner: keyRunner}), 'sent');
+	t.deepEqual(keyCalls, [
+		['send-keys', '-t', '=agent-r-STA-1:', '--', 'Escape'],
+	]);
+});

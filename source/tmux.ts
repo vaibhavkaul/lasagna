@@ -1871,10 +1871,12 @@ async function readAgentScreen({
 // A send reads the agent's screen every 50 ms. A Codex session that has taken
 // no prompt yet works through the clear keys at about 100 a second, 7.5-9 s
 // for a forced send (pappardelle-hrdr), so up to 12 s for a box to read empty
-// after them. A paste into an empty box showed within 100 ms; 3 s is margin.
-// Then up to 2 s after each Enter for the text to leave. With the tmux calls
-// between reads that keeps a send's hold on the send lock near 20 s, under the
-// 30 s after which another sender takes the lock over.
+// after them. For agy (AGY_CLEARED_POLLS, 2 s), if initial readline clear keys
+// fail in vim normal mode, submit enters insert mode once and falls back to
+// CLEARED_POLLS (12 s). A paste into an empty box showed within 100 ms; 3 s is
+// margin. Then up to 2 s after each Enter for the text to leave. Even with the
+// normal-mode fallback plus tmux calls between reads, a send's hold on the
+// send lock stays under the 30 s after which another sender takes the lock over.
 const SCREEN_POLL_MS = 50;
 const CLEARED_POLLS = 240;
 const AGY_CLEARED_POLLS = 40;
@@ -2014,7 +2016,12 @@ function sendBlocker(
 	screen: AgentScreen,
 	force: boolean,
 ): 'draft' | 'prompt' | null {
-	if (screen.permission || screen.question || screen.codexDialog)
+	if (
+		screen.permission ||
+		screen.question ||
+		screen.codexDialog ||
+		screen.agyDialog
+	)
 		return 'prompt';
 	return screen.composer && !force ? 'draft' : null;
 }
@@ -2092,7 +2099,8 @@ export function sendKeysToSpaceAgent(
 		const parsed = parseAgentScreen(screen.stdout ?? '', new Date());
 		if (parsed.codexDialog) return 'prompt';
 		const answers = keys.some(key => key !== 'Escape');
-		if (answers && (parsed.permission || parsed.question)) return 'prompt';
+		if (answers && (parsed.permission || parsed.question || parsed.agyDialog))
+			return 'prompt';
 	}
 
 	for (const key of keys) {

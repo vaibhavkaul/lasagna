@@ -4,7 +4,7 @@ import path from 'node:path';
 import {promisify} from 'node:util';
 import test from 'ava';
 import {agentScreenFixture} from '../test/helpers/agent-screens.ts';
-import {parseAgentScreen} from './agent-screen.ts';
+import {parseAgentScreen, parseAgyQuota} from './agent-screen.ts';
 import {
 	classifyAgent,
 	type AgentState,
@@ -628,11 +628,21 @@ contractTest(
 contractTest(
 	'after_limit with an agy ISO reset waits before reset and sends continue after',
 	async (t, state) => {
-		const reset = new Date('2026-11-24T09:10:11Z');
 		const before = new Date('2026-11-24T09:00:00Z');
 		const after = new Date('2026-11-24T09:12:00Z');
-		const limitReport = report('usage_limit', reset);
-		const h = harness(state, [limitReport, limitReport]);
+		const quotaOutput = [
+			'Gemini Models\tWeekly Limit Remaining\t98%\t2026-12-01T04:14:49Z',
+			'Gemini Models\tFive Hour Limit Remaining\t0%\t2026-11-24T09:10:11Z',
+		].join('\n');
+		const beforeReport: AgentStateReport = {
+			...report('usage_limit'),
+			usageLimit: parseAgyQuota(quotaOutput, before),
+		};
+		const afterReport: AgentStateReport = {
+			...report('usage_limit'),
+			usageLimit: parseAgyQuota(quotaOutput, after),
+		};
+		const h = harness(state, [beforeReport, afterReport]);
 		await h.store.save(afterLimit);
 		t.is(await h.fire(afterLimit, before), 'waiting');
 		t.is(h.timers[0]?.at, '2026-11-24T09:11:11.000Z');

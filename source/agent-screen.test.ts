@@ -577,6 +577,35 @@ test('agy idle screens read an empty composer and strip the grey placeholder fro
 	);
 	t.is(theme256Idle.composer, '');
 	t.false(theme256Idle.lines.some(line => line.includes('Auto mode:')));
+
+	const truecolorIdle = parseAgentScreen(
+		[
+			'────────────────────',
+			'\u001B[94m>\u001B[0m \u001B[38;2;120;124;128mAsk anything',
+			'────────────────────',
+		].join('\n'),
+		NOW,
+	);
+	t.is(truecolorIdle.composer, '');
+
+	// Active text, pure white/black, chromatic text, and Codex 256-grey must remain drafts.
+	for (const styled of [
+		'\u001B[38;5;32m>\u001B[39m \u001B[38;5;254mbright draft',
+		'\u001B[38;5;32m>\u001B[39m \u001B[38;2;255;255;255mwhite draft',
+		'\u001B[38;5;32m>\u001B[39m \u001B[38;2;60;180;200mcyan draft',
+	]) {
+		const draft = parseAgentScreen(
+			['────────────────────', styled, '────────────────────'].join('\n'),
+			NOW,
+		);
+		t.true(Boolean(draft.composer), `${styled}`);
+	}
+
+	const codexNonDim = parseAgentScreen(
+		'› \u001B[38;5;246mcodex typed text\n',
+		NOW,
+	);
+	t.is(codexNonDim.composer, 'codex typed text');
 });
 
 test('agy draft screens read drafts in insert, normal and factory modes, including wrapped lines', t => {
@@ -604,14 +633,19 @@ test('agy draft screens read drafts in insert, normal and factory modes, includi
 });
 
 test('agy transcript prompt echoes are not misread as a composer draft', t => {
-	const capture = [
-		'\u001B[90m────────────────────────────────────────────────────────────\u001B[39m',
+	for (const echo of [
 		'\u001B[1m\u001B[34m> Run something\u001B[0m',
-		'',
-		'● Bash(ls)',
-		'\u001B[90m────────────────────────────────────────────────────────────\u001B[39m',
-	].join('\n');
-	t.is(parseAgentScreen(capture, NOW).composer, null);
+		'\u001B[0m\u001B[1m\u001B[38;5;39m> Run something\u001B[0m',
+	]) {
+		const capture = [
+			'\u001B[90m────────────────────────────────────────────────────────────\u001B[39m',
+			echo,
+			'',
+			'● Bash(ls)',
+			'\u001B[90m────────────────────────────────────────────────────────────\u001B[39m',
+		].join('\n');
+		t.is(parseAgentScreen(capture, NOW).composer, null, `${echo}`);
+	}
 });
 
 test('agy question lists parse into QuestionDialog and never as codexDialog', t => {
@@ -622,6 +656,7 @@ test('agy question lists parse into QuestionDialog and never as codexDialog', t 
 	] as const) {
 		const parsed = screen(name);
 		t.is(parsed.codexDialog, null, `${name}`);
+		t.false(parsed.agyDialog, `${name}`);
 		t.is(parsed.permission, null, `${name}`);
 		t.is(parsed.composer, null, `${name}`);
 		t.deepEqual(
@@ -641,17 +676,106 @@ test('agy question lists parse into QuestionDialog and never as codexDialog', t 
 			`${name}`,
 		);
 	}
+
+	const writeInHovered = parseAgentScreen(
+		[
+			'Question 1/1: Which color do you choose?',
+			'  1. red',
+			'  2. green',
+			'  3. blue',
+			'> 4. Write-in...',
+			'  ↑/↓ Navigate · enter Write-in · esc Skip',
+			'esc to cancel    auto · Gemini 4 Hydrogen · medium',
+		].join('\n'),
+		NOW,
+	);
+	t.is(writeInHovered.question?.cursor, 4);
+	t.deepEqual(writeInHovered.question?.textOption, {
+		number: 4,
+		text: '',
+		open: false,
+	});
+
+	const writeInEmpty = parseAgentScreen(
+		[
+			'Question 1/1: Which color do you choose?',
+			'  1. red',
+			'  2. green',
+			'  3. blue',
+			'> 4. Write-in...',
+			'',
+			'  Your answer:',
+			'',
+			'  enter Submit · esc Back',
+			'esc to cancel    auto · Gemini 4 Hydrogen · medium',
+		].join('\n'),
+		NOW,
+	);
+	t.deepEqual(writeInEmpty.question?.textOption, {
+		number: 4,
+		text: '',
+		open: true,
+		closeKey: 'Escape',
+	});
+
+	const writeInTyped = parseAgentScreen(
+		[
+			'Question 1/1: Which color do you choose?',
+			'  1. red',
+			'  2. green',
+			'  3. blue',
+			'> 4. Write-in...',
+			'',
+			'  Your answer:',
+			'  purple',
+			'',
+			'  enter Submit · esc Back',
+			'esc to cancel    auto · Gemini 4 Hydrogen · medium',
+		].join('\n'),
+		NOW,
+	);
+	t.deepEqual(writeInTyped.question?.textOption, {
+		number: 4,
+		text: 'purple',
+		open: true,
+		closeKey: 'Escape',
+	});
+
+	const scrollbackQuestion = parseAgentScreen(
+		[
+			agentScreenFixture('agy-question'),
+			'● Completed earlier question',
+			'────────────────────',
+			'>',
+			'────────────────────',
+		].join('\n'),
+		NOW,
+	);
+	t.is(scrollbackQuestion.question, null);
 });
 
-test('agy subagent manage view is never classified as codexDialog or question', t => {
+test('agy subagent manage view is flagged as agyDialog and never as codexDialog or question', t => {
 	const manage = screen('agy-subagent-manage');
+	t.true(manage.agyDialog);
 	t.is(manage.codexDialog, null);
 	t.is(manage.question, null);
 	t.is(manage.permission, null);
 	t.is(manage.composer, null);
+
+	const scrollbackManage = parseAgentScreen(
+		[
+			agentScreenFixture('agy-subagent-manage'),
+			'● Resumed',
+			'────────────────────',
+			'>',
+			'────────────────────',
+		].join('\n'),
+		NOW,
+	);
+	t.false(scrollbackManage.agyDialog);
 });
 
-test('parseResetTime parses ISO timestamps and parseAgyQuota parses /quota output', t => {
+test('parseResetTime parses ISO timestamps and parseAgyQuota filters by model family', t => {
 	const iso = '2026-11-24T09:10:11Z';
 	t.deepEqual(parseResetTime(iso, NOW), new Date(iso));
 	t.is(parseResetTime('2026-99-99T00:00:00Z', NOW), null);
@@ -661,16 +785,50 @@ test('parseResetTime parses ISO timestamps and parseAgyQuota parses /quota outpu
 		'Gemini Models\tFive Hour Limit Remaining\t0%\t2026-11-24T09:10:11Z',
 		'Claude and GPT models\tWeekly Limit Remaining\t100%\t2026-12-01T04:29:31Z',
 	].join('\n');
-	t.deepEqual(parseAgyQuota(depleted, new Date('2026-11-24T08:00:00Z')), {
-		resetText: '2026-11-24T09:10:11Z',
-		resetAt: new Date('2026-11-24T09:10:11Z'),
-		passed: false,
-	});
+	t.deepEqual(
+		parseAgyQuota(
+			depleted,
+			new Date('2026-11-24T08:00:00Z'),
+			'gemini-4-hydrogen-medium',
+		),
+		{
+			resetText: '2026-11-24T09:10:11Z',
+			resetAt: new Date('2026-11-24T09:10:11Z'),
+			passed: false,
+		},
+	);
 	t.deepEqual(parseAgyQuota(depleted, new Date('2026-11-24T09:15:00Z')), {
 		resetText: '2026-11-24T09:10:11Z',
 		resetAt: new Date('2026-11-24T09:10:11Z'),
 		passed: true,
 	});
+
+	// Depleted Claude/GPT quota must not falsely block a Gemini space (and vice versa).
+	const claudeOnlyDepleted = [
+		'Gemini Models\tFive Hour Limit Remaining\t56%\t2026-11-24T11:00:00Z',
+		'Claude and GPT models\tFive Hour Limit Remaining\t0%\t2026-11-24T09:10:11Z',
+	].join('\n');
+	t.is(
+		parseAgyQuota(
+			claudeOnlyDepleted,
+			new Date('2026-11-24T08:00:00Z'),
+			'gemini-4-hydrogen-medium',
+		),
+		null,
+	);
+	t.is(
+		parseAgyQuota(
+			claudeOnlyDepleted,
+			new Date('2026-11-24T08:00:00Z'),
+			'claude-sonnet-4-6',
+		)?.resetText,
+		'2026-11-24T09:10:11Z',
+	);
+	t.is(
+		parseAgyQuota(claudeOnlyDepleted, new Date('2026-11-24T08:00:00Z'), 'gpt-5')
+			?.resetText,
+		'2026-11-24T09:10:11Z',
+	);
 
 	const bothDepleted = [
 		'Gemini Models\tWeekly Limit Remaining\t0%\t2026-12-01T04:14:49Z',
@@ -696,7 +854,7 @@ test('parseResetTime parses ISO timestamps and parseAgyQuota parses /quota outpu
 	);
 });
 
-test('agy Out of credits footer is not treated as a plan usage limit, while error notices are', t => {
+test('agy Out of credits footer and non-agy/stale notices are ignored, while live agy quota notices match', t => {
 	const footer = parseAgentScreen(
 		[
 			'────────────────────',
@@ -709,15 +867,41 @@ test('agy Out of credits footer is not treated as a plan usage limit, while erro
 	t.is(footer.usageLimit, null);
 
 	const outOfCreditsNotice = parseAgentScreen(
-		['✕ Out of credits', '────────────────────', '\u001B[94m>\u001B[39m'].join(
-			'\n',
-		),
+		[
+			'✕ Out of credits',
+			'────────────────────',
+			'\u001B[94m>\u001B[39m',
+			'────────────────────',
+			'auto · Gemini 4 Hydrogen · medium',
+		].join('\n'),
 		NOW,
 	);
 	t.is(outOfCreditsNotice.usageLimit, null);
 
+	// Non-agy screens (Claude shell mode, Codex bullet) never trigger AGY_LIMIT_NOTICE.
+	const claudeShell = parseAgentScreen(
+		[
+			'────────────────────',
+			'! grep "rate limit"',
+			'────────────────────',
+		].join('\n'),
+		NOW,
+	);
+	t.is(claudeShell.usageLimit, null);
+	const codexOutput = parseAgentScreen(
+		['■ rate limit docs printed here', '› '].join('\n'),
+		NOW,
+	);
+	t.is(codexOutput.usageLimit, null);
+
 	const quotaNotice = parseAgentScreen(
-		['✕ Quota exhausted for Gemini Models'].join('\n'),
+		[
+			'✕ Quota exhausted for Gemini Models',
+			'────────────────────',
+			'\u001B[94m>\u001B[39m',
+			'────────────────────',
+			'auto · Gemini 4 Hydrogen · medium',
+		].join('\n'),
 		NOW,
 	);
 	t.deepEqual(quotaNotice.usageLimit, {
@@ -725,4 +909,24 @@ test('agy Out of credits footer is not treated as a plan usage limit, while erro
 		resetAt: null,
 		passed: false,
 	});
+
+	for (const clearance of [
+		['● Working again'],
+		['• Resumed'],
+		['\u001B[1m\u001B[34m> continue\u001B[0m'],
+		['────────────────────', '\u001B[1m\u001B[34m> continue\u001B[0m'],
+	]) {
+		const stale = parseAgentScreen(
+			[
+				'✕ Quota exhausted for Gemini Models',
+				...clearance,
+				'────────────────────',
+				'\u001B[94m>\u001B[39m',
+				'────────────────────',
+				'auto · Gemini 4 Hydrogen · medium',
+			].join('\n'),
+			NOW,
+		);
+		t.is(stale.usageLimit, null, `${clearance.join(' | ')}`);
+	}
 });

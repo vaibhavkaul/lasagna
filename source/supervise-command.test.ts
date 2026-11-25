@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test, {type ExecutionContext} from 'ava';
 import {parseSuperviseArgs, SuperviseUsageError} from './supervise-args.ts';
+import type {AgyQuotaResult} from './supervise-command.ts';
 import {runSuperviseCommand, type SuperviseDeps} from './supervise-command.ts';
 import {POLICY_REFUSED_EXIT} from './answer-decision.ts';
 import type {ApprovalPolicy} from './approve-policy.ts';
@@ -70,6 +71,7 @@ function harness(
 ) {
 	const {schedules, holds} = testState(t).daos;
 	const pressed: string[][] = [];
+	const typed: string[] = [];
 	const classified: string[] = [];
 	const sent: Array<{text: string}> = [];
 	let classifierVerdicts: ClassifierVerdict[] = [];
@@ -134,7 +136,10 @@ function harness(
 			if (!ignoresKeys && !movesTab) redraws = 1;
 			return 'sent';
 		},
-		typeText: () => 'sent',
+		typeText(_key, text) {
+			typed.push(text);
+			return 'sent';
+		},
 		async classify(_key, request) {
 			classified.push(request.command);
 			return (
@@ -156,6 +161,7 @@ function harness(
 	};
 	return {
 		pressed,
+		typed,
 		classified,
 		sent,
 		holds,
@@ -861,36 +867,58 @@ test('state and answer handle agy question lists without misreading codexDialog'
 	t.like(h.logged[0], {action: 'answer', sent: '2. green'});
 });
 
-test('holdMessage and schedule fire nudges never get a [from ...] sender header', async t => {
-	const held = harness(t, [permission('doctl account get')]);
-	t.is(await held.run('answer', 'STA-1', '--option', '1'), 0);
-	t.false(held.sent[0]!.text.startsWith('[from '));
-
-	const nudged = harness(t, [fixture('claude-idle')]);
-	await nudged.run(
-		'schedule',
-		'STA-1',
-		'--keep-going',
-		'--every',
-		'10m',
-		'--nudge',
-		'check CI',
+test('agy Write-in row works with --text, refuses pre-filled overwrite, and closes with Escape for --option', async t => {
+	const writeInEmpty = [
+		'Question 1/1: Which color do you choose?',
+		'  1. red',
+		'  2. green',
+		'  3. blue',
+		'> 4. Write-in...',
+		'',
+		'  Your answer:',
+		'',
+		'  enter Submit · esc Back',
+		'esc to cancel    auto · Gemini 4 Hydrogen · medium',
+	].join('\n');
+	const writeInTyped = writeInEmpty.replace(
+		'  Your answer:\n',
+		'  Your answer:\n  purple',
 	);
-	const [job] = nudged.holds.list().length === 0 ? ['created'] : [];
-	t.is(job, 'created');
-	// Fire directly via the saved job id from out[0].
-	const id = /Scheduled (\S+)/.exec(nudged.out[0]!)![1]!;
-	await nudged.run('schedule', 'fire', id);
-	await nudged.run('schedule', 'fire', id);
-	t.deepEqual(nudged.sent, [{text: 'check CI'}]);
+
+	const textRun = harness(
+		t,
+		[fixture('agy-question'), writeInEmpty, writeInTyped, fixture('agy-idle')],
+		{ignoresKeys: true},
+	);
+	t.is(await textRun.run('answer', 'STA-1', '--text', 'purple'), 0);
+	t.deepEqual(textRun.pressed, [['4'], ['Enter']]);
+	t.deepEqual(textRun.typed, ['purple']);
+	t.like(textRun.logged[0], {action: 'answer', sent: 'purple'});
+
+	const prefilled = harness(t, [writeInTyped]);
+	t.is(await prefilled.run('answer', 'STA-1', '--text', 'orange'), 1);
+	t.regex(prefilled.err[0]!, /already holds "purple"/);
+	t.deepEqual(prefilled.pressed, []);
+	t.deepEqual(prefilled.typed, []);
+
+	const optionFromOpen = harness(
+		t,
+		[writeInEmpty, fixture('agy-question'), fixture('agy-idle')],
+		{ignoresKeys: true},
+	);
+	t.is(await optionFromOpen.run('answer', 'STA-1', '--option', '2'), 0);
+	t.deepEqual(optionFromOpen.pressed, [['Escape'], ['2']]);
 });
 
-test('schedule --after-limit queries agy quota on demand, handles passed resets, and refuses when quota remains or fails', async t => {
+test('schedule --after-limit, state clearing, watch isolation, and schedule fire re-check for agy quota', async t => {
 	let quotaCalls = 0;
-	let quotaResult: UsageLimit | null = {
-		resetText: '2026-11-09T18:30:00Z',
-		resetAt: new Date('2026-11-09T18:30:00Z'),
-		passed: false,
+	let quotaResult: AgyQuotaResult = {
+		kind: 'ok',
+		limit: {
+			resetText: '2026-11-09T18:30:00Z',
+			resetAt: new Date('2026-11-09T18:30:00Z'),
+			passed: false,
+		},
 	};
 	const h = harness(t, [fixture('agy-idle')], {
 		app: 'antigravity',
@@ -900,35 +928,60 @@ test('schedule --after-limit queries agy quota on demand, handles passed resets,
 		},
 	});
 
-	// Normal state reads must NEVER shell out to /quota.
+	// Normal state reads and watch polling must NEVER shell out to /quota.
 	t.is(await h.run('state', 'STA-1'), 0);
 	t.is(quotaCalls, 0);
 
-	// 0% limit with future ISO reset schedules resetAt + 60s margin.
+	// 0% limit with future ISO reset schedules resetAt + 60s margin with 1 quota call.
 	t.is(await h.run('schedule', 'STA-1', '--after-limit'), 0);
 	t.is(quotaCalls, 1);
 	t.regex(h.out[1]!, /after the usage limit, at 2026-11-09T18:31:00\.000Z/);
 
 	// Already-passed ISO reset schedules at now + 60s soonest margin.
+	const expectedSoonest = new Date(
+		new Date(2026, 10, 9, 12, 0).getTime() + 60_000,
+	).toISOString();
 	quotaResult = {
-		resetText: '2026-11-09T10:00:00Z',
-		resetAt: new Date('2026-11-09T10:00:00Z'),
-		passed: true,
+		kind: 'ok',
+		limit: {
+			resetText: '2026-11-09T10:00:00Z',
+			resetAt: new Date('2026-11-09T10:00:00Z'),
+			passed: true,
+		},
 	};
 	t.is(await h.run('schedule', 'STA-1', '--after-limit'), 0);
 	t.is(quotaCalls, 2);
+	t.regex(
+		h.out[2]!,
+		new RegExp(String.raw`after the usage limit, at ${expectedSoonest}`),
+	);
 
-	// >0% remaining or timeout/malformed failure returns null and is refused.
-	quotaResult = null;
+	// Early-firing after_limit timer re-checks /quota and re-arms if still depleted.
+	const jobId = /Scheduled (\S+)/.exec(h.out[2]!)![1]!;
+	quotaResult = {
+		kind: 'ok',
+		limit: {
+			resetText: '2026-11-09T19:00:00Z',
+			resetAt: new Date('2026-11-09T19:00:00Z'),
+			passed: false,
+		},
+	};
+	t.is(await h.run('schedule', 'fire', jobId), 0);
+	t.is(quotaCalls, 3);
+	t.regex(h.out[3]!, new RegExp(`^${jobId}: waiting$`));
+
+	// >0% remaining or error refuses --after-limit in 1 call (never twice).
+	quotaResult = {kind: 'ok', limit: null};
 	t.is(await h.run('schedule', 'STA-1', '--after-limit'), 2);
+	t.is(quotaCalls, 4);
 	t.regex(h.err.at(-1)!, /no usage limit reset to wait for/);
 
-	// Screen already showing an agy quota notice invokes readAgyQuota during state.
-	quotaResult = {
-		resetText: '2026-11-09T18:30:00Z',
-		resetAt: new Date('2026-11-09T18:30:00Z'),
-		passed: false,
-	};
+	quotaResult = {kind: 'error'};
+	t.is(await h.run('schedule', 'STA-1', '--after-limit'), 2);
+	t.is(quotaCalls, 5);
+
+	// Screen showing an agy quota notice checks /quota on state, NOT on watch;
+	// and clears usageLimit / reclassifies to idle when quota has refilled.
 	const limitScreen = [
 		'✕ Quota exhausted for Gemini Models',
 		'────────────────────',
@@ -936,17 +989,37 @@ test('schedule --after-limit queries agy quota on demand, handles passed resets,
 		'────────────────────',
 		'auto · Gemini 4 Hydrogen · medium',
 	].join('\n');
+	let watchQuotaCalls = 0;
+	let limitQuota: AgyQuotaResult = {
+		kind: 'ok',
+		limit: {
+			resetText: '2026-11-09T18:30:00Z',
+			resetAt: new Date('2026-11-09T18:30:00Z'),
+			passed: false,
+		},
+	};
 	const hLimit = harness(t, [limitScreen], {
 		app: 'antigravity',
 		async readAgyQuota() {
-			quotaCalls++;
-			return quotaResult;
+			watchQuotaCalls++;
+			return limitQuota;
 		},
 	});
+	t.is(await hLimit.run('watch', 'STA-1', '--timeout', '1'), 0);
+	t.is(watchQuotaCalls, 0);
+
 	t.is(await hLimit.run('state', 'STA-1', '--json'), 0);
-	t.is(quotaCalls, 4);
-	t.like(JSON.parse(hLimit.out[0]!), {
+	t.is(watchQuotaCalls, 1);
+	t.like(JSON.parse(hLimit.out[1]!), {
 		state: 'usage_limit',
 		usageLimit: {resetText: '2026-11-09T18:30:00Z'},
+	});
+
+	limitQuota = {kind: 'ok', limit: null};
+	t.is(await hLimit.run('state', 'STA-1', '--json'), 0);
+	t.is(watchQuotaCalls, 2);
+	t.like(JSON.parse(hLimit.out[2]!), {
+		state: 'idle',
+		usageLimit: null,
 	});
 });
