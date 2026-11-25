@@ -11,14 +11,14 @@ Contributions are welcome! Whether it's bug fixes, new features, documentation i
 
 ## What happens when your PR is merged
 
-When your PR is merged into `main`, a sync-back workflow automatically applies your changes to the upstream monorepo where Pappardelle is developed. Your **git author attribution is preserved** — your name and email will appear on the commit in the monorepo, not ours.
+Lasagna is a fork of [Pappardelle](https://github.com/chardigio/pappardelle). A PR merged here lands only in this repository; nothing is synced to Pappardelle or its monorepo. Changes that belong upstream should go to Pappardelle directly.
 
 ## Development setup
 
 ```bash
 # Clone the repo
-git clone https://github.com/chardigio/pappardelle.git
-cd pappardelle
+git clone https://github.com/vaibhavkaul/lasagna.git
+cd lasagna
 
 # Install dependencies
 bun install --frozen-lockfile

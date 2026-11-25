@@ -68,7 +68,7 @@ assert_sessions() {
 
     local out agent_line companion_line actual_agent actual_companion
     out=$(osascript "$HARNESS" \
-        QA-1 /tmp/wt "$expected_agent" '' testrepo '' sock 'gitui' true /bin/zsh claude '' ' --continue' claude /tmp/state.json true '' "$expected_companion")
+        QA-1 /tmp/wt "$expected_agent" '' testrepo '' sock 'gitui' true /bin/zsh claude '' ' --continue' '' "$expected_companion")
     agent_line=$(sed -n '1p' <<< "$out")
     companion_line=$(sed -n '2p' <<< "$out")
     actual_agent=$(session_from '-s' "$agent_line")

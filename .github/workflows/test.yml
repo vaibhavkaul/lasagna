@@ -8,27 +8,27 @@ on:
 
 jobs:
   bun-tests:
-    name: Bun Tests (${{ matrix.os }}, sqliteState ${{ matrix.sqlite_state }})
+    name: Bun Tests (sqliteState ${{ matrix.sqlite_state }})
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
         # experimental.sqliteState off and on: the files alone, then the
         # database with the files kept beside it and status through the
         # status daemon.
         sqlite_state: ['0', '1']
-    runs-on: ${{ matrix.os }}
+    # Linux only: macOS hosted runners are not available to this repo yet.
+    runs-on: ubuntu-latest
     env:
       PAPPARDELLE_SQLITE_STATE: ${{ matrix.sqlite_state }}
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: '1.4.4'
+          bun-version: '1.4.5'
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -50,23 +50,12 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
-      - name: Install terminal test tools (Linux)
-        if: runner.os == 'Linux'
+      - name: Install terminal test tools
         run: |
           sudo apt-get update && sudo apt-get install -y tmux shellcheck
           sudo curl -fsSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.54.3/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
 
-      - name: Install terminal test tools (macOS)
-        if: runner.os == 'macOS'
-        run: brew install tmux shellcheck yq
-
-      # Formatting and lint are checked here, not just in the monorepo, because
-      # sync-back pushes a merged PR's diff *directly to monorepo master* — no
-      # PR, no gate. When this workflow only ran the unit tests, a chardigio-side PR could
-      # (and did, in #5) land a prettier violation straight onto a red master
-      # with every check green here. These steps have to mirror the monorepo's
-      # .github/workflows/pappardelle.yml or that hole reopens.
       - name: Check formatting (prettier)
         run: bun --bun prettier --check .
 
@@ -113,12 +102,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: '1.4.4'
+          bun-version: '1.4.5'
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -153,11 +142,14 @@ jobs:
 
   shell-tests:
     name: Shell Tests
+    # The AppleScript launcher tests skip here: they need macOS, and Ghostty
+    # installed for the Ghostty half. Run them locally before changing a
+    # launcher.
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install tmux and yq
         run: |
@@ -203,8 +195,8 @@ jobs:
       - name: Terminal launcher resolution
         run: ./scripts/test-terminal-launcher.sh
 
-      # Only the portable quoting and viewer rebuild tests run here; the parity
-      # half needs osascript.
+      # Only the portable quoting and viewer rebuild tests run here; the
+      # iTerm/Ghostty parity half needs osascript.
       - name: Workspace launcher quoting and viewer rebuild
         run: ./scripts/test-workspace-launchers.sh
 
@@ -220,19 +212,19 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # The hook tests ask the CLI to create the state database they write to.
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: '1.4.4'
+          bun-version: '1.4.5'
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.13'
 
