@@ -11,11 +11,6 @@ export const LAUNCH_FIELDS = ['model', 'effort'] as const;
 
 export type LaunchField = (typeof LAUNCH_FIELDS)[number];
 
-export const LAUNCH_PLACEHOLDERS: Record<LaunchField, string> = {
-	model: '{model}',
-	effort: '{effort}',
-};
-
 /**
  * Launch fields supported on agent profiles, including agent-profile-only
  * fields such as `mode` that must stay out of `LAUNCH_FIELDS` (which feeds
@@ -30,7 +25,8 @@ export const AGENT_PROFILE_LAUNCH_PLACEHOLDERS: Record<
 	AgentProfileLaunchField,
 	string
 > = {
-	...LAUNCH_PLACEHOLDERS,
+	model: '{model}',
+	effort: '{effort}',
 	mode: '{mode}',
 };
 
@@ -199,6 +195,28 @@ export function isAgyAgentProfile(
 	return (
 		!isClaudeAgentProfile(definition) &&
 		commandBasename(definition.command) === 'agy'
+	);
+}
+
+const SOUS_CHEF_PROMPT_AGENTS = new Set(['codex', 'agy']);
+
+/**
+ * Whether an agent profile accepts the `<skill_prefix>sous-chef` launch
+ * prompt. Unregistered CLIs without `prompt_args` or `skill_prefix` (such as
+ * Pi, opencode, or wrapped binaries) would otherwise receive a bare
+ * `'/sous-chef'` argument.
+ */
+export function supportsSousChefPrompt(
+	definition: Pick<
+		AgentProfileConfig,
+		'command' | 'is_claude' | 'prompt_args' | 'skill_prefix'
+	>,
+): boolean {
+	return (
+		isClaudeAgentProfile(definition) ||
+		SOUS_CHEF_PROMPT_AGENTS.has(commandBasename(definition.command)) ||
+		Boolean(definition.prompt_args) ||
+		Boolean(definition.skill_prefix)
 	);
 }
 

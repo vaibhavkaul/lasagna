@@ -2528,7 +2528,11 @@ test('validateConfig accepts agy mode values and empty string to clear', t => {
 });
 
 test('validateConfig rejects invalid, non-string, or multi-line agy mode', t => {
-	for (const mode of ['yolo', 123, 'plan\nauto']) {
+	for (const [mode, expectedError] of [
+		['yolo', 'must be "accept-edits", "auto", or "plan"'],
+		[123, 'must be a string'],
+		['plan\nauto', 'must be a single line'],
+	] as const) {
 		const error = t.throws(
 			() =>
 				validateConfig(
@@ -2538,7 +2542,13 @@ test('validateConfig rejects invalid, non-string, or multi-line agy mode', t => 
 				),
 			{instanceOf: ConfigValidationError},
 		);
-		t.truthy(error?.message.includes('agent_profiles.agy.mode:'));
+		t.true(
+			error!.errors.some(
+				e =>
+					e.includes('agent_profiles.agy.mode:') && e.includes(expectedError),
+			),
+			`expected "${expectedError}" in ${JSON.stringify(error!.errors)}`,
+		);
 	}
 });
 

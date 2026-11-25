@@ -615,6 +615,9 @@ agent_profiles:
   agy-cleared:
     command: agy
     mode: plan
+  claude-with-template:
+    command: claude
+    mode_args: '--permission-mode {mode}'
 profiles:
   unset:
     display_name: Unset
@@ -624,7 +627,10 @@ profiles:
     agent_profile: agy-plan
   cleared:
     display_name: Cleared
-    agent_profile: agy-cleared" "version: 1
+    agent_profile: agy-cleared
+  claude-template:
+    display_name: ClaudeTemplate
+    agent_profile: claude-with-template" "version: 1
 agent_profiles:
   agy-cleared:
     mode: \"\""
@@ -633,6 +639,8 @@ assert_eq "unset mode reports empty mode" "" "$(resolve --profile unset | field 
 assert_eq "explicit mode emits --mode plan" "--model gemini-4-hydrogen --effort high --mode plan" "$(resolve --profile plan | field agent_launch_flags)"
 assert_eq "explicit mode reports plan" "plan" "$(resolve --profile plan | field mode)"
 assert_eq "empty-string mode clears inherited mode" "" "$(resolve --profile cleared | field agent_launch_flags)"
+assert_eq "claude mode_args never falls back to claude.mode" "" "$(resolve --profile claude-template | field agent_launch_flags)"
+assert_eq "claude mode stays empty despite claude.mode" "" "$(resolve --profile claude-template | field mode)"
 cleanup; unset TMPDIR_ROOT
 
 # ==========================================================================

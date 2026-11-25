@@ -556,4 +556,65 @@ test('sousChefLaunch uses the resolved agent skillPrefix and wires through agy a
 	);
 
 	t.is(sousChefLaunch(makeConfig({sous_chef: false}), agyProfile), undefined);
+
+	const claudeConfig = makeConfig({sous_chef: true});
+	const claudeProfile = getAgentProfile(claudeConfig);
+	const claudeLaunch = sousChefLaunch(claudeConfig, claudeProfile);
+	t.deepEqual(claudeLaunch, {name: 'sous-chef', prompt: '/sous-chef'});
+	t.is(
+		buildAgentResumeCommand('main', false, claudeProfile, 'sess-1', {
+			rules: true,
+			...claudeLaunch,
+		}),
+		"claude --name sous-chef --resume sess-1 '/sous-chef' || { printf '\\033[A\\033[2K'; false; } || claude --name sous-chef '/sous-chef'",
+	);
+
+	const customPromptConfig = makeConfig({
+		sous_chef: true,
+		agent_profiles: {
+			custom: {command: 'custom-cli', prompt_args: '--prompt {prompt}'},
+		},
+		agent_profile: 'custom',
+	});
+	const customProfile = getAgentProfile(customPromptConfig);
+	const customLaunch = sousChefLaunch(customPromptConfig, customProfile);
+	t.deepEqual(customLaunch, {name: 'sous-chef', prompt: '/sous-chef'});
+	t.is(
+		buildAgentResumeCommand('main', false, customProfile, undefined, {
+			rules: false,
+			...customLaunch,
+		}),
+		"custom-cli --prompt '/sous-chef'",
+	);
+
+	const piConfig = makeConfig({
+		sous_chef: true,
+		agent_profiles: {pi: {command: 'pi'}},
+		agent_profile: 'pi',
+	});
+	const piProfile = getAgentProfile(piConfig);
+	const piLaunch = sousChefLaunch(piConfig, piProfile);
+	t.deepEqual(piLaunch, {name: 'sous-chef'});
+	t.false(
+		buildAgentResumeCommand('main', false, piProfile, undefined, {
+			rules: true,
+			...piLaunch,
+		}).includes('sous-chef'),
+	);
+
+	const bareCustomConfig = makeConfig({
+		sous_chef: true,
+		agent_profiles: {bare: {command: 'env FOO=1 agy'}},
+		agent_profile: 'bare',
+	});
+	const bareProfile = getAgentProfile(bareCustomConfig);
+	const bareLaunch = sousChefLaunch(bareCustomConfig, bareProfile);
+	t.deepEqual(bareLaunch, {name: 'sous-chef'});
+	t.is(
+		buildAgentResumeCommand('main', false, bareProfile, undefined, {
+			rules: false,
+			...bareLaunch,
+		}),
+		'env FOO=1 agy',
+	);
 });

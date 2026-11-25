@@ -856,14 +856,14 @@ export async function installSousChefKey(
  * Claude agent profiles (the default when `agentProfile` is omitted) get the
  * claude-specific injections: `--name <issueKey>` on both branches so the
  * session shows up under the issue key in `/resume` and the terminal title,
- * plus the skip-permissions flag. Model/effort flags come from the agent
+ * plus the skip-permissions flag. Model/effort/mode flags come from the agent
  * profile's templates, for any CLI that has them. Without `resumeArgs` there
  * is no resume attempt at all (a made-up resume flag would error confusingly
  * on unknown CLIs).
  *
- * The model/effort flags sit before `--name` and the resume args, so a
+ * The model/effort/mode flags sit before `--name` and the resume args, so a
  * subcommand like codex's `resume` still comes after every flag. Flag order
- * (`--dangerously-skip-permissions`, args, model, effort, `--name`) and the
+ * (`--dangerously-skip-permissions`, args, model, effort, mode, `--name`) and the
  * agent composition rule are mirrored by start-agent-session.sh and the
  * open-*-agent.sh launchers; keep them in sync so a session created by the TUI
  * and one created by idow are indistinguishable.

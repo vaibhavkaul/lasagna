@@ -582,7 +582,12 @@ const AGENT_PROFILE_STRING_FIELDS = [
 	'skill_prefix',
 ] as const;
 
-const AGY_MODES = new Set(['accept-edits', 'auto', 'plan']);
+const AGY_MODES = ['accept-edits', 'auto', 'plan'] as const;
+const AGY_MODE_SET = new Set<string>(AGY_MODES);
+const AGY_MODES_LABEL = [
+	...AGY_MODES.slice(0, -1).map(m => `"${m}"`),
+	`or "${AGY_MODES.at(-1)}"`,
+].join(', ');
 
 // agy 1.5.16 warns and silently switches to Gemini 4 Neon (High) when an
 // effort-suffixed model id is combined with an explicit --effort flag.
@@ -654,24 +659,7 @@ function validateAgentLaunchTemplates(
 			is_claude: agentProfile.is_claude,
 		})
 	) {
-		if (typeof agentProfile.mode === 'string') {
-			const mode = agentProfile.mode.trimEnd();
-			if (mode !== '' && !AGY_MODES.has(mode)) {
-				errors.push(
-					`agent_profiles.${name}.mode: must be "accept-edits", "auto", or "plan"`,
-				);
-			}
-		}
-		if (
-			typeof agentProfile.model === 'string' &&
-			typeof agentProfile.effort === 'string' &&
-			agentProfile.effort.trimEnd() !== '' &&
-			AGY_EFFORT_SUFFIX_PATTERN.test(agentProfile.model.trimEnd())
-		) {
-			errors.push(
-				`agent_profiles.${name}: model "${agentProfile.model.trimEnd()}" already includes an effort suffix; remove effort or use the base model name`,
-			);
-		}
+		errors.push(...validateAgyAgentProfile(name, agentProfile));
 	}
 	const promptArgs = agentProfile.prompt_args;
 	if (
@@ -680,6 +668,34 @@ function validateAgentLaunchTemplates(
 	) {
 		errors.push(
 			`agent_profiles.${name}.prompt_args: must contain ${PROMPT_PLACEHOLDER} exactly once`,
+		);
+	}
+	return errors;
+}
+
+function validateAgyAgentProfile(
+	name: string,
+	agentProfile: Partial<AgentProfileConfig>,
+): string[] {
+	const errors: string[] = [];
+	if (typeof agentProfile.mode === 'string') {
+		const mode = agentProfile.mode.trimEnd();
+		if (mode !== '' && !AGY_MODE_SET.has(mode)) {
+			errors.push(`agent_profiles.${name}.mode: must be ${AGY_MODES_LABEL}`);
+		}
+	}
+	const model =
+		typeof agentProfile.model === 'string'
+			? agentProfile.model.trimEnd()
+			: undefined;
+	if (
+		model !== undefined &&
+		typeof agentProfile.effort === 'string' &&
+		agentProfile.effort.trimEnd() !== '' &&
+		AGY_EFFORT_SUFFIX_PATTERN.test(model)
+	) {
+		errors.push(
+			`agent_profiles.${name}: model "${model}" already includes an effort suffix; remove effort or use the base model name`,
 		);
 	}
 	return errors;

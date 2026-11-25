@@ -3329,6 +3329,7 @@ test('getAgentProfile defaults to the built-in claude agent profile', t => {
 		promptArgs: undefined,
 		extraArgs: [],
 		skillPrefix: '/',
+		supportsSousChefPrompt: true,
 		rulesArgs: [],
 		env: {},
 	});

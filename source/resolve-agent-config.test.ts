@@ -77,6 +77,7 @@ function runResolver(
 	workspace_aware: string;
 	model: string;
 	effort: string;
+	mode: string;
 	deprecation_warnings: string;
 } {
 	let cmd = `bash "${SCRIPT_PATH}" --config "${configPath}" --local-config "${localConfigPath}"`;
@@ -1181,6 +1182,7 @@ for (const [name, expected] of Object.entries(AGENT_DEFAULTS_CASES)) {
 			t.is(result.agent_skill_prefix, expected.skillPrefix);
 			t.is(agentProfile.promptArgs ?? '', expected.promptArgs);
 			t.is(result.agent_prompt_args, expected.promptArgs);
+			t.is(agentProfile.mode, result.mode);
 		},
 	);
 }
@@ -1204,10 +1206,14 @@ agent_profiles:
   agy-cleared:
     command: agy
     mode: plan
+  claude-with-template:
+    command: claude
+    mode_args: '--permission-mode {mode}'
 profiles:
   unset: {display_name: Unset, agent_profile: agy-unset}
   plan: {display_name: Plan, agent_profile: agy-plan}
   cleared: {display_name: Cleared, agent_profile: agy-cleared}
+  claude-template: {display_name: ClaudeTemplate, agent_profile: claude-with-template}
 `,
 			`agent_profiles:
   agy-cleared:
@@ -1219,23 +1225,29 @@ profiles:
 			projectDir: path.dirname(fixture.configPath),
 		});
 
-		const checks: Array<[string, string]> = [
-			['unset', '--model gemini-4-hydrogen-medium'],
-			['plan', '--model gemini-4-hydrogen --effort high --mode plan'],
-			['cleared', ''],
+		const checks: Array<[string, string, string]> = [
+			['unset', '', '--model gemini-4-hydrogen-medium'],
+			['plan', 'plan', '--model gemini-4-hydrogen --effort high --mode plan'],
+			['cleared', '', ''],
+			['claude-template', '', ''],
 		];
-		for (const [profile, expected] of checks) {
-			const tsFlags = renderAgentLaunchFlags(
-				getAgentProfile(config, undefined, profile),
-			).trim();
-			const bashFlags = runResolver(
+		for (const [profile, expectedMode, expectedFlags] of checks) {
+			const agentProfile = getAgentProfile(config, undefined, profile);
+			const tsFlags = renderAgentLaunchFlags(agentProfile).trim();
+			const resolved = runResolver(
 				fixture.configPath,
 				fixture.localConfigPath,
 				undefined,
 				profile,
-			).agent_launch_flags;
-			t.is(tsFlags, expected, `TS mismatch for ${profile}`);
-			t.is(bashFlags, expected, `bash mismatch for ${profile}`);
+			);
+			t.is(agentProfile.mode, expectedMode, `TS mode mismatch for ${profile}`);
+			t.is(resolved.mode, expectedMode, `bash mode mismatch for ${profile}`);
+			t.is(tsFlags, expectedFlags, `TS flags mismatch for ${profile}`);
+			t.is(
+				resolved.agent_launch_flags,
+				expectedFlags,
+				`bash flags mismatch for ${profile}`,
+			);
 		}
 	},
 );
