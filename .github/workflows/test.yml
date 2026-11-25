@@ -8,16 +8,16 @@ on:
 
 jobs:
   bun-tests:
-    name: Bun Tests (${{ matrix.os }}, sqliteState ${{ matrix.sqlite_state }})
+    name: Bun Tests (sqliteState ${{ matrix.sqlite_state }})
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
         # experimental.sqliteState off and on: the files alone, then the
         # database with the files kept beside it and status through the
         # status daemon.
         sqlite_state: ['0', '1']
-    runs-on: ${{ matrix.os }}
+    # Linux only: macOS hosted runners are not available to this repo yet.
+    runs-on: ubuntu-latest
     env:
       PAPPARDELLE_SQLITE_STATE: ${{ matrix.sqlite_state }}
 
@@ -50,16 +50,11 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
-      - name: Install terminal test tools (Linux)
-        if: runner.os == 'Linux'
+      - name: Install terminal test tools
         run: |
           sudo apt-get update && sudo apt-get install -y tmux shellcheck
           sudo curl -fsSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.54.3/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
-
-      - name: Install terminal test tools (macOS)
-        if: runner.os == 'macOS'
-        run: brew install tmux shellcheck yq
 
       - name: Check formatting (prettier)
         run: bun --bun prettier --check .
@@ -146,29 +141,17 @@ jobs:
           bun integration-tests/verify-program-status-app.ts
 
   shell-tests:
-    name: Shell Tests (${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        # The AppleScript launcher tests only run on macOS and skip on Linux,
-        # so without the macOS lane they go stale unnoticed.
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+    name: Shell Tests
+    # The AppleScript launcher tests skip here: they need macOS, and Ghostty
+    # installed for the Ghostty half. Run them locally before changing a
+    # launcher.
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      # Ghostty's AppleScript only compiles with the app installed, and the
-      # launcher parity tests compile it.
-      - name: Install tmux, yq and Ghostty (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          brew install tmux yq
-          brew install --cask ghostty
-
-      - name: Install tmux and yq (Linux)
-        if: runner.os == 'Linux'
+      - name: Install tmux and yq
         run: |
           sudo apt-get update && sudo apt-get install -y tmux
           sudo curl -fsSL -o /usr/local/bin/yq \
@@ -212,7 +195,8 @@ jobs:
       - name: Terminal launcher resolution
         run: ./scripts/test-terminal-launcher.sh
 
-      # The iTerm/Ghostty parity half needs osascript, so it runs on macOS only.
+      # Only the portable quoting and viewer rebuild tests run here; the
+      # iTerm/Ghostty parity half needs osascript.
       - name: Workspace launcher quoting and viewer rebuild
         run: ./scripts/test-workspace-launchers.sh
 
