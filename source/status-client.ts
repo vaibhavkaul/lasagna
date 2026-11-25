@@ -36,8 +36,7 @@ const RECONNECT_SPREAD_MS = 400;
 export const STATE_WAIT_MS = 500;
 
 export type StatusChange =
-	| {kind: 'hook'; statusKey: string}
-	| {kind: 'snapshot'; key: string};
+	{kind: 'hook'; statusKey: string} | {kind: 'snapshot'; key: string};
 
 export type SendResult = 'sent' | 'unreachable';
 

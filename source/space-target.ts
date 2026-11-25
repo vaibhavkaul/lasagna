@@ -28,8 +28,7 @@ export function resolveTargetSpace(options: {
 export type Checkout = {repoName: string; mainRoot: string};
 
 export type CheckoutLookup =
-	| {kind: 'checkout'; checkout: Checkout}
-	| {kind: 'not-in-a-repo'};
+	{kind: 'checkout'; checkout: Checkout} | {kind: 'not-in-a-repo'};
 
 /** The checkout the process runs in, from readers that throw outside one. */
 export function readCheckout(read: {

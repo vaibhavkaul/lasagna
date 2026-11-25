@@ -32,10 +32,9 @@ function fixture() {
 		},
 		row: (key: string) =>
 			db
-				.query<
-					Record<string, unknown>,
-					[string]
-				>("SELECT * FROM space_state WHERE repo = 'repo' AND key = ?")
+				.query<Record<string, unknown>, [string]>(
+					"SELECT * FROM space_state WHERE repo = 'repo' AND key = ?",
+				)
 				.get(key),
 		changes: () =>
 			db

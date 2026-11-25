@@ -42,10 +42,9 @@ export class SqliteSpaceIdentityDao implements SpaceIdentityDao {
 	get(key: string): SpaceIdentityLookup {
 		try {
 			const row = this.synced()
-				.db.query<
-					IdentityRow,
-					[string, string]
-				>(`SELECT ${COLUMNS} FROM space_identities WHERE repo = ? AND key = ?`)
+				.db.query<IdentityRow, [string, string]>(
+					`SELECT ${COLUMNS} FROM space_identities WHERE repo = ? AND key = ?`,
+				)
 				.get(this.defaults.repo, key);
 			return row
 				? {kind: 'identity', identity: this.identity(row)}
@@ -163,10 +162,9 @@ export class SqliteSpaceIdentityDao implements SpaceIdentityDao {
 	 */
 	private ensureMain(state: StateDb): void {
 		const existing = state.db
-			.query<
-				{found: number},
-				[string, string]
-			>('SELECT 1 AS found FROM space_identities WHERE repo = ? AND key = ?')
+			.query<{found: number}, [string, string]>(
+				'SELECT 1 AS found FROM space_identities WHERE repo = ? AND key = ?',
+			)
 			.get(this.defaults.repo, MAIN_WORKTREE_KEY);
 		if (existing) return;
 
@@ -181,10 +179,9 @@ export class SqliteSpaceIdentityDao implements SpaceIdentityDao {
 		const hasConfig = fs.existsSync(path.join(mainRoot, '.pappardelle.yml'));
 		if (!hasConfig) {
 			const hasSpaces = state.db
-				.query<
-					{found: number},
-					[string]
-				>('SELECT 1 AS found FROM spaces WHERE repo = ? LIMIT 1')
+				.query<{found: number}, [string]>(
+					'SELECT 1 AS found FROM spaces WHERE repo = ? LIMIT 1',
+				)
 				.get(this.defaults.repo);
 			if (!hasSpaces) return;
 		}

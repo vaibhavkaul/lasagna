@@ -47,10 +47,9 @@ export class SqliteStateColorDao implements StateColorDao {
 			tx.sync(this.mirror);
 			const {db} = this.openDb();
 			const stored = db
-				.query<
-					ColorRow,
-					[string, string]
-				>('SELECT name, color FROM state_colors WHERE repo = ? AND name = ?')
+				.query<ColorRow, [string, string]>(
+					'SELECT name, color FROM state_colors WHERE repo = ? AND name = ?',
+				)
 				.get(this.repo, name);
 			if (stored?.color === color) return;
 			db.query(

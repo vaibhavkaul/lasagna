@@ -48,10 +48,9 @@ export class SqliteTuiMarkerDao implements TuiMarkerDao {
 		return this.reads.or(null, () => {
 			this.openDb().sync(this.mirror);
 			const row = this.openDb()
-				.db.query<
-					MarkerRow,
-					[string]
-				>('SELECT pid, cli_path, sha, pane_id, started_at FROM tui_markers WHERE repo = ?')
+				.db.query<MarkerRow, [string]>(
+					'SELECT pid, cli_path, sha, pane_id, started_at FROM tui_markers WHERE repo = ?',
+				)
 				.get(this.repo);
 			return (
 				row && {

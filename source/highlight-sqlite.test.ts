@@ -29,10 +29,9 @@ function fixture() {
 		},
 		rows: () =>
 			openStateDb(stateDbPath(stateDir))
-				.db.query<
-					Row,
-					[]
-				>("SELECT key, requested_at FROM highlight_targets WHERE repo = 'repo'")
+				.db.query<Row, []>(
+					"SELECT key, requested_at FROM highlight_targets WHERE repo = 'repo'",
+				)
 				.all(),
 	};
 }

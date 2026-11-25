@@ -79,9 +79,7 @@ export type RailStatusPatch = Omit<
 
 /** What is recorded for one space. */
 export type SpaceStateLookup =
-	| {kind: 'state'; state: SpaceState}
-	| {kind: 'none'}
-	| Unreadable;
+	{kind: 'state'; state: SpaceState} | {kind: 'none'} | Unreadable;
 
 /** One repo's per-space state, a record per space key. */
 export interface SpaceStateDao {
@@ -281,8 +279,7 @@ export type AgentSession = {
 
 /** Each agent profile's recorded session id in one space. */
 export type AgentSessionsLookup =
-	| {kind: 'sessions'; sessions: Record<string, string>}
-	| Unreadable;
+	{kind: 'sessions'; sessions: Record<string, string>} | Unreadable;
 
 /**
  * Each agent profile's latest conversation in a space, by agent profile name,

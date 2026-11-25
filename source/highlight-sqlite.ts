@@ -95,10 +95,9 @@ export class SqliteHighlightDao implements HighlightDao {
 
 	private row(): TargetRow | null {
 		return this.openDb()
-			.db.query<
-				TargetRow,
-				[string]
-			>('SELECT key, focus, requested_at FROM highlight_targets WHERE repo = ?')
+			.db.query<TargetRow, [string]>(
+				'SELECT key, focus, requested_at FROM highlight_targets WHERE repo = ?',
+			)
 			.get(this.repo);
 	}
 

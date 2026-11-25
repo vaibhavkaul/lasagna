@@ -428,10 +428,9 @@ export class StateDb {
 	/** The recorded state of `file` when it still matches what is on disk. */
 	private known(file: string): 'in-sync' | 'malformed' | null {
 		const row = this.db
-			.query<
-				SyncRow,
-				[string]
-			>('SELECT ino, size, mtime_ns, malformed FROM json_sync WHERE path = ?')
+			.query<SyncRow, [string]>(
+				'SELECT ino, size, mtime_ns, malformed FROM json_sync WHERE path = ?',
+			)
 			.get(file);
 		const signature = statSignature(file);
 		if (!row && !signature) return 'in-sync';

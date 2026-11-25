@@ -40,10 +40,9 @@ export class SqliteUpdateCheckDao implements UpdateCheckDao {
 		return this.reads.or(null, () => {
 			this.openDb().sync(this.mirror);
 			const row = this.openDb()
-				.db.query<
-					{checked_at: number; latest_version: string},
-					[]
-				>('SELECT checked_at, latest_version FROM update_check WHERE id = 1')
+				.db.query<{checked_at: number; latest_version: string}, []>(
+					'SELECT checked_at, latest_version FROM update_check WHERE id = 1',
+				)
 				.get();
 			return (
 				row && {checkedAt: row.checked_at, latestVersion: row.latest_version}

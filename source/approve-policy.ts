@@ -8,8 +8,7 @@
 import path from 'node:path';
 
 export type ApprovalVerdict =
-	| {kind: 'approve'; reason?: string}
-	| {kind: 'hold'; reason: string};
+	{kind: 'approve'; reason?: string} | {kind: 'hold'; reason: string};
 
 export type ApprovalPolicy = {
 	/** The space's worktree. Null for the main checkout, which every space shares. */

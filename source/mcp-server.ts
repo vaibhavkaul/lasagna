@@ -70,9 +70,7 @@ ${companionRules()}`;
 }
 
 export type WorkspaceAwareness =
-	| {kind: 'on'}
-	| {kind: 'off'}
-	| {kind: 'invalid-config'; errors: string[]};
+	{kind: 'on'} | {kind: 'off'} | {kind: 'invalid-config'; errors: string[]};
 
 function invalidConfigInstructions(errors: string[]): string {
 	return `Pappardelle's workspace tools are off because .pappardelle.yml is invalid: ${inlineConfigErrors(errors)}. Tell the user; once it's fixed, restart this session.`;
