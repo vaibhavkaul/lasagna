@@ -35,9 +35,7 @@ export type SpacePhase = 'starting' | 'open' | 'closing';
 
 /** What a registry records about one space. */
 export type SpacePhaseLookup =
-	| {kind: 'phase'; phase: SpacePhase}
-	| {kind: 'unknown'}
-	| Unreadable;
+	{kind: 'phase'; phase: SpacePhase} | {kind: 'unknown'} | Unreadable;
 
 export type WatchlistSlots = {
 	reserved: string[];
@@ -53,8 +51,7 @@ export type WatchlistReserveOptions = {
 
 /** What the reaper may rely on: every space whose sessions have an owner. */
 export type ProtectedSpaces =
-	| {ok: true; keys: string[]}
-	| {ok: false; error: unknown};
+	{ok: true; keys: string[]} | {ok: false; error: unknown};
 
 /** What `settle` needs to finish closes and starts their process abandoned. */
 export type SettleDeps = {

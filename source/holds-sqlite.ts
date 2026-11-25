@@ -99,10 +99,9 @@ export class SqliteHoldDao implements HoldDao {
 
 	private row(id: string): Hold | null {
 		const row = this.openDb()
-			.db.query<
-				HoldRow,
-				[string, string]
-			>(`SELECT ${HOLD_COLUMNS} FROM holds WHERE repo = ? AND id = ?`)
+			.db.query<HoldRow, [string, string]>(
+				`SELECT ${HOLD_COLUMNS} FROM holds WHERE repo = ? AND id = ?`,
+			)
 			.get(this.repo, id);
 		return row ? toHold(row) : null;
 	}

@@ -306,19 +306,17 @@ export class SqliteSpaceRegistryDao implements SpaceRegistryDao {
 
 	private rows(): SpaceRow[] {
 		return this.openDb()
-			.db.query<
-				SpaceRow,
-				[string]
-			>('SELECT key, state, owner_pid FROM spaces WHERE repo = ? ORDER BY rowid')
+			.db.query<SpaceRow, [string]>(
+				'SELECT key, state, owner_pid FROM spaces WHERE repo = ? ORDER BY rowid',
+			)
 			.all(this.repo);
 	}
 
 	private row(key: string): SpaceRow | null {
 		return this.openDb()
-			.db.query<
-				SpaceRow,
-				[string, string]
-			>('SELECT key, state, owner_pid FROM spaces WHERE repo = ? AND key = ?')
+			.db.query<SpaceRow, [string, string]>(
+				'SELECT key, state, owner_pid FROM spaces WHERE repo = ? AND key = ?',
+			)
 			.get(this.repo, key);
 	}
 

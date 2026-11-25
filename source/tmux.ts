@@ -4344,8 +4344,7 @@ function companionSessionArgs(
 }
 
 export type CreateSplitResult =
-	| {ok: true; session: string}
-	| {ok: false; reason: string};
+	{ok: true; session: string} | {ok: false; reason: string};
 
 /**
  * Start a companion split as a session of its own, in the directory the

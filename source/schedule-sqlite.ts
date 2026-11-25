@@ -120,10 +120,9 @@ export class SqliteScheduleDao implements ScheduleDao {
 			this.openDb().sync(this.queueMirror(key));
 			return (
 				this.openDb()
-					.db.query<
-						{text: string},
-						[string, string]
-					>('SELECT text FROM queued_messages WHERE repo = ? AND key = ?')
+					.db.query<{text: string}, [string, string]>(
+						'SELECT text FROM queued_messages WHERE repo = ? AND key = ?',
+					)
 					.get(this.repo, key)?.text ?? null
 			);
 		});
@@ -162,10 +161,9 @@ export class SqliteScheduleDao implements ScheduleDao {
 
 	private row(id: string): Job | null {
 		const row = this.openDb()
-			.db.query<
-				JobRow,
-				[string, string]
-			>(`SELECT ${JOB_COLUMNS} FROM schedules WHERE repo = ? AND id = ?`)
+			.db.query<JobRow, [string, string]>(
+				`SELECT ${JOB_COLUMNS} FROM schedules WHERE repo = ? AND id = ?`,
+			)
 			.get(this.repo, id);
 		return row ? toJob(row) : null;
 	}

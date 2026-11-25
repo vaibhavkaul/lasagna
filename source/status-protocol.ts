@@ -50,8 +50,7 @@ export type DaemonMessage =
 	| {type: 'dropped'; repo: string; key: string; generation: string};
 
 export type Parsed<Message> =
-	| {kind: 'message'; message: Message}
-	| {kind: 'invalid'};
+	{kind: 'message'; message: Message} | {kind: 'invalid'};
 
 const INVALID = {kind: 'invalid'} as const;
 

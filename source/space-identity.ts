@@ -18,13 +18,10 @@ export type SpaceIdentity = {
 };
 
 export type SpaceIdentityLookup =
-	| {kind: 'identity'; identity: SpaceIdentity}
-	| {kind: 'unknown'}
-	| Unreadable;
+	{kind: 'identity'; identity: SpaceIdentity} | {kind: 'unknown'} | Unreadable;
 
 export type SpaceIdentityList =
-	| {kind: 'identities'; identities: SpaceIdentity[]}
-	| Unreadable;
+	{kind: 'identities'; identities: SpaceIdentity[]} | Unreadable;
 
 export interface SpaceIdentityDao {
 	get(key: string): SpaceIdentityLookup;

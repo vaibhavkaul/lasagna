@@ -36,10 +36,9 @@ export class SqlitePrLinkStampDao implements PrLinkStampDao {
 			0,
 			() =>
 				this.openDb()
-					.db.query<
-						{touched_at: number},
-						[]
-					>('SELECT touched_at FROM pr_link_stamp WHERE id = 1')
+					.db.query<{touched_at: number}, []>(
+						'SELECT touched_at FROM pr_link_stamp WHERE id = 1',
+					)
 					.get()?.touched_at ?? 0,
 		);
 	}

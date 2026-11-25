@@ -10,8 +10,7 @@ import {tmpdir} from 'node:os';
 import type {ApprovalVerdict} from './approve-policy.ts';
 
 export type ClassifierVerdict =
-	| ApprovalVerdict
-	| {kind: 'unavailable'; reason: string};
+	ApprovalVerdict | {kind: 'unavailable'; reason: string};
 
 export type ClassifyRequest = {
 	/** The prompt's header, such as `Bash command` or `Tool use`. */

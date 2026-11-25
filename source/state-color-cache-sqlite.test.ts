@@ -18,10 +18,9 @@ function fixture() {
 		content: () => fs.readFileSync(file, 'utf8'),
 		rows: () =>
 			openStateDb(stateDbPath(stateDir))
-				.db.query<
-					Row,
-					[]
-				>("SELECT rowid, name, color FROM state_colors WHERE repo = 'repo' ORDER BY rowid")
+				.db.query<Row, []>(
+					"SELECT rowid, name, color FROM state_colors WHERE repo = 'repo' ORDER BY rowid",
+				)
 				.all(),
 	};
 }

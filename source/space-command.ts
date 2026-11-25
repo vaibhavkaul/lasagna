@@ -94,9 +94,7 @@ const ALL_GROUPS: ReadonlySet<SpaceGroup> = new Set([
 ]);
 
 export type SpaceLookup =
-	| {kind: 'space'; record: SpaceRecord}
-	| {kind: 'unknown'}
-	| Unreadable;
+	{kind: 'space'; record: SpaceRecord} | {kind: 'unknown'} | Unreadable;
 
 export type SpaceDaos = Pick<
 	StateDaos,
@@ -158,9 +156,7 @@ class PaneListing {
 }
 
 type PhaseLookup =
-	| {kind: 'phase'; phase: SpaceRecord['phase']}
-	| {kind: 'unknown'}
-	| Unreadable;
+	{kind: 'phase'; phase: SpaceRecord['phase']} | {kind: 'unknown'} | Unreadable;
 
 function storedPhase(
 	key: string,
@@ -297,10 +293,7 @@ const STORED = 'stored';
 /** `agentSessions` is keyed by agent profile, so any one name below it is a path. */
 const ANY_KEY = 'any-key';
 type SchemaNode =
-	| SpaceGroup
-	| typeof STORED
-	| typeof ANY_KEY
-	| {[field: string]: SchemaNode};
+	SpaceGroup | typeof STORED | typeof ANY_KEY | {[field: string]: SchemaNode};
 
 /** The paths `--field` accepts, and the group each one needs. */
 const SCHEMA: SchemaNode = {

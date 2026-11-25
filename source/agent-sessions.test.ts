@@ -319,10 +319,9 @@ for key in sys.argv[2:]:
 	// Each hook write went through the database: nothing was left to import.
 	expect(
 		openStateDb(dbPath)
-			.db.query<
-				{rows: number},
-				[]
-			>(`SELECT COUNT(*) AS rows FROM agent_sessions WHERE repo = 'repo'`)
+			.db.query<{rows: number}, []>(
+				`SELECT COUNT(*) AS rows FROM agent_sessions WHERE repo = 'repo'`,
+			)
 			.get()!.rows,
 	).toBe(keys.length * 2);
 	expect(

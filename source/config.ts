@@ -2196,8 +2196,7 @@ export function agentProfileNames(config: PappardelleConfig): string[] {
 }
 
 export type AgentProfileCheck =
-	| {kind: 'known'}
-	| {kind: 'unknown'; names: string[]};
+	{kind: 'known'} | {kind: 'unknown'; names: string[]};
 
 export function checkAgentProfile(
 	config: PappardelleConfig,

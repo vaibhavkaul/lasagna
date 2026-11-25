@@ -8,13 +8,7 @@ import {MAIN_WORKTREE_KEY} from './space-utils.ts';
 import {DEFAULT_REPO_STATE_ROOT} from './tui-marker.ts';
 
 export type SuperviseAction =
-	| 'send'
-	| 'watch'
-	| 'answer'
-	| 'queue'
-	| 'schedule'
-	| 'unschedule'
-	| 'fire';
+	'send' | 'watch' | 'answer' | 'queue' | 'schedule' | 'unschedule' | 'fire';
 
 export type ActionEntry = {
 	action: SuperviseAction;

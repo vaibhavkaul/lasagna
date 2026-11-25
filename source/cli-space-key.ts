@@ -8,8 +8,7 @@ import {isIssueNumber, resolveSpaceKey} from './issue-utils.ts';
 import type {TrackerProviderName} from './providers/types.ts';
 
 export type CliSpaceKey =
-	| {kind: 'key'; key: string}
-	| {kind: 'invalid-config'; errors: string[]};
+	{kind: 'key'; key: string} | {kind: 'invalid-config'; errors: string[]};
 
 /**
  * A bare number needs the configured team prefix, so it can't be resolved
