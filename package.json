@@ -22,8 +22,8 @@
 	],
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.32.2",
-		"@opentui/core": "0.8.3",
-		"@opentui/react": "0.8.3",
+		"@opentui/core": "0.9.9",
+		"@opentui/react": "0.9.9",
 		"meow": "^14.1.0",
 		"react": "^19.3.1",
 		"sonic-boom": "^5.0.2",
