@@ -16,6 +16,24 @@ export const LAUNCH_PLACEHOLDERS: Record<LaunchField, string> = {
 	effort: '{effort}',
 };
 
+/**
+ * Launch fields supported on agent profiles, including agent-profile-only
+ * fields such as `mode` that must stay out of `LAUNCH_FIELDS` (which feeds
+ * deprecated `claude:` warnings and config rewrites).
+ */
+export const AGENT_PROFILE_LAUNCH_FIELDS = [...LAUNCH_FIELDS, 'mode'] as const;
+
+export type AgentProfileLaunchField =
+	(typeof AGENT_PROFILE_LAUNCH_FIELDS)[number];
+
+export const AGENT_PROFILE_LAUNCH_PLACEHOLDERS: Record<
+	AgentProfileLaunchField,
+	string
+> = {
+	...LAUNCH_PLACEHOLDERS,
+	mode: '{mode}',
+};
+
 export const PROMPT_PLACEHOLDER = '{prompt}';
 
 /**
@@ -62,35 +80,54 @@ export function quoteLaunchValue(value: string): string {
 }
 
 /**
- * Render the model/effort flags, then the extra args, for an agent profile,
- * each with a leading space, or '' when none apply. An unset value or a CLI
- * without a template passes no flag.
+ * Render the model/effort/mode flags, then the extra args, for an agent
+ * profile, each with a leading space, or '' when none apply. An unset value or
+ * a CLI without a template passes no flag.
  */
 export function renderAgentLaunchFlags(
 	agentProfile: Partial<
 		Pick<
 			ResolvedAgentProfile,
-			'model' | 'effort' | 'modelArgs' | 'effortArgs' | 'extraArgs'
+			| 'model'
+			| 'effort'
+			| 'mode'
+			| 'modelArgs'
+			| 'effortArgs'
+			| 'modeArgs'
+			| 'extraArgs'
 		>
 	>,
 ): string {
-	const templates: Record<LaunchField, string | undefined> = {
+	const templates: Record<AgentProfileLaunchField, string | undefined> = {
 		model: agentProfile.modelArgs,
 		effort: agentProfile.effortArgs,
+		mode: agentProfile.modeArgs,
 	};
 	let flags = '';
-	for (const field of LAUNCH_FIELDS) {
+	for (const field of AGENT_PROFILE_LAUNCH_FIELDS) {
 		const value = agentProfile[field];
 		const template = templates[field];
 		if (!value || !template) continue;
 		const quoted = quoteLaunchValue(value);
 		// A function, so `$'` and `$&` in the value aren't replacement patterns.
-		flags += ` ${template.replaceAll(LAUNCH_PLACEHOLDERS[field], () => quoted)}`;
+		flags += ` ${template.replaceAll(AGENT_PROFILE_LAUNCH_PLACEHOLDERS[field], () => quoted)}`;
 	}
 	for (const arg of agentProfile.extraArgs ?? []) {
 		flags += ` ${quoteLaunchValue(arg)}`;
 	}
 	return flags;
+}
+
+/**
+ * Render a launch prompt through `promptArgs` (substituting `{prompt}` with a
+ * shell-quoted value) or as a bare shell-quoted argument, with a leading space.
+ */
+export function renderAgentPrompt(prompt: string, promptArgs?: string): string {
+	const quoted = quoteLaunchValue(prompt);
+	const rendered = promptArgs?.includes(PROMPT_PLACEHOLDER)
+		? promptArgs.replace(PROMPT_PLACEHOLDER, () => quoted)
+		: quoted;
+	return ` ${rendered}`;
 }
 
 /**
@@ -154,6 +191,15 @@ export function isClaudeAgentProfile(
 	definition: Pick<AgentProfileConfig, 'command' | 'is_claude'>,
 ): boolean {
 	return definition.is_claude ?? isClaudeCommand(definition.command);
+}
+
+export function isAgyAgentProfile(
+	definition: Pick<AgentProfileConfig, 'command' | 'is_claude'>,
+): boolean {
+	return (
+		!isClaudeAgentProfile(definition) &&
+		commandBasename(definition.command) === 'agy'
+	);
 }
 
 export function commandBasename(command: string): string {

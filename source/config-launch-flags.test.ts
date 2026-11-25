@@ -1,8 +1,10 @@
 import test from 'ava';
 import {
 	bindResumeArgs,
+	isAgyAgentProfile,
 	isClaudeCommand,
 	renderAgentLaunchFlags,
+	renderAgentPrompt,
 } from './config-launch-flags.ts';
 
 // ============================================================================
@@ -99,6 +101,37 @@ test('renderAgentLaunchFlags inserts $ sequences in a value literally', t => {
 test('renderAgentLaunchFlags passes no flag without a value or a template', t => {
 	t.is(renderAgentLaunchFlags({modelArgs: '-m {model}', model: ''}), '');
 	t.is(renderAgentLaunchFlags({model: 'gpt-5.5', effort: 'high'}), '');
+	t.is(renderAgentLaunchFlags({modeArgs: '--mode {mode}', mode: ''}), '');
+	t.is(renderAgentLaunchFlags({mode: 'plan'}), '');
+});
+
+test('renderAgentLaunchFlags renders mode through modeArgs after model and effort', t => {
+	t.is(
+		renderAgentLaunchFlags({
+			modelArgs: '--model {model}',
+			effortArgs: '--effort {effort}',
+			modeArgs: '--mode {mode}',
+			model: 'gemini-4-hydrogen',
+			effort: 'high',
+			mode: 'plan',
+		}),
+		' --model gemini-4-hydrogen --effort high --mode plan',
+	);
+	t.is(
+		renderAgentLaunchFlags({
+			modeArgs: '--mode={mode}',
+			mode: 'a b',
+		}),
+		` --mode='a b'`,
+	);
+});
+
+test('renderAgentPrompt wraps prompt in promptArgs when present and quotes for the shell', t => {
+	t.is(renderAgentPrompt('/sous-chef'), ` '/sous-chef'`);
+	t.is(renderAgentPrompt('/sous-chef', ''), ` '/sous-chef'`);
+	t.is(renderAgentPrompt('/sous-chef', '-i {prompt}'), ` -i '/sous-chef'`);
+	t.is(renderAgentPrompt('$sous-chef'), ` '$sous-chef'`);
+	t.is(renderAgentPrompt("a'b", '--prompt={prompt}'), ` --prompt='a'\\''b'`);
 });
 
 test('isClaudeCommand matches bare names and paths, not wrappers', t => {
@@ -108,4 +141,12 @@ test('isClaudeCommand matches bare names and paths, not wrappers', t => {
 	t.false(isClaudeCommand('codex'));
 	t.false(isClaudeCommand('claude-local'));
 	t.false(isClaudeCommand('my-claude-wrapper'));
+});
+
+test('isAgyAgentProfile matches bare agy and paths unless gated as claude', t => {
+	t.true(isAgyAgentProfile({command: 'agy'}));
+	t.true(isAgyAgentProfile({command: '/usr/local/bin/agy --flag'}));
+	t.false(isAgyAgentProfile({command: 'agy', is_claude: true}));
+	t.false(isAgyAgentProfile({command: 'claude'}));
+	t.false(isAgyAgentProfile({command: 'codex'}));
 });

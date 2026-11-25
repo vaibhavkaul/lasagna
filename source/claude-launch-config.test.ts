@@ -1,6 +1,10 @@
 import test from 'ava';
 import type {PappardelleConfig} from './config.ts';
-import {getAgentProfile, getCompanionCommand} from './config.ts';
+import {
+	getAgentProfile,
+	getCompanionCommand,
+	sousChefLaunch,
+} from './config.ts';
 import {validateConfig} from './config-validation.ts';
 import {ConfigValidationError} from './config-errors.ts';
 import {buildAgentResumeCommand} from './tmux.ts';
@@ -507,4 +511,49 @@ test('buildAgentResumeCommand: a minimal agy profile relaunches without a prompt
 		buildAgentResumeCommand('STA-1', false, agentProfile, 'conv-1'),
 		"agy --model gemini-4-argon-medium --conversation conv-1 || { printf '\\033[A\\033[2K'; false; } || agy --model gemini-4-argon-medium",
 	);
+});
+
+test('sousChefLaunch uses the resolved agent skillPrefix and wires through agy and codex launch commands', t => {
+	const agyConfig = makeConfig({
+		sous_chef: true,
+		agent_profiles: {
+			agy: {command: 'agy', model: 'gemini-4-hydrogen-medium', mode: 'plan'},
+		},
+		agent_profile: 'agy',
+	});
+	const agyProfile = getAgentProfile(agyConfig);
+	const agyLaunch = sousChefLaunch(agyConfig, agyProfile);
+	t.deepEqual(agyLaunch, {name: 'sous-chef', prompt: '/sous-chef'});
+	t.is(
+		buildAgentResumeCommand('main', false, agyProfile, undefined, {
+			rules: true,
+			...agyLaunch,
+		}),
+		"agy --model gemini-4-hydrogen-medium --mode plan -i '/sous-chef'",
+	);
+	t.is(
+		buildAgentResumeCommand('main', false, agyProfile, 'conv-1', {
+			rules: true,
+			...agyLaunch,
+		}),
+		"agy --model gemini-4-hydrogen-medium --mode plan --conversation conv-1 -i '/sous-chef' || { printf '\\033[A\\033[2K'; false; } || agy --model gemini-4-hydrogen-medium --mode plan -i '/sous-chef'",
+	);
+
+	const codexConfig = makeConfig({
+		sous_chef: true,
+		agent_profiles: {codex: {command: 'codex', args: '--yolo'}},
+		agent_profile: 'codex',
+	});
+	const codexProfile = getAgentProfile(codexConfig);
+	const codexLaunch = sousChefLaunch(codexConfig, codexProfile);
+	t.deepEqual(codexLaunch, {name: 'sous-chef', prompt: '$sous-chef'});
+	t.is(
+		buildAgentResumeCommand('main', false, codexProfile, 'sess-1', {
+			rules: false,
+			...codexLaunch,
+		}),
+		"codex --yolo resume sess-1 '$sous-chef' || { printf '\\033[A\\033[2K'; false; } || codex --yolo '$sous-chef'",
+	);
+
+	t.is(sousChefLaunch(makeConfig({sous_chef: false}), agyProfile), undefined);
 });

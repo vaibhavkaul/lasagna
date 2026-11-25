@@ -1103,10 +1103,12 @@ const AGENT_DEFAULTS_CASES: Record<string, AgentDefaultsCase> = {
 					command: name,
 					...(builtin.model_args && {model: 'm1'}),
 					...(builtin.effort_args && {effort: 'e1'}),
+					...(builtin.mode_args && {mode: 'plan'}),
 				},
 				launchFlags: [
 					builtin.model_args?.replace('{model}', 'm1'),
 					builtin.effort_args?.replace('{effort}', 'e1'),
+					builtin.mode_args?.replace('{mode}', 'plan'),
 				]
 					.filter(Boolean)
 					.join(' '),
@@ -1177,10 +1179,66 @@ for (const [name, expected] of Object.entries(AGENT_DEFAULTS_CASES)) {
 			t.is(result.agent_resume_args, expected.resumeArgs);
 			t.is(agentProfile.skillPrefix, expected.skillPrefix);
 			t.is(result.agent_skill_prefix, expected.skillPrefix);
+			t.is(agentProfile.promptArgs ?? '', expected.promptArgs);
 			t.is(result.agent_prompt_args, expected.promptArgs);
 		},
 	);
 }
+
+maybeMacro(
+	'agy mode passes --mode only when set on the agent profile in both TS and bash',
+	t => {
+		const fixture = setupConfigFiles(
+			`version: 1
+claude:
+  mode: plan
+agent_profiles:
+  agy-unset:
+    command: agy
+    model: gemini-4-hydrogen-medium
+  agy-plan:
+    command: agy
+    model: gemini-4-hydrogen
+    effort: high
+    mode: plan
+  agy-cleared:
+    command: agy
+    mode: plan
+profiles:
+  unset: {display_name: Unset, agent_profile: agy-unset}
+  plan: {display_name: Plan, agent_profile: agy-plan}
+  cleared: {display_name: Cleared, agent_profile: agy-cleared}
+`,
+			`agent_profiles:
+  agy-cleared:
+    mode: ""
+`,
+		);
+		t.teardown(fixture.cleanup);
+		const config = loadConfigFromPaths({
+			projectDir: path.dirname(fixture.configPath),
+		});
+
+		const checks: Array<[string, string]> = [
+			['unset', '--model gemini-4-hydrogen-medium'],
+			['plan', '--model gemini-4-hydrogen --effort high --mode plan'],
+			['cleared', ''],
+		];
+		for (const [profile, expected] of checks) {
+			const tsFlags = renderAgentLaunchFlags(
+				getAgentProfile(config, undefined, profile),
+			).trim();
+			const bashFlags = runResolver(
+				fixture.configPath,
+				fixture.localConfigPath,
+				undefined,
+				profile,
+			).agent_launch_flags;
+			t.is(tsFlags, expected, `TS mismatch for ${profile}`);
+			t.is(bashFlags, expected, `bash mismatch for ${profile}`);
+		}
+	},
+);
 
 maybeMacro(
 	'agent_env is the agent profile env, merged per variable across layers',

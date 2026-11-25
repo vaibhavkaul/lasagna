@@ -147,6 +147,7 @@ import {
 import {
 	bindResumeArgs,
 	renderAgentLaunchFlags,
+	renderAgentPrompt,
 	quoteLaunchValue,
 } from './config-launch-flags.ts';
 import {agentRulesFlags, installAgentRules} from './companion-rules.ts';
@@ -875,11 +876,12 @@ export function buildAgentResumeCommand(
 	launch?: AgentLaunch,
 ): string {
 	let base: string;
-	let prompt = '';
+	const prompt = launch?.prompt
+		? renderAgentPrompt(launch.prompt, agentProfile.promptArgs)
+		: '';
 	const launchFlags = `${renderAgentLaunchFlags(agentProfile)}${launch?.rules ? agentRulesFlags(agentProfile.rulesArgs) : ''}`;
 	if (agentProfile.isClaude) {
 		const safeKey = quoteLaunchValue(launch?.name ?? issueKey);
-		if (launch?.prompt) prompt = ` ${quoteLaunchValue(launch.prompt)}`;
 		const withDsp = skipPermissions
 			? `${agentProfile.command} --dangerously-skip-permissions`
 			: agentProfile.command;
@@ -2752,14 +2754,16 @@ async function attachViewers(
 	const invalidConfig = load.kind === 'invalid';
 	if (load.kind === 'valid') {
 		const {config} = load;
-		launch = {
-			rules: workspaceAwareAgents(config),
-			...(issueKey === MAIN_WORKTREE_KEY ? sousChefLaunch(config) : {}),
-		};
 		skipPermissions = getDangerouslySkipPermissions(config);
 		companionCommand = getCompanionCommand(config, issueTitle, profileName);
 		configuredSplits = getCompanionSplits(config, issueTitle, profileName);
 		agentProfile = getAgentProfile(config, issueTitle, profileName);
+		launch = {
+			rules: workspaceAwareAgents(config),
+			...(issueKey === MAIN_WORKTREE_KEY
+				? sousChefLaunch(config, agentProfile)
+				: {}),
+		};
 	}
 
 	if (agentProfile)

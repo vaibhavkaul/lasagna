@@ -2515,6 +2515,140 @@ test('validateConfig accepts a minimal agy profile with a model', t => {
 	);
 });
 
+test('validateConfig accepts agy mode values and empty string to clear', t => {
+	for (const mode of ['accept-edits', 'auto', 'plan', '']) {
+		t.notThrows(() =>
+			validateConfig(
+				agentProfilesConfig({
+					agent_profiles: {agy: {command: 'agy', mode}},
+				}),
+			),
+		);
+	}
+});
+
+test('validateConfig rejects invalid, non-string, or multi-line agy mode', t => {
+	for (const mode of ['yolo', 123, 'plan\nauto']) {
+		const error = t.throws(
+			() =>
+				validateConfig(
+					agentProfilesConfig({
+						agent_profiles: {agy: {command: 'agy', mode}},
+					}),
+				),
+			{instanceOf: ConfigValidationError},
+		);
+		t.truthy(error?.message.includes('agent_profiles.agy.mode:'));
+	}
+});
+
+test('validateConfig rejects mode on a CLI with no mode_args template and accepts custom mode_args', t => {
+	const missingTemplate = t.throws(
+		() =>
+			validateConfig(
+				agentProfilesConfig({
+					agent_profiles: {codex: {command: 'codex', mode: 'plan'}},
+				}),
+			),
+		{instanceOf: ConfigValidationError},
+	);
+	t.truthy(
+		missingTemplate?.message.includes(
+			'agent_profiles.codex.mode: "codex" has no built-in mode flag; set mode_args',
+		),
+	);
+
+	const badTemplate = t.throws(
+		() =>
+			validateConfig(
+				agentProfilesConfig({
+					agent_profiles: {
+						aider: {command: 'aider', mode: 'plan', mode_args: '--mode'},
+					},
+				}),
+			),
+		{instanceOf: ConfigValidationError},
+	);
+	t.truthy(
+		badTemplate?.message.includes(
+			'agent_profiles.aider.mode_args: must contain {mode}',
+		),
+	);
+
+	t.notThrows(() =>
+		validateConfig(
+			agentProfilesConfig({
+				agent_profiles: {
+					aider: {command: 'aider', mode: 'plan', mode_args: '--mode {mode}'},
+				},
+			}),
+		),
+	);
+});
+
+test('validateConfig rejects combining an effort-suffixed agy model id with effort', t => {
+	for (const model of [
+		'gemini-4-hydrogen-low',
+		'gemini-4-hydrogen-medium',
+		'gemini-4-neon-high',
+		'claude-opus-5-5-xhigh',
+		'gpt-oss-120b-max',
+	]) {
+		const error = t.throws(
+			() =>
+				validateConfig(
+					agentProfilesConfig({
+						agent_profiles: {
+							agy: {command: '/usr/local/bin/agy', model, effort: 'high'},
+						},
+					}),
+				),
+			{instanceOf: ConfigValidationError},
+		);
+		t.true(
+			error!.errors.some(
+				e =>
+					e.includes(`agent_profiles.agy: model "${model}"`) &&
+					e.includes('already includes an effort suffix'),
+			),
+			`expected suffix error for ${model}`,
+		);
+	}
+});
+
+test('validateConfig accepts unsuffixed agy model + effort, suffixed without effort, and suffixed non-agy + effort', t => {
+	t.notThrows(() =>
+		validateConfig(
+			agentProfilesConfig({
+				agent_profiles: {
+					base: {command: 'agy', model: 'gemini-4-hydrogen', effort: 'high'},
+					cleared: {
+						command: 'agy',
+						model: 'gemini-4-hydrogen-medium',
+						effort: '',
+					},
+					claude: {
+						command: 'claude',
+						model: 'claude-opus-5-5-medium',
+						effort: 'high',
+					},
+					codex: {
+						command: 'codex',
+						model: 'gpt-5-medium',
+						effort: 'high',
+					},
+					gated: {
+						command: 'agy',
+						is_claude: true,
+						model: 'gemini-4-hydrogen-medium',
+						effort: 'high',
+					},
+				},
+			}),
+		),
+	);
+});
+
 test('validateConfig rejects a flag template without its placeholder', t => {
 	const error = t.throws(
 		() =>

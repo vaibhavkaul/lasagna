@@ -208,6 +208,7 @@ function removeKeepingComments(
 const BUILTIN_FIELDS = [
 	'model_args',
 	'effort_args',
+	'mode_args',
 	'prompt_args',
 	'resume_args',
 	'skill_prefix',

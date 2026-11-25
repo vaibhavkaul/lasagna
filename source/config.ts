@@ -145,6 +145,8 @@ export interface AgentProfileConfig {
 	model?: string;
 	/** Reasoning effort to launch the agent with, substituted into `effort_args`. */
 	effort?: string;
+	/** Execution mode to launch the agent with, substituted into `mode_args`. */
+	mode?: string;
 	/**
 	 * How `model` reaches the CLI, with `{model}` standing in for the value.
 	 * Built in where the agent's entry in scripts/builtin-agents.json has one;
@@ -156,6 +158,11 @@ export interface AgentProfileConfig {
 	 * Built in where the agent's entry in scripts/builtin-agents.json has one.
 	 */
 	effort_args?: string;
+	/**
+	 * How `mode` reaches the CLI, with `{mode}` standing in for the value.
+	 * Built in for agy (`--mode {mode}`).
+	 */
+	mode_args?: string;
 	/**
 	 * How the launch prompt reaches the CLI, with `{prompt}` standing in for
 	 * it exactly once, e.g. `-i {prompt}` for a CLI that won't take a bare
@@ -1891,10 +1898,11 @@ export function workspaceAwareAgents(
  */
 export function sousChefLaunch(
 	config: PappardelleConfig | null,
+	agentProfile?: Pick<ResolvedAgentProfile, 'skillPrefix'>,
 ): SousChefLaunch | undefined {
-	return config?.sous_chef === true
-		? {name: SOUS_CHEF_NAME, prompt: `/${SOUS_CHEF_NAME}`}
-		: undefined;
+	if (config?.sous_chef !== true) return undefined;
+	const prefix = agentProfile?.skillPrefix ?? '/';
+	return {name: SOUS_CHEF_NAME, prompt: `${prefix}${SOUS_CHEF_NAME}`};
 }
 
 /**
@@ -2049,9 +2057,12 @@ export interface ResolvedAgentProfile {
 	 */
 	model: string;
 	effort: string;
-	/** Flag templates for model/effort; undefined means the CLI gets none. */
+	mode?: string;
+	/** Flag templates for model/effort/mode; undefined means the CLI gets none. */
 	modelArgs?: string;
 	effortArgs?: string;
+	modeArgs?: string;
+	promptArgs?: string;
 	/** The deprecated `claude.extra_args`, rendered after model/effort. */
 	extraArgs: string[];
 	skillPrefix: string;
@@ -2083,8 +2094,11 @@ function resolveAgentProfile(
 		isClaude,
 		model: definition.model ?? '',
 		effort: definition.effort ?? '',
+		mode: definition.mode ?? '',
 		modelArgs: definition.model_args ?? builtin.model_args,
 		effortArgs: definition.effort_args ?? builtin.effort_args,
+		modeArgs: definition.mode_args ?? builtin.mode_args,
+		promptArgs: definition.prompt_args ?? builtin.prompt_args,
 		extraArgs: [],
 		skillPrefix: definition.skill_prefix ?? builtin.skill_prefix ?? '/',
 		rulesArgs: builtin.rules_args ?? [],

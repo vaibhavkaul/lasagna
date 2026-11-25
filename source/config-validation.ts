@@ -7,9 +7,11 @@ import {
 import type {AgentProfileConfig, PappardelleConfig} from './config.ts';
 import {ConfigValidationError} from './config-errors.ts';
 import {
+	AGENT_PROFILE_LAUNCH_FIELDS,
+	AGENT_PROFILE_LAUNCH_PLACEHOLDERS,
 	builtinAgentDefaults,
+	isAgyAgentProfile,
 	LAUNCH_FIELDS,
-	LAUNCH_PLACEHOLDERS,
 	PROMPT_PLACEHOLDER,
 } from './config-launch-flags.ts';
 import {isPaneWidth} from './layout-sizing.ts';
@@ -572,11 +574,19 @@ const AGENT_PROFILE_STRING_FIELDS = [
 	'resume_args',
 	'model',
 	'effort',
+	'mode',
 	'model_args',
 	'effort_args',
+	'mode_args',
 	'prompt_args',
 	'skill_prefix',
 ] as const;
+
+const AGY_MODES = new Set(['accept-edits', 'auto', 'plan']);
+
+// agy 1.5.16 warns and silently switches to Gemini 4 Neon (High) when an
+// effort-suffixed model id is combined with an explicit --effort flag.
+const AGY_EFFORT_SUFFIX_PATTERN = /-(?:low|medium|high|xhigh|max)$/;
 
 const ENV_NAME_PATTERN = /^[A-Za-z_]\w*$/;
 
@@ -617,10 +627,10 @@ function validateAgentLaunchTemplates(
 		command: agentProfile.command,
 		is_claude: agentProfile.is_claude,
 	});
-	for (const field of LAUNCH_FIELDS) {
+	for (const field of AGENT_PROFILE_LAUNCH_FIELDS) {
 		const templateField = `${field}_args` as const;
 		const template = agentProfile[templateField];
-		const placeholder = LAUNCH_PLACEHOLDERS[field];
+		const placeholder = AGENT_PROFILE_LAUNCH_PLACEHOLDERS[field];
 		if (typeof template === 'string' && !template.includes(placeholder)) {
 			errors.push(
 				`agent_profiles.${name}.${templateField}: must contain ${placeholder}`,
@@ -635,6 +645,31 @@ function validateAgentLaunchTemplates(
 		) {
 			errors.push(
 				`agent_profiles.${name}.${field}: "${agentProfile.command}" has no built-in ${field} flag; set ${templateField}`,
+			);
+		}
+	}
+	if (
+		isAgyAgentProfile({
+			command: agentProfile.command,
+			is_claude: agentProfile.is_claude,
+		})
+	) {
+		if (typeof agentProfile.mode === 'string') {
+			const mode = agentProfile.mode.trimEnd();
+			if (mode !== '' && !AGY_MODES.has(mode)) {
+				errors.push(
+					`agent_profiles.${name}.mode: must be "accept-edits", "auto", or "plan"`,
+				);
+			}
+		}
+		if (
+			typeof agentProfile.model === 'string' &&
+			typeof agentProfile.effort === 'string' &&
+			agentProfile.effort.trimEnd() !== '' &&
+			AGY_EFFORT_SUFFIX_PATTERN.test(agentProfile.model.trimEnd())
+		) {
+			errors.push(
+				`agent_profiles.${name}: model "${agentProfile.model.trimEnd()}" already includes an effort suffix; remove effort or use the base model name`,
 			);
 		}
 	}
