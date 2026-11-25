@@ -81,12 +81,15 @@ function invalidConfigInstructions(errors: string[]): string {
 export function createMcpServer(options: {
 	awareness: WorkspaceAwareness;
 	space?: string;
+	sender?: string;
 	repoName?: string;
 	sousChef?: boolean;
 	sousChefFile?: string;
 	runCli: RunCli;
 }): McpServer {
 	const {awareness, space, repoName, sousChef, sousChefFile, runCli} = options;
+	const sender =
+		options.sender ?? space ?? (sousChef ? MAIN_WORKTREE_KEY : undefined);
 	let instructions: string | undefined;
 	switch (awareness.kind) {
 		case 'on': {
@@ -125,10 +128,12 @@ export function createMcpServer(options: {
 				},
 			},
 			async (input: Record<string, unknown>, extra) => {
-				const {code, stdout, stderr} = await runCli(
-					tool.toCli(input),
-					extra.signal,
-				);
+				const call = tool.toCli(input);
+				if (tool.name === 'space_send' && sender && call.stdin) {
+					call.stdin = `[from ${sender}] ${call.stdin}`;
+				}
+
+				const {code, stdout, stderr} = await runCli(call, extra.signal);
 				// Separate blocks, so a warning on stderr can't corrupt JSON on stdout.
 				const output = [stdout, stderr]
 					.map(text => text.trim())
@@ -249,12 +254,19 @@ export async function runMcpServer(): Promise<void> {
 		log.error(invalidConfigInstructions(awareness.errors));
 	const sousChef =
 		awareness.kind === 'on' && sousChefLaunch(config) !== undefined;
+	const sender =
+		caller.kind === 'none'
+			? sousChef
+				? MAIN_WORKTREE_KEY
+				: undefined
+			: caller.key;
 	const closed = new Promise(resolve => {
 		process.stdin.once('close', resolve);
 	});
 	await createMcpServer({
 		awareness,
 		space,
+		sender,
 		repoName,
 		sousChef,
 		sousChefFile: sousChef && !space ? findSousChefFile() : undefined,

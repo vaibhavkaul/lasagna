@@ -27,6 +27,7 @@ import {
 	type PermissionPrompt,
 	type PromptOption,
 	type QuestionDialog,
+	type UsageLimit,
 } from './agent-screen.ts';
 import {
 	decideAnswer,
@@ -75,6 +76,11 @@ export type SuperviseDeps = {
 	/** The whole record the hook last wrote, with the prompt's file and cwd. */
 	readHookState: (hookKey: string) => Promise<StoredClaudeStatus>;
 	readSnapshot: AgentStateDeps['readSnapshot'];
+	/** On-demand `agy -p /quota` lookup, called only when a limit is indicated or `--after-limit` is requested. */
+	readAgyQuota?: (
+		key: string,
+		report: AgentStateReport,
+	) => Promise<UsageLimit | null>;
 	runner: OuterTmuxRunner;
 	serverRunner: OuterTmuxRunner;
 	now: () => Date;
@@ -115,7 +121,14 @@ async function readState(key: string, deps: SuperviseDeps) {
 		readHook: deps.readHook,
 		readSnapshot: deps.readSnapshot,
 	};
-	return readAgentState(key, stateDeps);
+	const report = await readAgentState(key, stateDeps);
+	// Never shell out unless the screen already shows an agy limit without a reset time.
+	if (report.usageLimit && !report.usageLimit.resetAt && deps.readAgyQuota) {
+		const quota = await deps.readAgyQuota(key, report);
+		if (quota) return {...report, usageLimit: quota};
+	}
+
+	return report;
 }
 
 function formatOptions(options: PromptOption[]): string {
@@ -831,7 +844,12 @@ async function newJob(
 		}
 
 		case 'after_limit': {
-			const report = await readState(key, deps);
+			let report = await readState(key, deps);
+			if (!limitLiftsAt(report) && deps.readAgyQuota) {
+				const quota = await deps.readAgyQuota(key, report);
+				if (quota) report = {...report, usageLimit: quota};
+			}
+
 			const lifts = limitLiftsAt(report);
 			if (!lifts) {
 				throw new SuperviseUsageError(

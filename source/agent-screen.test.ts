@@ -1,7 +1,11 @@
 import path from 'node:path';
 import test from 'ava';
 import {agentScreenFixture} from '../test/helpers/agent-screens.ts';
-import {parseAgentScreen, parseResetTime} from './agent-screen.ts';
+import {
+	parseAgentScreen,
+	parseAgyQuota,
+	parseResetTime,
+} from './agent-screen.ts';
 
 // Captured from real Claude Code (2.1.319, 2.1.327, 2.1.330, 2.1.331) and Codex
 // (0.166, 0.170) sessions.
@@ -546,4 +550,163 @@ test("Codex's empty input box is read under the message it just sent", t => {
 test('a long paste collapsed into a placeholder is the draft', t => {
 	t.is(screen('claude-long-paste').composer, '[Pasted text #1 +39 lines]');
 	t.is(screen('codex-long-paste').composer, '[Pasted Content 2190 chars]');
+});
+
+test('agy idle screens read an empty composer and strip the grey placeholder from lines', t => {
+	for (const name of ['agy-idle', 'agy-idle-factory']) {
+		const {composer, agyComposer, lines} = screen(name);
+		t.is(composer, '', `${name}`);
+		t.true(agyComposer, `${name}`);
+		t.true(
+			lines.some(line => line.trimEnd() === '>'),
+			`${name}`,
+		);
+		t.false(
+			lines.some(line => line.includes('Auto mode:')),
+			`${name}`,
+		);
+	}
+});
+
+test('agy draft screens read drafts in insert, normal and factory modes, including wrapped lines', t => {
+	t.is(screen('agy-draft').composer, 'draft text not sent yet');
+	t.is(screen('agy-draft-normal').composer, 'draft text not sent yet');
+	t.is(screen('agy-draft-factory').composer, 'factory draft not sent');
+	t.true(
+		screen('agy-draft').lines.some(line =>
+			line.includes('draft text not sent yet'),
+		),
+	);
+
+	const multiline = parseAgentScreen(
+		[
+			'────────────────────',
+			'\u001B[94m>\u001B[39m first line of agy draft',
+			'  second line of agy draft',
+			'────────────────────',
+			'auto · Gemini 4 Hydrogen · medium',
+		].join('\n'),
+		NOW,
+	);
+	t.is(multiline.composer, 'first line of agy draft\nsecond line of agy draft');
+	t.true(multiline.agyComposer);
+});
+
+test('agy transcript prompt echoes are not misread as a composer draft', t => {
+	const capture = [
+		'\u001B[90m────────────────────────────────────────────────────────────\u001B[39m',
+		'\u001B[1m\u001B[34m> Run something\u001B[0m',
+		'',
+		'● Bash(ls)',
+		'\u001B[90m────────────────────────────────────────────────────────────\u001B[39m',
+	].join('\n');
+	t.is(parseAgentScreen(capture, NOW).composer, null);
+});
+
+test('agy question lists parse into QuestionDialog and never as codexDialog', t => {
+	for (const [name, expectedQuestion] of [
+		['agy-question', 'Which color do you choose?'],
+		['agy-question-factory', 'Which color do you choose?'],
+		['agy-prompt-question', 'Please choose a color:'],
+	] as const) {
+		const parsed = screen(name);
+		t.is(parsed.codexDialog, null, `${name}`);
+		t.is(parsed.permission, null, `${name}`);
+		t.is(parsed.composer, null, `${name}`);
+		t.deepEqual(
+			parsed.question,
+			{
+				tabs: [],
+				question: expectedQuestion,
+				options: [
+					{number: 1, label: 'red', kind: 'other', selected: true},
+					{number: 2, label: 'green', kind: 'other', selected: false},
+					{number: 3, label: 'blue', kind: 'other', selected: false},
+				],
+				multiSelect: false,
+				textOption: {number: 4, text: '', open: false},
+				cursor: 1,
+			},
+			`${name}`,
+		);
+	}
+});
+
+test('agy subagent manage view is never classified as codexDialog or question', t => {
+	const manage = screen('agy-subagent-manage');
+	t.is(manage.codexDialog, null);
+	t.is(manage.question, null);
+	t.is(manage.permission, null);
+	t.is(manage.composer, null);
+});
+
+test('parseResetTime parses ISO timestamps and parseAgyQuota parses /quota output', t => {
+	const iso = '2026-11-24T09:10:11Z';
+	t.deepEqual(parseResetTime(iso, NOW), new Date(iso));
+	t.is(parseResetTime('2026-99-99T00:00:00Z', NOW), null);
+
+	const depleted = [
+		'Gemini Models\tWeekly Limit Remaining\t98%\t2026-12-01T04:14:49Z',
+		'Gemini Models\tFive Hour Limit Remaining\t0%\t2026-11-24T09:10:11Z',
+		'Claude and GPT models\tWeekly Limit Remaining\t100%\t2026-12-01T04:29:31Z',
+	].join('\n');
+	t.deepEqual(parseAgyQuota(depleted, new Date('2026-11-24T08:00:00Z')), {
+		resetText: '2026-11-24T09:10:11Z',
+		resetAt: new Date('2026-11-24T09:10:11Z'),
+		passed: false,
+	});
+	t.deepEqual(parseAgyQuota(depleted, new Date('2026-11-24T09:15:00Z')), {
+		resetText: '2026-11-24T09:10:11Z',
+		resetAt: new Date('2026-11-24T09:10:11Z'),
+		passed: true,
+	});
+
+	const bothDepleted = [
+		'Gemini Models\tWeekly Limit Remaining\t0%\t2026-12-01T04:14:49Z',
+		'Gemini Models\tFive Hour Limit Remaining\t0%\t2026-11-24T09:10:11Z',
+	].join('\n');
+	t.is(
+		parseAgyQuota(bothDepleted, new Date('2026-11-24T08:00:00Z'))?.resetText,
+		'2026-12-01T04:14:49Z',
+	);
+
+	const remaining = [
+		'Gemini Models\tWeekly Limit Remaining\t98%\t2026-12-01T04:14:49Z',
+		'Gemini Models\tFive Hour Limit Remaining\t97%\t2026-11-24T09:14:49Z',
+	].join('\n');
+	t.is(parseAgyQuota(remaining, NOW), null);
+	t.is(parseAgyQuota('garbage output', NOW), null);
+	t.deepEqual(
+		parseAgyQuota(
+			'Gemini Models\tFive Hour Limit Remaining\t0%\tnot-a-timestamp',
+			NOW,
+		),
+		{resetText: 'not-a-timestamp', resetAt: null, passed: false},
+	);
+});
+
+test('agy Out of credits footer indicates a usage limit without false-positiving on tool output', t => {
+	const footer = parseAgentScreen(
+		[
+			'────────────────────',
+			'\u001B[94m>\u001B[39m',
+			'────────────────────',
+			'auto · Gemini 4 Hydrogen · medium · AI: Out of credits',
+		].join('\n'),
+		NOW,
+	);
+	t.deepEqual(footer.usageLimit, {resetText: '', resetAt: null, passed: false});
+
+	const echo = parseAgentScreen(
+		[
+			'● Bash(grep credits log.txt)',
+			'  ⎿  auto · AI: Out of credits',
+			'────────────────────',
+			'\u001B[94m>\u001B[39m',
+			'────────────────────',
+			'auto · Gemini 4 Hydrogen · medium',
+		].join('\n'),
+		NOW,
+	);
+	t.is(echo.usageLimit, null);
 });

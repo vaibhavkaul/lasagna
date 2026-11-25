@@ -7,6 +7,7 @@ import {
 	agentRulesFlags,
 	companionRules,
 	installAgentRules,
+	isAgyCommand,
 } from './companion-rules.ts';
 import {buildAgentResumeCommand} from './tmux.ts';
 import {getNamedAgentProfile} from './config.ts';
@@ -134,5 +135,50 @@ test('agy gets an always-on rule the worktree stays clean of', async t => {
 test('other agents get no rule file', async t => {
 	const {tree} = worktree(t);
 	await installAgentRules('codex', tree);
+	await installAgentRules('env FOO=agy codex', tree);
+	await installAgentRules('codex --note agy', tree);
 	t.false(fs.existsSync(path.join(tree, '.agents')));
+});
+
+test('wrapper commands still detect agy and write space identity and role-appropriate messaging rules', async t => {
+	t.true(isAgyCommand('env FOO=1 agy --model gemini-4'));
+	t.true(isAgyCommand('/usr/bin/env -u BAR FOO=1 /usr/local/bin/agy'));
+	t.true(isAgyCommand('FOO=1 agy'));
+	t.false(isAgyCommand('env FOO=agy codex'));
+	t.false(isAgyCommand('codex --prompt agy'));
+
+	const {tree: workerTree} = worktree(t);
+	await installAgentRules('env FOO=1 agy --flag', workerTree, {
+		space: 'STA-42',
+		repo: 'pappardelle',
+		role: 'worker',
+	});
+	const workerRule = fs.readFileSync(
+		path.join(workerTree, '.agents', 'rules', 'pappardelle.md'),
+		'utf8',
+	);
+	t.regex(workerRule, /space STA-42 \(repo pappardelle\)/);
+	t.regex(workerRule, /space_send/);
+	t.regex(workerRule, /spaces_list/);
+	t.regex(workerRule, /sous-chef in the main checkout \(space key `main`\)/);
+	t.notRegex(workerRule, /use SendMessage|reach it with SendMessage/i);
+
+	const {tree: mainTree} = worktree(t);
+	await installAgentRules('/usr/local/bin/agy', mainTree, {
+		space: 'main',
+		repo: 'pappardelle',
+		role: 'sous-chef',
+	});
+	const mainRule = fs.readFileSync(
+		path.join(mainTree, '.agents', 'rules', 'pappardelle.md'),
+		'utf8',
+	);
+	t.regex(
+		mainRule,
+		/space main \(repo pappardelle\), running in sous-chef mode/,
+	);
+	t.regex(mainRule, /space_watch/);
+	t.regex(mainRule, /space_answer/);
+	t.regex(mainRule, /space_send/);
+	t.notRegex(mainRule, /use SendMessage|reach it with SendMessage/i);
 });

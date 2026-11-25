@@ -12,13 +12,21 @@ import {
 import type {CliCall} from './mcp-tools.ts';
 
 async function connect(
-	options: {awareness?: WorkspaceAwareness; runCli?: RunCli} = {},
+	options: {
+		awareness?: WorkspaceAwareness;
+		space?: string;
+		sender?: string;
+		sousChef?: boolean;
+		runCli?: RunCli;
+	} = {},
 ) {
 	const calls: CliCall[] = [];
 	const result: CliResult = {code: 0, stdout: 'out\n', stderr: ''};
 	const server = createMcpServer({
 		awareness: options.awareness ?? {kind: 'on'},
-		space: 'STA-1',
+		space: 'space' in options ? options.space : 'STA-1',
+		...(options.sender !== undefined ? {sender: options.sender} : {}),
+		...(options.sousChef !== undefined ? {sousChef: options.sousChef} : {}),
 		repoName: 'repo',
 		runCli:
 			options.runCli ??
@@ -46,9 +54,27 @@ test('a tool call runs its CLI call and returns the output', async t => {
 		name: 'space_send',
 		arguments: {key: 'STA-2', text: "it's"},
 	});
-	t.deepEqual(calls, [{args: ['send', 'STA-2'], stdin: "it's"}]);
+	t.deepEqual(calls, [{args: ['send', 'STA-2'], stdin: "[from STA-1] it's"}]);
 	t.is(text(result), 'out');
 	t.falsy(result.isError);
+});
+
+test('space_send prepends [from main] for main sous-chef and leaves text bare when caller is unknown', async t => {
+	const main = await connect({space: undefined, sousChef: true});
+	await main.client.callTool({
+		name: 'space_send',
+		arguments: {key: 'STA-2', text: 'status?'},
+	});
+	t.deepEqual(main.calls, [
+		{args: ['send', 'STA-2'], stdin: '[from main] status?'},
+	]);
+
+	const external = await connect({space: undefined, sousChef: false});
+	await external.client.callTool({
+		name: 'space_send',
+		arguments: {key: 'STA-2', text: 'status?'},
+	});
+	t.deepEqual(external.calls, [{args: ['send', 'STA-2'], stdin: 'status?'}]);
 });
 
 test('a command with no output still answers', async t => {

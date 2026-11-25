@@ -3,7 +3,11 @@ import test from 'ava';
 import {publishSnapshot, snapshotOf} from '../test/helpers/program-status.ts';
 import {testState, writeClaudeStatus} from '../test/helpers/state.ts';
 import {parseStatusPane} from './program-status-monitor.ts';
-import {defaultSuperviseDeps} from './supervise-runtime.ts';
+import {
+	createAgyQuotaReader,
+	defaultSuperviseDeps,
+	sanitizedAgyEnv,
+} from './supervise-runtime.ts';
 
 test.serial(
 	'a supervised wait ends early when a hook status or a native status changes',
@@ -48,3 +52,52 @@ test.serial(
 		);
 	},
 );
+
+test('createAgyQuotaReader strips PAPPARDELLE_* and TMUX* env, caches within TTL, and handles failures', async t => {
+	t.deepEqual(
+		sanitizedAgyEnv({
+			PATH: '/usr/bin',
+			HOME: '/home/u',
+			PAPPARDELLE_SPACE: 'STA-1',
+			PAPPARDELLE_REPO: 'repo',
+			TMUX: '/tmp/tmux-1000/default,1,0',
+			TMUX_PANE: '%1',
+			TMUX_TMPDIR: '/tmp',
+		}),
+		{PATH: '/usr/bin', HOME: '/home/u'},
+	);
+
+	let clock = new Date('2026-11-24T08:00:00Z').getTime();
+	const calls: Array<{
+		command: string;
+		args: readonly string[];
+		env: NodeJS.ProcessEnv;
+	}> = [];
+	let output: string | null =
+		'Gemini Models\tFive Hour Limit Remaining\t0%\t2026-11-24T09:10:11Z\n';
+	const reader = createAgyQuotaReader({
+		now: () => new Date(clock),
+		env: {PATH: '/bin', PAPPARDELLE_SPACE: 'STA-1', TMUX: 'x'},
+		cacheTtlMs: 60_000,
+		async run(command, args, opts) {
+			calls.push({command, args, env: opts.env});
+			return output;
+		},
+	});
+
+	const first = await reader('/opt/agy');
+	t.is(first?.resetText, '2026-11-24T09:10:11Z');
+	t.deepEqual(calls[0]!.args, ['-p', '/quota']);
+	t.deepEqual(calls[0]!.env, {PATH: '/bin'});
+
+	// Cached hit within TTL does not re-run.
+	clock += 30_000;
+	await reader('/opt/agy');
+	t.is(calls.length, 1);
+
+	// Expired cache re-runs; failure returns null cleanly.
+	clock += 40_000;
+	output = null;
+	t.is(await reader('/opt/agy'), null);
+	t.is(calls.length, 2);
+});

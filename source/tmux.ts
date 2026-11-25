@@ -140,6 +140,7 @@ import {
 	type ResolvedCompanionSplit,
 	type PappardelleConfig,
 	type ResolvedAgentProfile,
+	SOUS_CHEF_NAME,
 	sousChefLaunch,
 	type AgentLaunch,
 	workspaceAwareAgents,
@@ -1798,15 +1799,18 @@ async function runSteps(
  */
 async function prepareComposer(
 	pane: AgentPane,
-	{clear}: {clear: boolean},
+	{clear, enterInsert = false}: {clear: boolean; enterInsert?: boolean},
 ): Promise<boolean> {
 	const {target} = pane;
 	return runSteps(pane, [
 		{args: ['copy-mode', '-q', '-t', target]},
 		...(clear
-			? Array.from({length: CLEAR_COMPOSER_CALLS}, () => ({
-					args: ['send-keys', '-t', target, ...CLEAR_COMPOSER_CHUNK],
-				}))
+			? [
+					...(enterInsert ? [{args: ['send-keys', '-t', target, 'i']}] : []),
+					...Array.from({length: CLEAR_COMPOSER_CALLS}, () => ({
+						args: ['send-keys', '-t', target, ...CLEAR_COMPOSER_CHUNK],
+					})),
+				]
 			: []),
 	]);
 }
@@ -1873,6 +1877,7 @@ async function readAgentScreen({
 // 30 s after which another sender takes the lock over.
 const SCREEN_POLL_MS = 50;
 const CLEARED_POLLS = 240;
+const AGY_CLEARED_POLLS = 40;
 const PASTE_SHOWN_POLLS = 60;
 const ENTER_TAKEN_POLLS = 40;
 // The bead's report was that the key after a lost Enter submitted the text.
@@ -1916,11 +1921,27 @@ async function submit(
 	const clear = before.composer !== '' || before.shellMode;
 	if (!(await prepareComposer(pane, {clear}))) return 'failed';
 	if (watched && clear) {
-		const cleared = await waitForScreen(
+		const polls = before.agyComposer ? AGY_CLEARED_POLLS : CLEARED_POLLS;
+		let cleared = await waitForScreen(
 			pane,
-			CLEARED_POLLS,
+			polls,
 			screen => screen.composer === '' && !screen.shellMode,
 		);
+		if (!cleared && before.agyComposer) {
+			// Agy's vim normal mode ignores readline clear keys without showing a
+			// mode label, so only a draft that survived them gets `i` + re-clear.
+			const current = await readAgentScreen(pane);
+			if (current?.agyComposer && current.composer) {
+				if (!(await prepareComposer(pane, {clear: true, enterInsert: true})))
+					return 'failed';
+				cleared = await waitForScreen(
+					pane,
+					CLEARED_POLLS,
+					screen => screen.composer === '' && !screen.shellMode,
+				);
+			}
+		}
+
 		if (!cleared) return 'failed';
 	}
 
@@ -4194,7 +4215,11 @@ export async function ensureAgentSession(
 
 	if (launch?.rules) {
 		try {
-			await installAgentRules(agentProfile.command, worktreePath);
+			await installAgentRules(agentProfile.command, worktreePath, {
+				space: issueKey,
+				repo: identity.repo,
+				role: launch.name === SOUS_CHEF_NAME ? 'sous-chef' : 'worker',
+			});
 		} catch (err) {
 			log.warn(
 				`Could not write the companion rules for ${issueKey}: ${err instanceof Error ? err.message : String(err)}`,

@@ -9,6 +9,7 @@ import type {ApprovalPolicy} from './approve-policy.ts';
 import type {ClassifierVerdict} from './approve-classifier.ts';
 import type {ClaudeSessionState} from './claude-status.ts';
 import type {Hold} from './holds.ts';
+import type {UsageLimit} from './agent-screen.ts';
 import type {SuperviseEntry} from './supervise-log.ts';
 import type {OuterTmuxRunner} from './tmux.ts';
 import {idowIdentities, testState} from '../test/helpers/state.ts';
@@ -55,7 +56,17 @@ const policy: ApprovalPolicy = {
 function harness(
 	t: ExecutionContext,
 	screens: string[],
-	{ignoresKeys = false, caller = 'main'} = {},
+	{
+		ignoresKeys = false,
+		caller = 'main',
+		app = null as string | null,
+		readAgyQuota,
+	}: {
+		ignoresKeys?: boolean;
+		caller?: string;
+		app?: string | null;
+		readAgyQuota?: SuperviseDeps['readAgyQuota'];
+	} = {},
 ) {
 	const {schedules, holds} = testState(t).daos;
 	const pressed: string[][] = [];
@@ -100,7 +111,9 @@ function harness(
 		readHook: async () => ({status: 'unknown'}),
 		readHookState: async () =>
 			hook ? {kind: 'state', state: hook} : {kind: 'none'},
-		readSnapshot: async () => null,
+		readSnapshot: async () =>
+			app ? {app, status: 'idle', source: 'osc'} : null,
+		...(readAgyQuota ? {readAgyQuota} : {}),
 		runner,
 		serverRunner: () => ({status: 1, stdout: ''}),
 		now: () => new Date(clock),
@@ -823,4 +836,116 @@ test('a timeout past the cap and a missing --until are usage errors', t => {
 			]),
 		{instanceOf: SuperviseUsageError},
 	);
+});
+
+test('state and answer handle agy question lists without misreading codexDialog', async t => {
+	const h = harness(t, [fixture('agy-question')], {app: 'antigravity'});
+	t.is(await h.run('state', 'STA-1', '--json'), 0);
+	t.like(JSON.parse(h.out[0]!), {
+		state: 'question',
+		codexDialog: null,
+		question: {
+			question: 'Which color do you choose?',
+			textOption: {number: 4, text: '', open: false},
+		},
+	});
+
+	t.is(await h.run('state', 'STA-1'), 0);
+	t.regex(h.out[1]!, /Which color do you choose\?/);
+	t.notRegex(h.out[1]!, /Codex dialog/);
+
+	t.is(await h.run('answer', 'STA-1', '--option', '4'), 1);
+	t.regex(h.err[0]!, /free-text row; answer it with --text/);
+	t.is(await h.run('answer', 'STA-1', '--option', '2'), 0);
+	t.deepEqual(h.pressed, [['2']]);
+	t.like(h.logged[0], {action: 'answer', sent: '2. green'});
+});
+
+test('holdMessage and schedule fire nudges never get a [from ...] sender header', async t => {
+	const held = harness(t, [permission('doctl account get')]);
+	t.is(await held.run('answer', 'STA-1', '--option', '1'), 0);
+	t.false(held.sent[0]!.text.startsWith('[from '));
+
+	const nudged = harness(t, [fixture('claude-idle')]);
+	await nudged.run(
+		'schedule',
+		'STA-1',
+		'--keep-going',
+		'--every',
+		'10m',
+		'--nudge',
+		'check CI',
+	);
+	const [job] = nudged.holds.list().length === 0 ? ['created'] : [];
+	t.is(job, 'created');
+	// Fire directly via the saved job id from out[0].
+	const id = /Scheduled (\S+)/.exec(nudged.out[0]!)![1]!;
+	await nudged.run('schedule', 'fire', id);
+	await nudged.run('schedule', 'fire', id);
+	t.deepEqual(nudged.sent, [{text: 'check CI'}]);
+});
+
+test('schedule --after-limit queries agy quota on demand, handles passed resets, and refuses when quota remains or fails', async t => {
+	let quotaCalls = 0;
+	let quotaResult: UsageLimit | null = {
+		resetText: '2026-11-09T18:30:00Z',
+		resetAt: new Date('2026-11-09T18:30:00Z'),
+		passed: false,
+	};
+	const h = harness(t, [fixture('agy-idle')], {
+		app: 'antigravity',
+		async readAgyQuota() {
+			quotaCalls++;
+			return quotaResult;
+		},
+	});
+
+	// Normal state reads must NEVER shell out to /quota.
+	t.is(await h.run('state', 'STA-1'), 0);
+	t.is(quotaCalls, 0);
+
+	// 0% limit with future ISO reset schedules resetAt + 60s margin.
+	t.is(await h.run('schedule', 'STA-1', '--after-limit'), 0);
+	t.is(quotaCalls, 1);
+	t.regex(h.out[1]!, /after the usage limit, at 2026-11-09T18:31:00\.000Z/);
+
+	// Already-passed ISO reset schedules at now + 60s soonest margin.
+	quotaResult = {
+		resetText: '2026-11-09T10:00:00Z',
+		resetAt: new Date('2026-11-09T10:00:00Z'),
+		passed: true,
+	};
+	t.is(await h.run('schedule', 'STA-1', '--after-limit'), 0);
+	t.is(quotaCalls, 2);
+
+	// >0% remaining or timeout/malformed failure returns null and is refused.
+	quotaResult = null;
+	t.is(await h.run('schedule', 'STA-1', '--after-limit'), 2);
+	t.regex(h.err.at(-1)!, /no usage limit reset to wait for/);
+
+	// Screen already showing AI: Out of credits invokes readAgyQuota during state.
+	quotaResult = {
+		resetText: '2026-11-09T18:30:00Z',
+		resetAt: new Date('2026-11-09T18:30:00Z'),
+		passed: false,
+	};
+	const limitScreen = [
+		'────────────────────',
+		'\u001B[94m>\u001B[39m',
+		'────────────────────',
+		'auto · Gemini 4 Hydrogen · medium · AI: Out of credits',
+	].join('\n');
+	const hLimit = harness(t, [limitScreen], {
+		app: 'antigravity',
+		async readAgyQuota() {
+			quotaCalls++;
+			return quotaResult;
+		},
+	});
+	t.is(await hLimit.run('state', 'STA-1', '--json'), 0);
+	t.is(quotaCalls, 4);
+	t.like(JSON.parse(hLimit.out[0]!), {
+		state: 'usage_limit',
+		usageLimit: {resetText: '2026-11-09T18:30:00Z'},
+	});
 });

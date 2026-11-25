@@ -3,7 +3,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {promisify} from 'node:util';
 import test from 'ava';
-import type {AgentState, AgentStateReport} from './agent-state.ts';
+import {agentScreenFixture} from '../test/helpers/agent-screens.ts';
+import {parseAgentScreen} from './agent-screen.ts';
+import {
+	classifyAgent,
+	type AgentState,
+	type AgentStateReport,
+} from './agent-state.ts';
 import {contractTest} from '../test/helpers/dao-contract.ts';
 import {testState, type TestState} from '../test/helpers/state.ts';
 import {
@@ -594,3 +600,43 @@ console.log(JSON.stringify({job, queued}));
 		t.is(store.queued('STA-2'), null);
 	});
 }
+
+contractTest(
+	'keep_going skips and at retries over an agy draft',
+	async (t, state) => {
+		const screen = parseAgentScreen(
+			agentScreenFixture('agy-draft-normal'),
+			NOW,
+		);
+		const draftReport: AgentStateReport = {
+			...report(classifyAgent(null, screen)),
+			composer: screen.composer,
+		};
+		const kg = harness(state, [draftReport]);
+		await kg.store.save({...keepGoing(), idleChecks: 1});
+		t.is(await kg.fire(keepGoing()), 'skipped_draft');
+		t.deepEqual(kg.sent, []);
+
+		const atJobAgy: Job = {...atJob, id: 'at-agy', key: 'STA-1'};
+		const at = harness(state, [draftReport], 'draft');
+		await at.store.save(atJobAgy);
+		t.is(await at.fire(atJobAgy), 'retrying');
+		t.is(at.timers[0]?.arm, 1);
+	},
+);
+
+contractTest(
+	'after_limit with an agy ISO reset waits before reset and sends continue after',
+	async (t, state) => {
+		const reset = new Date('2026-11-24T09:10:11Z');
+		const before = new Date('2026-11-24T09:00:00Z');
+		const after = new Date('2026-11-24T09:12:00Z');
+		const limitReport = report('usage_limit', reset);
+		const h = harness(state, [limitReport, limitReport]);
+		await h.store.save(afterLimit);
+		t.is(await h.fire(afterLimit, before), 'waiting');
+		t.is(h.timers[0]?.at, '2026-11-24T09:11:11.000Z');
+		t.is(await h.fire(afterLimit, after), 'sent');
+		t.deepEqual(h.sent, ['continue']);
+	},
+);

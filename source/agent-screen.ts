@@ -99,6 +99,8 @@ export type AgentScreen = {
 	 * shell command. Clearing the box leaves it.
 	 */
 	shellMode: boolean;
+	/** Agy's `>` input box, whose vim normal mode ignores readline clear keys. */
+	agyComposer: boolean;
 	/** Codex's own dialogs (folder trust, model switch) that take the keyboard. */
 	codexDialog: CodexDialog | null;
 	/** The screen as text, with the input box's dim placeholder left out. */
@@ -120,7 +122,10 @@ const OPTION = /^\s*(❯\s*)?(\d+)\.\s+(.+?)\s*$/;
 const CLAUDE_SPINNER = /\(\d+[smh](?: \d+[smh])* ·|^\s*[·✢✳✶✻✽*] \S+…/;
 const CODEX_SPINNER = /\bWorking \(/;
 // `enter continue · esc quit`, `t trust all · enter review · esc close`.
-const CODEX_DIALOG_FOOTER = /\benter \w+ · esc \w+/;
+// Agy's question and subagent-manage footers also pair `enter <word> · esc <word>`,
+// so match only Codex's lowercase verb set.
+const CODEX_DIALOG_FOOTER =
+	/^\s*(?:[a-z ]+ · )?enter (?:continue|confirm|review|select) · esc (?:quit|skip|close|back)\s*$/;
 // A dialog's title is the bold line over it.
 const BOLD_LINE = new RegExp(
 	`^\\s*${ESC}\\[1m\\s*([^${ESC}]+?)\\s*${ESC}\\[0m\\s*$`,
@@ -128,6 +133,9 @@ const BOLD_LINE = new RegExp(
 const CODEX_OPTION = /^\s*(›\s*)?(\d+)\.\s/;
 // Typing into the free-text row puts `-- INSERT -- · ` in front.
 const QUESTION_FOOTER = /^\s*(?:-- INSERT -- · )?Enter to select · /;
+const AGY_QUESTION_FOOTER = /^\s*↑\/↓ Navigate · enter Select · esc Skip\s*$/;
+const AGY_OPTION = /^\s*(>\s*)?(\d+)\.\s+(.+?)\s*$/;
+const AGY_WRITE_IN = /^Write-in\.\.\.$/;
 const TYPE_SOMETHING = /^Type something\.?$/;
 const CHECKBOX = /^\[([ ✔])\]\s*/;
 // A bare reset time up to this far in the past is today's and has passed: a
@@ -146,12 +154,23 @@ function optionKind(label: string): OptionKind {
 function readOptions(
 	lines: string[],
 	from: number,
-	{joinWrapped}: {joinWrapped: boolean},
+	{
+		joinWrapped,
+		optionPattern = OPTION,
+		stop = line =>
+			QUESTION_FOOTER.test(line) ||
+			AGY_QUESTION_FOOTER.test(line) ||
+			/^\s*Esc to cancel/.test(line),
+	}: {
+		joinWrapped: boolean;
+		optionPattern?: RegExp;
+		stop?: (line: string) => boolean;
+	},
 ): PromptOption[] {
 	const options: PromptOption[] = [];
 	for (const line of lines.slice(from)) {
-		if (QUESTION_FOOTER.test(line) || /^\s*Esc to cancel/.test(line)) break;
-		const match = OPTION.exec(line);
+		if (stop(line)) break;
+		const match = optionPattern.exec(line);
 		const last = options.at(-1);
 		if (!match) {
 			// A permission option's label wraps onto the lines under it. A
@@ -355,13 +374,69 @@ function parsePermission(lines: string[]): PermissionPrompt | null {
 // "Review your answers", whose footer differs from the questions'.
 const TAB_BAR = /^\s*←.*✔ Submit\s+→\s*$/;
 
+function withCheckboxes(options: PromptOption[]): PromptOption[] {
+	return options.map(option => {
+		const box = CHECKBOX.exec(option.label);
+		return box
+			? {
+					...option,
+					label: option.label.slice(box[0].length),
+					checked: box[1] === '✔',
+				}
+			: option;
+	});
+}
+
+function parseAgyQuestion(lines: string[]): QuestionDialog | null {
+	const footerAt = lastIndex(lines, line => AGY_QUESTION_FOOTER.test(line));
+	if (footerAt === -1) return null;
+	const firstOptionAt = lastIndex(lines.slice(0, footerAt), line =>
+		/^\s*(?:>\s*)?1\.\s/.test(line),
+	);
+	if (firstOptionAt === -1) return null;
+	const questionEnd = lastIndex(
+		lines.slice(0, firstOptionAt),
+		line => line.trim() !== '',
+	);
+	if (questionEnd === -1) return null;
+	let questionAt = questionEnd;
+	while (
+		questionAt > 0 &&
+		lines[questionAt - 1]!.trim() !== '' &&
+		!RULE.test(lines[questionAt - 1]!)
+	) {
+		questionAt--;
+	}
+
+	const question = lines
+		.slice(questionAt, questionEnd + 1)
+		.map(line => line.trim())
+		.join(' ')
+		.replace(/^Question \d+\/\d+:\s*/, '');
+	const rows = withCheckboxes(
+		readOptions(lines, firstOptionAt, {
+			joinWrapped: false,
+			optionPattern: AGY_OPTION,
+		}),
+	);
+	const text = rows.find(option => AGY_WRITE_IN.test(option.label));
+	return {
+		tabs: [],
+		question,
+		options: rows.filter(option => option !== text),
+		multiSelect: rows.some(option => option.checked !== undefined),
+		cursor: rows.find(option => option.selected)?.number ?? null,
+		textOption: text ? {number: text.number, text: '', open: false} : null,
+	};
+}
+
 function parseQuestion(lines: string[]): QuestionDialog | null {
 	let footerAt = lastIndex(lines, line => QUESTION_FOOTER.test(line));
 	if (footerAt === -1 && lines.some(line => TAB_BAR.test(line))) {
 		footerAt = lines.length;
 	}
 
-	if (footerAt === -1) return null;
+	if (footerAt === -1) return parseAgyQuestion(lines);
 	const firstOptionAt = lastIndex(lines.slice(0, footerAt), line =>
 		/^\s*(❯\s*)?1\.\s/.test(line),
 	);
@@ -395,18 +470,7 @@ function parseQuestion(lines: string[]): QuestionDialog | null {
 	// what's typed in it in place of its label, focused or not. The review
 	// step has neither.
 	const chat = all.find(option => option.label === 'Chat about this');
-	const rows = all
-		.filter(option => option !== chat)
-		.map(option => {
-			const box = CHECKBOX.exec(option.label);
-			return box
-				? {
-						...option,
-						label: option.label.slice(box[0].length),
-						checked: box[1] === '✔',
-					}
-				: option;
-		});
+	const rows = withCheckboxes(all.filter(option => option !== chat));
 	const text = chat
 		? rows.find(option => option.number === chat.number - 1)
 		: undefined;
@@ -445,11 +509,23 @@ function hours24(hour: string, meridiem: string): number {
 	return (Number(hour) % 12) + (meridiem.toUpperCase() === 'PM' ? 12 : 0);
 }
 
-/** Codex shows a bare `4:28 AM`, or a date when the reset is days away. */
+const ISO_TIMESTAMP =
+	/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})$/;
+
+/**
+ * Codex shows a bare `4:28 AM`, or a date when the reset is days away; agy
+ * quota output reports ISO timestamps.
+ */
 export function parseResetTime(text: string, now: Date): Date | null {
+	const trimmed = text.trim();
+	if (ISO_TIMESTAMP.test(trimmed)) {
+		const parsed = new Date(trimmed);
+		return Number.isNaN(parsed.getTime()) ? null : parsed;
+	}
+
 	const dated =
 		/^([A-Z][a-z]{2}) (\d{1,2})(?:st|nd|rd|th)?, (\d{4}) (\d{1,2}):(\d{2}) ([AP]M)$/i.exec(
-			text,
+			trimmed,
 		);
 	if (dated) {
 		const month = MONTHS.indexOf(dated[1]!);
@@ -463,7 +539,7 @@ export function parseResetTime(text: string, now: Date): Date | null {
 		);
 	}
 
-	const bare = /^(\d{1,2}):(\d{2}) ([AP]M)$/i.exec(text);
+	const bare = /^(\d{1,2}):(\d{2}) ([AP]M)$/i.exec(trimmed);
 	if (!bare) return null;
 	const reset = new Date(now);
 	reset.setHours(hours24(bare[1]!, bare[3]!), Number(bare[2]), 0, 0);
@@ -474,6 +550,45 @@ export function parseResetTime(text: string, now: Date): Date | null {
 	return reset;
 }
 
+/**
+ * Parse tab-separated `agy -p /quota` output (`group\twindow\t0%\tISO`).
+ * Returns null when every bucket still has remaining quota or output is empty.
+ */
+export function parseAgyQuota(output: string, now: Date): UsageLimit | null {
+	const depleted: Array<{resetText: string; resetAt: Date | null}> = [];
+	for (const line of output.split('\n')) {
+		const parts = line.split('\t');
+		if (parts.length < 4) continue;
+		const percent = parts[2]!.trim();
+		if (!/^\d+%$/.test(percent) || Number(percent.slice(0, -1)) > 0) continue;
+		const resetText = parts[3]!.trim();
+		const resetAt = resetText ? parseResetTime(resetText, now) : null;
+		depleted.push({resetText, resetAt});
+	}
+
+	if (depleted.length === 0) return null;
+	// When both five-hour and weekly buckets are at 0%, wait for the latest reset.
+	let best = depleted[0]!;
+	for (const row of depleted.slice(1)) {
+		if (!row.resetAt) continue;
+		if (!best.resetAt || row.resetAt.getTime() > best.resetAt.getTime()) {
+			best = row;
+		}
+	}
+	return {
+		resetText: best.resetText,
+		resetAt: best.resetAt,
+		passed: best.resetAt !== null && now.getTime() >= best.resetAt.getTime(),
+	};
+}
+
+const AGY_FOOTER_CREDITS = /\bAI:\s*Out of credits\b/i;
+const AGY_LIMIT_NOTICE =
+	/^(?:[✕✖■⚠!]\s+|Error:\s+).*?(?:out of credits|usage limit|quota (?:exceeded|exhausted|reached)|rate limit)/i;
+const TRANSCRIPT_BOLD_BLUE = new RegExp(
+	`^\\s*(?:${ESC}\\[0m)?${ESC}\\[1m${ESC}\\[34m>`,
+);
+
 function parseUsageLimit(lines: string[], now: Date): UsageLimit | null {
 	// Codex starts the notice at the left edge with its error mark; the same
 	// words elsewhere, say in a file an agent prints, aren't a limit.
@@ -481,51 +596,107 @@ function parseUsageLimit(lines: string[], now: Date): UsageLimit | null {
 		lines,
 		line => line.startsWith('■ ') && line.includes('hit your usage limit'),
 	);
-	if (limitAt === -1) return null;
-	// Once the agent works again, an old limit message scrolls up above it.
-	if (lastIndex(lines, line => line.startsWith('• ')) > limitAt) return null;
-	const joined = lines.slice(limitAt).join(' ').replace(/\s+/g, ' ');
-	const resetText =
-		/try again at (.*?\d{1,2}:\d{2} ?[AP]M)/i.exec(joined)?.[1] ?? '';
-	const resetAt = resetText ? parseResetTime(resetText, now) : null;
-	return {
-		resetText,
-		resetAt,
-		passed: resetAt !== null && now.getTime() >= resetAt.getTime(),
-	};
+	if (limitAt !== -1) {
+		// Once the agent works again, an old limit message scrolls up above it.
+		if (lastIndex(lines, line => line.startsWith('• ')) > limitAt) return null;
+		const joined = lines.slice(limitAt).join(' ').replace(/\s+/g, ' ');
+		const resetText =
+			/try again at (.*?\d{1,2}:\d{2} ?[AP]M)/i.exec(joined)?.[1] ?? '';
+		const resetAt = resetText ? parseResetTime(resetText, now) : null;
+		return {
+			resetText,
+			resetAt,
+			passed: resetAt !== null && now.getTime() >= resetAt.getTime(),
+		};
+	}
+
+	const nonEmptyTail = lines.filter(line => line.trim() !== '').slice(-3);
+	if (
+		nonEmptyTail.some(
+			line => !/^\s*[●○▸⎿]/.test(line) && AGY_FOOTER_CREDITS.test(line),
+		)
+	) {
+		return {resetText: '', resetAt: null, passed: false};
+	}
+
+	const agyAt = lastIndex(lines, line => AGY_LIMIT_NOTICE.test(line));
+	if (agyAt !== -1) {
+		if (lastIndex(lines, line => line.startsWith('● ')) > agyAt) return null;
+		const joined = lines.slice(agyAt).join(' ').replace(/\s+/g, ' ');
+		const iso =
+			/\b(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2}))\b/.exec(
+				joined,
+			)?.[1] ?? '';
+		const clock =
+			/try again at (.*?\d{1,2}:\d{2} ?[AP]M)/i.exec(joined)?.[1] ?? '';
+		const resetText = iso || clock;
+		const resetAt = resetText ? parseResetTime(resetText, now) : null;
+		return {
+			resetText,
+			resetAt,
+			passed: resetAt !== null && now.getTime() >= resetAt.getTime(),
+		};
+	}
+
+	return null;
 }
 
 /**
- * The input line: Codex's `›`, or Claude's `❯` boxed between two rules,
- * which Claude draws as `!` in shell mode.
+ * The input line: Codex's `›`, Claude's `❯` (`!` in shell mode) between two
+ * rules, or agy's `>` between two rules.
  */
 function composerLine(
 	lines: string[],
-): {at: number; glyph: '›' | '❯' | '!'} | null {
+	raw: string[],
+): {at: number; glyph: '›' | '❯' | '!' | '>'} | null {
 	const codex = lastIndex(lines, line => line.startsWith('› ') || line === '›');
 	const claude = lastIndex(
 		lines,
 		(line, index) =>
 			/^[❯!]/.test(line) && INPUT_RULE.test(lines[index - 1] ?? ''),
 	);
-	if (codex === -1 && claude === -1) return null;
-	if (codex > claude) return {at: codex, glyph: '›'};
-	return {at: claude, glyph: lines[claude]!.startsWith('!') ? '!' : '❯'};
+	const agy = lastIndex(
+		lines,
+		(line, index) =>
+			/^>(?: |$)/.test(line) &&
+			RULE.test(lines[index - 1] ?? '') &&
+			// Agy echoes submitted prompts in the transcript as bold blue (`> prompt`).
+			!TRANSCRIPT_BOLD_BLUE.test(raw[index] ?? '') &&
+			lines.slice(index + 1).some(next => RULE.test(next)),
+	);
+	const best = Math.max(codex, claude, agy);
+	if (best === -1) return null;
+	if (codex === best) return {at: codex, glyph: '›'};
+	if (claude === best)
+		return {at: claude, glyph: lines[claude]!.startsWith('!') ? '!' : '❯'};
+	return {at: agy, glyph: '>'};
 }
 
 function parseComposer(raw: string[], lines: string[]): string | null {
-	const input = composerLine(lines);
+	const input = composerLine(lines, raw);
 	if (!input) return null;
 	const {at, glyph} = input;
-	// Both agents draw their placeholder dim; typed text is plain.
+	// Claude and Codex draw their placeholder dim (SGR 2); agy draws it grey (SGR 90).
 	const line = raw[at]!;
 	let afterPrompt = line.slice(line.indexOf(glyph) + 1);
-	if (afterPrompt.startsWith(`${ESC}[0m`)) afterPrompt = afterPrompt.slice(4);
+	while (
+		afterPrompt.startsWith(`${ESC}[0m`) ||
+		afterPrompt.startsWith(`${ESC}[39m`)
+	) {
+		afterPrompt = afterPrompt.slice(
+			afterPrompt.startsWith(`${ESC}[0m`) ? 4 : 5,
+		);
+	}
+
 	if (/^[ \u00A0]/.test(afterPrompt)) afterPrompt = afterPrompt.slice(1);
-	if (afterPrompt.startsWith(`${ESC}[2m`)) return '';
+	if (
+		afterPrompt.startsWith(`${ESC}[2m`) ||
+		afterPrompt.startsWith(`${ESC}[90m`)
+	)
+		return '';
 	const draft = [lines[at]!.slice(lines[at]!.indexOf(glyph) + 1)];
 	if (glyph !== '›') {
-		// A long Claude draft wraps onto more lines inside the box.
+		// A long Claude or agy draft wraps onto more lines inside the box.
 		for (const next of lines.slice(at + 1)) {
 			if (RULE.test(next)) break;
 			draft.push(next);
@@ -587,7 +758,7 @@ export function parseAgentScreen(capture: string, now: Date): AgentScreen {
 		codexDialog || permission || question ? null : parseComposer(raw, lines);
 	// Claude Code shows a suggested next prompt as the placeholder. In plain
 	// text it reads as typed, so a supervisor would take it for a draft.
-	const input = composer === null ? null : composerLine(lines);
+	const input = composer === null ? null : composerLine(lines, raw);
 	if (input && composer === '') {
 		const line = lines[input.at]!;
 		lines[input.at] = line.slice(0, line.indexOf(input.glyph) + 1);
@@ -602,6 +773,7 @@ export function parseAgentScreen(capture: string, now: Date): AgentScreen {
 		usageLimit: parseUsageLimit(lines, now),
 		composer,
 		shellMode: input?.glyph === '!',
+		agyComposer: input?.glyph === '>',
 		codexDialog,
 		lines,
 	};
