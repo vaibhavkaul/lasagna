@@ -97,10 +97,8 @@ jobs:
           sudo curl -fsSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.54.3/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
 
-      # Twice the runner's 4 vCPUs: most test time is spent waiting on the
-      # bash, tmux and git processes the tests start, not on CPU.
       - name: Run tests
-        run: bun run test:unit --parallel=8
+        run: bun run test:unit
 
       - name: Test the compiled CLI after relocation
         env:
