@@ -923,17 +923,18 @@ test('schedule --after-limit queries agy quota on demand, handles passed resets,
 	t.is(await h.run('schedule', 'STA-1', '--after-limit'), 2);
 	t.regex(h.err.at(-1)!, /no usage limit reset to wait for/);
 
-	// Screen already showing AI: Out of credits invokes readAgyQuota during state.
+	// Screen already showing an agy quota notice invokes readAgyQuota during state.
 	quotaResult = {
 		resetText: '2026-11-09T18:30:00Z',
 		resetAt: new Date('2026-11-09T18:30:00Z'),
 		passed: false,
 	};
 	const limitScreen = [
+		'✕ Quota exhausted for Gemini Models',
 		'────────────────────',
 		'\u001B[94m>\u001B[39m',
 		'────────────────────',
-		'auto · Gemini 4 Hydrogen · medium · AI: Out of credits',
+		'auto · Gemini 4 Hydrogen · medium',
 	].join('\n');
 	const hLimit = harness(t, [limitScreen], {
 		app: 'antigravity',

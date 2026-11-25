@@ -582,9 +582,8 @@ export function parseAgyQuota(output: string, now: Date): UsageLimit | null {
 	};
 }
 
-const AGY_FOOTER_CREDITS = /\bAI:\s*Out of credits\b/i;
 const AGY_LIMIT_NOTICE =
-	/^(?:[✕✖■⚠!]\s+|Error:\s+).*?(?:out of credits|usage limit|quota (?:exceeded|exhausted|reached)|rate limit)/i;
+	/^(?:[✕✖■⚠!]\s+|Error:\s+).*?(?:usage limit|quota (?:exceeded|exhausted|reached)|rate limit)/i;
 const TRANSCRIPT_BOLD_BLUE = new RegExp(
 	`^\\s*(?:${ESC}\\[0m)?${ESC}\\[1m${ESC}\\[34m>`,
 );
@@ -608,15 +607,6 @@ function parseUsageLimit(lines: string[], now: Date): UsageLimit | null {
 			resetAt,
 			passed: resetAt !== null && now.getTime() >= resetAt.getTime(),
 		};
-	}
-
-	const nonEmptyTail = lines.filter(line => line.trim() !== '').slice(-3);
-	if (
-		nonEmptyTail.some(
-			line => !/^\s*[●○▸⎿]/.test(line) && AGY_FOOTER_CREDITS.test(line),
-		)
-	) {
-		return {resetText: '', resetAt: null, passed: false};
 	}
 
 	const agyAt = lastIndex(lines, line => AGY_LIMIT_NOTICE.test(line));

@@ -129,7 +129,12 @@ export function createMcpServer(options: {
 			},
 			async (input: Record<string, unknown>, extra) => {
 				const call = tool.toCli(input);
-				if (tool.name === 'space_send' && sender && call.stdin) {
+				if (
+					tool.name === 'space_send' &&
+					sender &&
+					call.stdin &&
+					!/^\s*[/$]/.test(call.stdin)
+				) {
 					call.stdin = `[from ${sender}] ${call.stdin}`;
 				}
 

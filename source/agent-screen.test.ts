@@ -685,7 +685,7 @@ test('parseResetTime parses ISO timestamps and parseAgyQuota parses /quota outpu
 	);
 });
 
-test('agy Out of credits footer indicates a usage limit without false-positiving on tool output', t => {
+test('agy Out of credits footer is not treated as a plan usage limit, while error notices are', t => {
 	const footer = parseAgentScreen(
 		[
 			'────────────────────',
@@ -695,18 +695,23 @@ test('agy Out of credits footer indicates a usage limit without false-positiving
 		].join('\n'),
 		NOW,
 	);
-	t.deepEqual(footer.usageLimit, {resetText: '', resetAt: null, passed: false});
+	t.is(footer.usageLimit, null);
 
-	const echo = parseAgentScreen(
-		[
-			'● Bash(grep credits log.txt)',
-			'  ⎿  auto · AI: Out of credits',
-			'────────────────────',
-			'\u001B[94m>\u001B[39m',
-			'────────────────────',
-			'auto · Gemini 4 Hydrogen · medium',
-		].join('\n'),
+	const outOfCreditsNotice = parseAgentScreen(
+		['✕ Out of credits', '────────────────────', '\u001B[94m>\u001B[39m'].join(
+			'\n',
+		),
 		NOW,
 	);
-	t.is(echo.usageLimit, null);
+	t.is(outOfCreditsNotice.usageLimit, null);
+
+	const quotaNotice = parseAgentScreen(
+		['✕ Quota exhausted for Gemini Models'].join('\n'),
+		NOW,
+	);
+	t.deepEqual(quotaNotice.usageLimit, {
+		resetText: '',
+		resetAt: null,
+		passed: false,
+	});
 });

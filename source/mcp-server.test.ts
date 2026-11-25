@@ -77,6 +77,21 @@ test('space_send prepends [from main] for main sous-chef and leaves text bare wh
 	t.deepEqual(external.calls, [{args: ['send', 'STA-2'], stdin: 'status?'}]);
 });
 
+test('space_send skips the [from ...] header for slash and skill commands', async t => {
+	const {client, calls} = await connect();
+	for (const text of ['/clear', '/do-with-plan STA-1', ' /compact', '$skill']) {
+		await client.callTool({
+			name: 'space_send',
+			arguments: {key: 'STA-2', text},
+		});
+	}
+
+	t.deepEqual(
+		calls.map(call => call.stdin),
+		['/clear', '/do-with-plan STA-1', ' /compact', '$skill'],
+	);
+});
+
 test('a command with no output still answers', async t => {
 	const {client, result} = await connect();
 	result.stdout = '';
