@@ -202,21 +202,17 @@ const SOUS_CHEF_PROMPT_AGENTS = new Set(['codex', 'agy']);
 
 /**
  * Whether an agent profile accepts the `<skill_prefix>sous-chef` launch
- * prompt. Unregistered CLIs without `prompt_args` or `skill_prefix` (such as
- * Pi, opencode, or wrapped binaries) would otherwise receive a bare
- * `'/sous-chef'` argument.
+ * prompt. Unregistered CLIs without `prompt_args` (such as Pi, opencode, or
+ * wrapped binaries — even if they set `skill_prefix` for `send_skill`) would
+ * otherwise receive a bare `'/sous-chef'` argument.
  */
 export function supportsSousChefPrompt(
-	definition: Pick<
-		AgentProfileConfig,
-		'command' | 'is_claude' | 'prompt_args' | 'skill_prefix'
-	>,
+	definition: Pick<AgentProfileConfig, 'command' | 'is_claude' | 'prompt_args'>,
 ): boolean {
 	return (
 		isClaudeAgentProfile(definition) ||
 		SOUS_CHEF_PROMPT_AGENTS.has(commandBasename(definition.command)) ||
-		Boolean(definition.prompt_args) ||
-		Boolean(definition.skill_prefix)
+		Boolean(definition.prompt_args)
 	);
 }
 

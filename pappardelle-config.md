@@ -1148,13 +1148,13 @@ sous_chef: true # default: false
 sous_chef?: boolean;
 ```
 
-- The main checkout's agent launches with `<skill_prefix>sous-chef` as its first prompt when it is Claude, Codex (`$sous-chef`), agy (`-i '/sous-chef'`), or a profile that sets `prompt_args` or `skill_prefix`, so it opens on the board. A resumed conversation gets the prompt too. Claude agents also get `--name sous-chef`
+- The main checkout's agent launches with `<skill_prefix>sous-chef` as its first prompt when it is Claude, Codex (`$sous-chef`), agy (`-i '/sous-chef'`), or a profile that sets `prompt_args`, so it opens on the board. A resumed conversation gets the prompt too. Claude agents also get `--name sous-chef`
 - The rail and the agent pane's frame show the main space as `sous-chef`. The CLI and MCP tools still take the key `main`
 - The pappardelle MCP server tells a session in the repo but outside any space to keep the other spaces moving: watch them with `space_watch`, bring each prompt and question to you, and answer on your word
 - It tells agents inside a space they can reach the coordinator with SendMessage to `sous-chef`
 - The launch applies when the TUI next starts the main checkout's agent session. To apply it now, end that session (`/exit`, then `exit` in the shell left behind) and select the main row again
 - Put your own instructions for the sous-chef in `SOUS-CHEF.md` at the main checkout's root, such as which spaces to prioritize, what it may approve without asking, or how to report. `/sous-chef` reads it first and follows it over its own routine, and the MCP instructions point the sous-chef at it so it still applies after the conversation is compacted. Commit it to share it, or leave it untracked to keep it to yourself
-- A main checkout running Pi or another unregistered CLI without `prompt_args` or `skill_prefix` gets the MCP instructions and the rail label, without a rename or bare `/sous-chef` prompt
+- A main checkout running Pi or another unregistered CLI without `prompt_args` gets the MCP instructions and the rail label, without a rename or bare `/sous-chef` prompt
 
 ## Experimental: SQLite State
 

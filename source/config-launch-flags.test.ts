@@ -152,7 +152,7 @@ test('isAgyAgentProfile matches bare agy and paths unless gated as claude', t =>
 	t.false(isAgyAgentProfile({command: 'codex'}));
 });
 
-test('supportsSousChefPrompt gates prompt to claude, codex, agy, or explicit prompt_args/skill_prefix', t => {
+test('supportsSousChefPrompt gates prompt to claude, codex, agy, or explicit prompt_args', t => {
 	t.true(supportsSousChefPrompt({command: 'claude'}));
 	t.true(supportsSousChefPrompt({command: 'claude-local', is_claude: true}));
 	t.true(supportsSousChefPrompt({command: '/opt/bin/codex'}));
@@ -160,7 +160,7 @@ test('supportsSousChefPrompt gates prompt to claude, codex, agy, or explicit pro
 	t.true(
 		supportsSousChefPrompt({command: 'custom', prompt_args: '-i {prompt}'}),
 	);
-	t.true(supportsSousChefPrompt({command: 'opencode', skill_prefix: '/'}));
+	t.false(supportsSousChefPrompt({command: 'opencode', skill_prefix: '/'}));
 	t.false(supportsSousChefPrompt({command: 'pi'}));
 	t.false(supportsSousChefPrompt({command: 'opencode'}));
 	t.false(supportsSousChefPrompt({command: 'env FOO=1 agy'}));
