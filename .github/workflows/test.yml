@@ -23,12 +23,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: '1.4.4'
+          bun-version: '1.4.5'
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -61,12 +61,6 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install tmux shellcheck yq
 
-      # Formatting and lint are checked here, not just in the monorepo, because
-      # sync-back pushes a merged PR's diff *directly to monorepo master* — no
-      # PR, no gate. When this workflow only ran the unit tests, a chardigio-side PR could
-      # (and did, in #5) land a prettier violation straight onto a red master
-      # with every check green here. These steps have to mirror the monorepo's
-      # .github/workflows/pappardelle.yml or that hole reopens.
       - name: Check formatting (prettier)
         run: bun --bun prettier --check .
 
@@ -113,12 +107,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: '1.4.4'
+          bun-version: '1.4.5'
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -152,14 +146,29 @@ jobs:
           bun integration-tests/verify-program-status-app.ts
 
   shell-tests:
-    name: Shell Tests
-    runs-on: ubuntu-latest
+    name: Shell Tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # The AppleScript launcher tests only run on macOS and skip on Linux,
+        # so without the macOS lane they go stale unnoticed.
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - name: Install tmux and yq
+      # Ghostty's AppleScript only compiles with the app installed, and the
+      # launcher parity tests compile it.
+      - name: Install tmux, yq and Ghostty (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install tmux yq
+          brew install --cask ghostty
+
+      - name: Install tmux and yq (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update && sudo apt-get install -y tmux
           sudo curl -fsSL -o /usr/local/bin/yq \
@@ -203,8 +212,7 @@ jobs:
       - name: Terminal launcher resolution
         run: ./scripts/test-terminal-launcher.sh
 
-      # Only the portable quoting and viewer rebuild tests run here; the parity
-      # half needs osascript.
+      # The iTerm/Ghostty parity half needs osascript, so it runs on macOS only.
       - name: Workspace launcher quoting and viewer rebuild
         run: ./scripts/test-workspace-launchers.sh
 
@@ -220,19 +228,19 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # The hook tests ask the CLI to create the state database they write to.
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: '1.4.4'
+          bun-version: '1.4.5'
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.13'
 
