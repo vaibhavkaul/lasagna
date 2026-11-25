@@ -147,8 +147,14 @@ const AGY_WRITE_IN_FOOTER = /^\s*enter Submit · esc Back\s*$/;
 const AGY_YOUR_ANSWER = /^\s*Your answer:\s*$/;
 const AGY_MANAGE_FOOTER =
 	/^\s*↑\/↓ navigate · \/ select · enter confirm · esc cancel\s*$/;
-const AGY_BOTTOM_LINE =
-	/^\s*(?:esc to cancel\b|(?:auto|plan|manual|default|accept edits)\s+·\s+|(?:Gemini|Claude|GPT)\b.*·)/i;
+// Lowercase `esc to cancel` followed by spaces/EOL matches agy's footer, not
+// Claude's `Esc to cancel · Tab to amend`; model lines require agy's effort
+// suffix or `auto ·` prefix rather than Codex's `<model> · <path>`.
+const AGY_STATUS_FOOTER =
+	/^\s*(?:--\s+INSERT\s+--\s+)?(?:\?\s+for\s+shortcuts\s+)?(?:(?:auto|plan|manual|default|accept edits)\s+·\s+)?(?:Gemini|Claude|GPT)\b.*·\s*(?:minimal|low|medium|high)\b(?:\s+·\s+\d+\s+subagent\(s\))?\s*$/;
+const AGY_BOTTOM_LINE = new RegExp(
+	String.raw`^\s*esc to cancel(?:\s{2,}|$)|${AGY_STATUS_FOOTER.source}`,
+);
 const AGY_OPTION = /^\s*(>\s*)?(\d+)\.\s+(.+?)\s*$/;
 const AGY_WRITE_IN = /^Write-in(?:\.\.\.|:\s*(.+))$/;
 const TYPE_SOMETHING = /^Type something\.?$/;
@@ -659,22 +665,31 @@ export function inferAgyModel(screen: string): string | undefined {
 	return undefined;
 }
 
-export function parseAgyQuota(
+export type AgyQuotaParseResult =
+	| {kind: 'limited'; limit: UsageLimit}
+	| {kind: 'available'}
+	| {kind: 'unparsed'};
+
+export function parseAgyQuotaResult(
 	output: string,
 	now: Date,
 	model?: string,
-): UsageLimit | null {
+): AgyQuotaParseResult {
+	let matchedRows = 0;
 	const depleted: UsageLimit[] = [];
 	for (const line of output.split('\n')) {
 		const parts = line.split('\t');
 		if (parts.length < 4) continue;
 		if (!agyQuotaMatchesModel(parts[0]!, model)) continue;
 		const percent = parts[2]!.trim();
-		if (!/^\d+%$/.test(percent) || Number(percent.slice(0, -1)) > 0) continue;
+		if (!/^\d+%$/.test(percent)) continue;
+		matchedRows++;
+		if (Number(percent.slice(0, -1)) > 0) continue;
 		depleted.push(toUsageLimit(parts[3]!.trim(), now));
 	}
 
-	if (depleted.length === 0) return null;
+	if (matchedRows === 0) return {kind: 'unparsed'};
+	if (depleted.length === 0) return {kind: 'available'};
 	// When both five-hour and weekly buckets are at 0%, wait for the latest reset.
 	let best = depleted[0]!;
 	for (const row of depleted.slice(1)) {
@@ -684,7 +699,16 @@ export function parseAgyQuota(
 		}
 	}
 
-	return best;
+	return {kind: 'limited', limit: best};
+}
+
+export function parseAgyQuota(
+	output: string,
+	now: Date,
+	model?: string,
+): UsageLimit | null {
+	const result = parseAgyQuotaResult(output, now, model);
+	return result.kind === 'limited' ? result.limit : null;
 }
 
 const AGY_LIMIT_NOTICE =
@@ -701,12 +725,14 @@ function looksLikeAgyScreen(
 	input: {at: number; glyph: ComposerGlyph} | null,
 	agyDialog: boolean,
 ): boolean {
+	// Another agent's composer rules out agy even if its tool output echoes text.
+	if (input && input.glyph !== '>') return false;
 	if (input?.glyph === '>' || agyDialog) return true;
 	return (
 		lines.some(
 			line =>
 				line.includes('Antigravity CLI') ||
-				AGY_BOTTOM_LINE.test(line) ||
+				AGY_STATUS_FOOTER.test(line) ||
 				AGY_QUESTION_FOOTER.test(line) ||
 				AGY_WRITE_IN_FOOTER.test(line),
 		) || raw.some(line => TRANSCRIPT_BOLD_PROMPT.test(line))

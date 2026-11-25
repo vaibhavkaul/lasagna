@@ -1,6 +1,7 @@
 import test from 'ava';
 import {
 	bindResumeArgs,
+	builtinAgentDefaults,
 	isClaudeCommand,
 	renderAgentLaunchFlags,
 } from './config-launch-flags.ts';
@@ -108,4 +109,13 @@ test('isClaudeCommand matches bare names and paths, not wrappers', t => {
 	t.false(isClaudeCommand('codex'));
 	t.false(isClaudeCommand('claude-local'));
 	t.false(isClaudeCommand('my-claude-wrapper'));
+});
+
+test('builtinAgentDefaults unwraps env wrappers for built-in agents like agy', t => {
+	const bare = builtinAgentDefaults({command: 'agy'});
+	const wrapped = builtinAgentDefaults({
+		command: 'env FOO=1 /usr/local/bin/agy --flag',
+	});
+	t.deepEqual(wrapped, bare);
+	t.truthy(wrapped.prompt_args);
 });

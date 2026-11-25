@@ -2,13 +2,16 @@ import {setTimeout as delay} from 'node:timers/promises';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
 import test from 'ava';
+import {testState} from '../test/helpers/state.ts';
 import {
+	callerIsAgy,
 	createMcpServer,
 	workspaceInstructions,
 	type CliResult,
 	type RunCli,
 	type WorkspaceAwareness,
 } from './mcp-server.ts';
+import type {PappardelleConfig} from './config.ts';
 import type {CliCall} from './mcp-tools.ts';
 
 async function connect(
@@ -129,6 +132,58 @@ test('agy workspace instructions teach space_send instead of SendMessage', t => 
 	t.regex(worker, /space_send/);
 	t.regex(worker, /never use SendMessage/);
 	t.notRegex(worker, /SendMessage to `sous-chef`/);
+});
+
+test('callerIsAgy checks the resolved profile instead of AGY_CLI_OSC7501', async t => {
+	const state = testState(t);
+	await state.daos.spaceState.write('STA-1', {
+		agentProfile: {name: 'claude', isClaude: true},
+	});
+	await state.daos.spaceState.write('STA-2', {
+		agentProfile: {name: 'agy', isClaude: false},
+	});
+	const config = {
+		version: 1,
+		agent_profile: 'claude',
+		agent_profiles: {
+			claude: {command: 'claude'},
+			agy: {command: 'env FOO=1 agy'},
+		},
+	} as unknown as PappardelleConfig;
+
+	t.false(
+		callerIsAgy({
+			caller: {kind: 'env', key: 'STA-1'},
+			config,
+			spaceState: state.daos.spaceState,
+		}),
+	);
+	t.true(
+		callerIsAgy({
+			caller: {kind: 'env', key: 'STA-2'},
+			config,
+			spaceState: state.daos.spaceState,
+		}),
+	);
+	t.false(
+		callerIsAgy({
+			caller: {kind: 'none'},
+			config,
+			spaceState: state.daos.spaceState,
+		}),
+	);
+
+	// Even if AGY_CLI_OSC7501=on is set in env (as on every agent session), a
+	// Claude caller gets agy=false so SendMessage instructions stay intact.
+	const claudeInstructions = workspaceInstructions('STA-1', 'repo', {
+		sousChef: true,
+		agy: callerIsAgy({
+			caller: {kind: 'env', key: 'STA-1'},
+			config,
+			spaceState: state.daos.spaceState,
+		}),
+	});
+	t.regex(claudeInstructions, /SendMessage to `sous-chef`/);
 });
 
 test('a command with no output still answers', async t => {

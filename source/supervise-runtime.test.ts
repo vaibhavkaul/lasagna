@@ -53,7 +53,7 @@ test.serial(
 	},
 );
 
-test('createAgyQuotaReader strips PAPPARDELLE_* and TMUX*, forwards env/tilde/model, caches ok results, and leaves errors uncached', async t => {
+test('createAgyQuotaReader strips PAPPARDELLE_* and TMUX*, forwards env/tilde/model, and caches both ok and error results for TTL', async t => {
 	t.deepEqual(
 		sanitizedAgyEnv({
 			PATH: '/usr/bin',
@@ -102,7 +102,7 @@ test('createAgyQuotaReader strips PAPPARDELLE_* and TMUX*, forwards env/tilde/mo
 		unset: ['DROP_ME'],
 		model: 'gemini-4-hydrogen-medium',
 	});
-	t.deepEqual(gemini, {kind: 'ok', limit: null});
+	t.deepEqual(gemini, {kind: 'available'});
 	t.is(calls[0]!.command, '/home/qa/bin/agy');
 	t.deepEqual(calls[0]!.args, ['-p', '/quota']);
 	t.deepEqual(calls[0]!.env, {HOME: '/home/qa', PATH: '/bin', FOO: 'bar'});
@@ -115,7 +115,7 @@ test('createAgyQuotaReader strips PAPPARDELLE_* and TMUX*, forwards env/tilde/mo
 	});
 	t.is(calls.length, 1);
 	t.deepEqual(claude, {
-		kind: 'ok',
+		kind: 'limited',
 		limit: {
 			resetText: '2026-11-24T09:10:11Z',
 			resetAt: new Date('2026-11-24T09:10:11Z'),
@@ -123,7 +123,7 @@ test('createAgyQuotaReader strips PAPPARDELLE_* and TMUX*, forwards env/tilde/mo
 		},
 	});
 
-	// Expired cache re-runs; errors return {kind: 'error'} and are NOT cached.
+	// Expired cache re-runs; errors return {kind: 'error'} and ARE cached for the TTL.
 	clock += 40_000;
 	result = {kind: 'error'};
 	t.deepEqual(
@@ -132,6 +132,15 @@ test('createAgyQuotaReader strips PAPPARDELLE_* and TMUX*, forwards env/tilde/mo
 	);
 	t.is(calls.length, 2);
 
+	clock += 10_000;
+	t.deepEqual(
+		await reader('~/bin/agy', {env: {FOO: 'bar'}, unset: ['DROP_ME']}),
+		{kind: 'error'},
+	);
+	t.is(calls.length, 2);
+
+	// Once negative TTL expires, re-runs and recovers.
+	clock += 60_000;
 	result = {
 		kind: 'ok',
 		output:
@@ -144,7 +153,7 @@ test('createAgyQuotaReader strips PAPPARDELLE_* and TMUX*, forwards env/tilde/mo
 	});
 	t.is(calls.length, 3);
 	t.deepEqual(recovered, {
-		kind: 'ok',
+		kind: 'limited',
 		limit: {
 			resetText: '2026-11-24T10:00:00Z',
 			resetAt: new Date('2026-11-24T10:00:00Z'),

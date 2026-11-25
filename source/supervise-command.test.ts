@@ -910,10 +910,10 @@ test('agy Write-in row works with --text, refuses pre-filled overwrite, and clos
 	t.deepEqual(optionFromOpen.pressed, [['Escape'], ['2']]);
 });
 
-test('schedule --after-limit, state clearing, watch isolation, and schedule fire re-check for agy quota', async t => {
+test('schedule --after-limit, state clearing, wait/watch isolation, and schedule fire re-check for agy quota', async t => {
 	let quotaCalls = 0;
 	let quotaResult: AgyQuotaResult = {
-		kind: 'ok',
+		kind: 'limited',
 		limit: {
 			resetText: '2026-11-09T18:30:00Z',
 			resetAt: new Date('2026-11-09T18:30:00Z'),
@@ -928,21 +928,22 @@ test('schedule --after-limit, state clearing, watch isolation, and schedule fire
 		},
 	});
 
-	// Normal state reads and watch polling must NEVER shell out to /quota.
+	// Normal state reads and wait/watch polling must NEVER shell out to /quota.
 	t.is(await h.run('state', 'STA-1'), 0);
+	t.is(await h.run('wait', 'STA-1', '--until', 'idle', '--timeout', '1'), 0);
 	t.is(quotaCalls, 0);
 
 	// 0% limit with future ISO reset schedules resetAt + 60s margin with 1 quota call.
 	t.is(await h.run('schedule', 'STA-1', '--after-limit'), 0);
 	t.is(quotaCalls, 1);
-	t.regex(h.out[1]!, /after the usage limit, at 2026-11-09T18:31:00\.000Z/);
+	t.regex(h.out[2]!, /after the usage limit, at 2026-11-09T18:31:00\.000Z/);
 
 	// Already-passed ISO reset schedules at now + 60s soonest margin.
 	const expectedSoonest = new Date(
 		new Date(2026, 10, 9, 12, 0).getTime() + 60_000,
 	).toISOString();
 	quotaResult = {
-		kind: 'ok',
+		kind: 'limited',
 		limit: {
 			resetText: '2026-11-09T10:00:00Z',
 			resetAt: new Date('2026-11-09T10:00:00Z'),
@@ -952,14 +953,14 @@ test('schedule --after-limit, state clearing, watch isolation, and schedule fire
 	t.is(await h.run('schedule', 'STA-1', '--after-limit'), 0);
 	t.is(quotaCalls, 2);
 	t.regex(
-		h.out[2]!,
+		h.out[3]!,
 		new RegExp(String.raw`after the usage limit, at ${expectedSoonest}`),
 	);
 
 	// Early-firing after_limit timer re-checks /quota and re-arms if still depleted.
-	const jobId = /Scheduled (\S+)/.exec(h.out[2]!)![1]!;
+	const jobId = /Scheduled (\S+)/.exec(h.out[3]!)![1]!;
 	quotaResult = {
-		kind: 'ok',
+		kind: 'limited',
 		limit: {
 			resetText: '2026-11-09T19:00:00Z',
 			resetAt: new Date('2026-11-09T19:00:00Z'),
@@ -968,10 +969,10 @@ test('schedule --after-limit, state clearing, watch isolation, and schedule fire
 	};
 	t.is(await h.run('schedule', 'fire', jobId), 0);
 	t.is(quotaCalls, 3);
-	t.regex(h.out[3]!, new RegExp(`^${jobId}: waiting$`));
+	t.regex(h.out[4]!, new RegExp(`^${jobId}: waiting$`));
 
 	// >0% remaining or error refuses --after-limit in 1 call (never twice).
-	quotaResult = {kind: 'ok', limit: null};
+	quotaResult = {kind: 'available'};
 	t.is(await h.run('schedule', 'STA-1', '--after-limit'), 2);
 	t.is(quotaCalls, 4);
 	t.regex(h.err.at(-1)!, /no usage limit reset to wait for/);
@@ -980,8 +981,8 @@ test('schedule --after-limit, state clearing, watch isolation, and schedule fire
 	t.is(await h.run('schedule', 'STA-1', '--after-limit'), 2);
 	t.is(quotaCalls, 5);
 
-	// Screen showing an agy quota notice checks /quota on state, NOT on watch;
-	// and clears usageLimit / reclassifies to idle when quota has refilled.
+	// Screen showing an agy quota notice checks /quota on state, NOT on watch/wait;
+	// keeps usage_limit on unparsed output, and clears/reclassifies only on available.
 	const limitScreen = [
 		'✕ Quota exhausted for Gemini Models',
 		'────────────────────',
@@ -990,14 +991,7 @@ test('schedule --after-limit, state clearing, watch isolation, and schedule fire
 		'auto · Gemini 4 Hydrogen · medium',
 	].join('\n');
 	let watchQuotaCalls = 0;
-	let limitQuota: AgyQuotaResult = {
-		kind: 'ok',
-		limit: {
-			resetText: '2026-11-09T18:30:00Z',
-			resetAt: new Date('2026-11-09T18:30:00Z'),
-			passed: false,
-		},
-	};
+	let limitQuota: AgyQuotaResult = {kind: 'unparsed'};
 	const hLimit = harness(t, [limitScreen], {
 		app: 'antigravity',
 		async readAgyQuota() {
@@ -1006,19 +1000,39 @@ test('schedule --after-limit, state clearing, watch isolation, and schedule fire
 		},
 	});
 	t.is(await hLimit.run('watch', 'STA-1', '--timeout', '1'), 0);
+	t.is(
+		await hLimit.run('wait', 'STA-1', '--until', 'blocked', '--timeout', '1'),
+		0,
+	);
 	t.is(watchQuotaCalls, 0);
 
+	// Unparsed /quota output preserves the on-screen usage limit.
 	t.is(await hLimit.run('state', 'STA-1', '--json'), 0);
 	t.is(watchQuotaCalls, 1);
-	t.like(JSON.parse(hLimit.out[1]!), {
+	t.like(JSON.parse(hLimit.out[2]!), {
+		state: 'usage_limit',
+		usageLimit: {resetText: ''},
+	});
+
+	limitQuota = {
+		kind: 'limited',
+		limit: {
+			resetText: '2026-11-09T18:30:00Z',
+			resetAt: new Date('2026-11-09T18:30:00Z'),
+			passed: false,
+		},
+	};
+	t.is(await hLimit.run('state', 'STA-1', '--json'), 0);
+	t.is(watchQuotaCalls, 2);
+	t.like(JSON.parse(hLimit.out[3]!), {
 		state: 'usage_limit',
 		usageLimit: {resetText: '2026-11-09T18:30:00Z'},
 	});
 
-	limitQuota = {kind: 'ok', limit: null};
+	limitQuota = {kind: 'available'};
 	t.is(await hLimit.run('state', 'STA-1', '--json'), 0);
-	t.is(watchQuotaCalls, 2);
-	t.like(JSON.parse(hLimit.out[2]!), {
+	t.is(watchQuotaCalls, 3);
+	t.like(JSON.parse(hLimit.out[4]!), {
 		state: 'idle',
 		usageLimit: null,
 	});

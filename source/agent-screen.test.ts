@@ -4,6 +4,7 @@ import {agentScreenFixture} from '../test/helpers/agent-screens.ts';
 import {
 	parseAgentScreen,
 	parseAgyQuota,
+	parseAgyQuotaResult,
 	parseResetTime,
 } from './agent-screen.ts';
 
@@ -844,6 +845,9 @@ test('parseResetTime parses ISO timestamps and parseAgyQuota filters by model fa
 		'Gemini Models\tFive Hour Limit Remaining\t97%\t2026-11-24T09:14:49Z',
 	].join('\n');
 	t.is(parseAgyQuota(remaining, NOW), null);
+	t.deepEqual(parseAgyQuotaResult(remaining, NOW), {kind: 'available'});
+	t.deepEqual(parseAgyQuotaResult('garbage output', NOW), {kind: 'unparsed'});
+	t.deepEqual(parseAgyQuotaResult('', NOW), {kind: 'unparsed'});
 	t.is(parseAgyQuota('garbage output', NOW), null);
 	t.deepEqual(
 		parseAgyQuota(
@@ -878,7 +882,7 @@ test('agy Out of credits footer and non-agy/stale notices are ignored, while liv
 	);
 	t.is(outOfCreditsNotice.usageLimit, null);
 
-	// Non-agy screens (Claude shell mode, Codex bullet) never trigger AGY_LIMIT_NOTICE.
+	// Non-agy screens (Claude shell mode, Esc footer, Codex GPT footer) never trigger AGY_LIMIT_NOTICE.
 	const claudeShell = parseAgentScreen(
 		[
 			'────────────────────',
@@ -888,11 +892,36 @@ test('agy Out of credits footer and non-agy/stale notices are ignored, while liv
 		NOW,
 	);
 	t.is(claudeShell.usageLimit, null);
+	const claudeWithFooter = parseAgentScreen(
+		[
+			'Error: rate limit mentioned in file',
+			'────────────────────',
+			'❯ ',
+			'────────────────────',
+			'Esc to cancel · Tab to amend',
+		].join('\n'),
+		NOW,
+	);
+	t.is(claudeWithFooter.usageLimit, null);
+
 	const codexOutput = parseAgentScreen(
 		['■ rate limit docs printed here', '› '].join('\n'),
 		NOW,
 	);
 	t.is(codexOutput.usageLimit, null);
+	t.is(screen('codex-draft').usageLimit, null);
+	t.like(screen('codex-limit-narrow').usageLimit, {
+		resetText: 'Nov 14th, 2026 7:50 AM',
+	});
+	const codexWithRateLimit = parseAgentScreen(
+		[
+			'■ rate limit in output',
+			'› ',
+			'  GPT-6-Astra medium · ~/.worktrees/repo/STA-1',
+		].join('\n'),
+		NOW,
+	);
+	t.is(codexWithRateLimit.usageLimit, null);
 
 	const quotaNotice = parseAgentScreen(
 		[

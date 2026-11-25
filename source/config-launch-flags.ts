@@ -29,7 +29,8 @@ export function builtinAgentDefaults(
 	definition: Pick<AgentProfileConfig, 'command' | 'is_claude'>,
 ): BuiltinAgentDefaults {
 	if (isClaudeAgentProfile(definition)) return BUILTIN_AGENTS['claude']!;
-	const name = commandBasename(definition.command);
+	const word = unwrappedCommandWord(definition.command);
+	const name = word === null ? '' : path.basename(word);
 	return name !== 'claude' && Object.hasOwn(BUILTIN_AGENTS, name)
 		? BUILTIN_AGENTS[name]!
 		: {};

@@ -67,7 +67,9 @@ import {MAIN_WORKTREE_KEY} from './space-utils.ts';
 import type {OuterTmuxRunner} from './tmux.ts';
 
 export type AgyQuotaResult =
-	| {kind: 'ok'; limit: UsageLimit | null}
+	| {kind: 'limited'; limit: UsageLimit}
+	| {kind: 'available'}
+	| {kind: 'unparsed'}
 	| {kind: 'error'}
 	| {kind: 'not_agy'};
 
@@ -116,11 +118,17 @@ const SCREEN_POLL_MS = 2000;
 const SOONEST_WAKE_MS = 60_000;
 const TAB_SETTLE_MS = 300;
 
-function withoutUsageLimit(report: AgentStateReport): AgentStateReport {
+function withoutUsageLimit(
+	report: AgentStateReport,
+	now: Date,
+): AgentStateReport {
+	const working =
+		report.status?.status === 'working' ||
+		parseAgentScreen(report.screen, now).spinner;
 	const state =
 		report.state !== 'usage_limit'
 			? report.state
-			: report.status?.status === 'working'
+			: working
 				? 'working'
 				: report.composer
 					? 'draft'
@@ -158,9 +166,12 @@ async function readState(
 	if (!shouldLookup) return report;
 
 	const result = await deps.readAgyQuota(key, report);
-	if (result.kind !== 'ok') return report;
-	if (result.limit) return {...report, usageLimit: result.limit};
-	return report.usageLimit ? withoutUsageLimit(report) : report;
+	if (result.kind === 'limited') return {...report, usageLimit: result.limit};
+	if (result.kind === 'available' && report.usageLimit) {
+		return withoutUsageLimit(report, deps.now());
+	}
+
+	return report;
 }
 
 function formatOptions(options: PromptOption[]): string {
@@ -290,7 +301,7 @@ async function waitFor(
 	deps: SuperviseDeps,
 ): Promise<AgentStateReport & {timedOut: boolean}> {
 	const deadline = deps.now().getTime() + command.timeoutSeconds * 1000;
-	const first = await readState(key, deps);
+	const first = await readState(key, deps, {quota: 'never'});
 	const matches = (report: AgentStateReport) =>
 		command.until === 'changed'
 			? report.state !== first.state
@@ -310,7 +321,7 @@ async function waitFor(
 		await deps.waitForStatusChange(
 			Math.min(SCREEN_POLL_MS, deadline - deps.now().getTime()),
 		);
-		report = await readState(key, deps);
+		report = await readState(key, deps, {quota: 'never'});
 		if (matches(report)) return {...report, timedOut: false};
 	}
 
@@ -708,7 +719,7 @@ async function settlesOn(
 		// eslint-disable-next-line no-await-in-loop
 		await deps.sleep(ANSWER_POLL_MS);
 		// eslint-disable-next-line no-await-in-loop
-		if (shows(await readState(key, deps))) return true;
+		if (shows(await readState(key, deps, {quota: 'never'}))) return true;
 	}
 
 	return false;

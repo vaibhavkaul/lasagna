@@ -6,7 +6,7 @@ import {realpathSync} from 'node:fs';
 import {homedir, tmpdir, userInfo} from 'node:os';
 import path from 'node:path';
 import {promisify} from 'node:util';
-import {inferAgyModel, parseAgyQuota} from './agent-screen.ts';
+import {inferAgyModel, parseAgyQuotaResult} from './agent-screen.ts';
 import type {AgentStateReport} from './agent-state.ts';
 import {classifyCommand, defaultClassifierRun} from './approve-classifier.ts';
 import type {ApprovalPolicy} from './approve-policy.ts';
@@ -122,7 +122,7 @@ export function createAgyQuotaReader({
 		model?: string;
 	},
 ) => Promise<AgyQuotaResult> {
-	const cache = new Map<string, {output: string; at: number}>();
+	const cache = new Map<string, {result: QuotaCommandResult; at: number}>();
 	const inflight = new Map<string, Promise<QuotaCommandResult>>();
 
 	const fetchOutput = async (
@@ -133,7 +133,7 @@ export function createAgyQuotaReader({
 		const cached = cache.get(cacheKey);
 		const currentMs = now().getTime();
 		if (cached && currentMs - cached.at < cacheTtlMs) {
-			return {kind: 'ok', output: cached.output};
+			return cached.result;
 		}
 
 		let pending = inflight.get(cacheKey);
@@ -143,10 +143,7 @@ export function createAgyQuotaReader({
 				timeoutMs,
 			})
 				.then(result => {
-					if (result.kind === 'ok') {
-						cache.set(cacheKey, {output: result.output, at: now().getTime()});
-					}
-
+					cache.set(cacheKey, {result, at: now().getTime()});
 					return result;
 				})
 				.finally(() => {
@@ -173,10 +170,7 @@ export function createAgyQuotaReader({
 		]);
 		const result = await fetchOutput(executable, spawnEnv, cacheKey);
 		if (result.kind === 'error') return {kind: 'error'};
-		return {
-			kind: 'ok',
-			limit: parseAgyQuota(result.output, now(), options.model),
-		};
+		return parseAgyQuotaResult(result.output, now(), options.model);
 	};
 }
 
@@ -195,7 +189,12 @@ function agyQuotaTargetForSpace(
 	const load = readConfig();
 	if (load.kind === 'valid') {
 		const profile = state?.agentProfile?.name
-			? getNamedAgentProfile(load.config, state.agentProfile.name)
+			? getNamedAgentProfile(
+					load.config,
+					state.agentProfile.name,
+					state.issueTitle,
+					state.profile,
+				)
 			: getAgentProfile(load.config, state?.issueTitle, state?.profile);
 		const unwrapped = unwrapCommand(profile.command);
 		if (unwrapped && isAgyCommand(profile.command)) {

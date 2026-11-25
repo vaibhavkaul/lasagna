@@ -9,7 +9,9 @@ import path from 'node:path';
 import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
+	getAgentProfile,
 	getMainRepoRoot,
+	getNamedAgentProfile,
 	getRepoName,
 	readConfig,
 	SOUS_CHEF_FILE,
@@ -17,15 +19,18 @@ import {
 	sousChefLaunch,
 	workspaceAwareAgents,
 	type ConfigLoad,
+	type PappardelleConfig,
 } from './config.ts';
 import {inlineConfigErrors} from './config-errors.ts';
+import {isAgyCommand} from './config-launch-flags.ts';
 import {createLogger} from './logger.ts';
 
 const log = createLogger('mcp');
 import {companionRules} from './companion-rules.ts';
 import {MCP_TOOLS, type CliCall} from './mcp-tools.ts';
 import {bunIsolationArgs, isStandalone} from './runtime.ts';
-import {callerSpace, readCheckout} from './space-target.ts';
+import {callerSpace, readCheckout, type CallerSpace} from './space-target.ts';
+import type {SpaceStateDao} from './space-state.ts';
 import {createStateDaos} from './state-daos.ts';
 import {MAIN_WORKTREE_KEY} from './space-utils.ts';
 
@@ -231,17 +236,45 @@ function workspaceAwareness(load: ConfigLoad): WorkspaceAwareness {
 	}
 }
 
+export function callerIsAgy(options: {
+	caller: CallerSpace;
+	config: PappardelleConfig | null;
+	spaceState: Pick<SpaceStateDao, 'read'> | null;
+}): boolean {
+	const {caller, config, spaceState} = options;
+	if (caller.kind === 'none' || !config) return false;
+	const state = spaceState?.read(caller.key);
+	const profile = state?.agentProfile?.name
+		? getNamedAgentProfile(
+				config,
+				state.agentProfile.name,
+				state.issueTitle,
+				state.profile,
+			)
+		: getAgentProfile(config, state?.issueTitle, state?.profile);
+	return isAgyCommand(profile.command);
+}
+
 /** Resolves when the client closes the connection. */
 export async function runMcpServer(): Promise<void> {
 	const checkout = readCheckout({
 		repoName: getRepoName,
 		mainRoot: getMainRepoRoot,
 	});
+	const daos =
+		checkout.kind === 'checkout'
+			? createStateDaos({repo: checkout.checkout.repoName})
+			: null;
 	const caller = callerSpace({
 		env: process.env,
 		cwd: process.cwd(),
 		checkout,
-		identities: repo => createStateDaos({repo}).spaceIdentities,
+		identities: repo =>
+			checkout.kind === 'checkout' &&
+			repo === checkout.checkout.repoName &&
+			daos
+				? daos.spaceIdentities
+				: createStateDaos({repo}).spaceIdentities,
 	});
 	// The main checkout's session gets the instructions for a session in no
 	// space, which are where the sous-chef's routine is given.
@@ -259,7 +292,11 @@ export async function runMcpServer(): Promise<void> {
 	const sousChef =
 		awareness.kind === 'on' && sousChefLaunch(config) !== undefined;
 	const sender = caller.kind === 'none' ? undefined : caller.key;
-	const agy = process.env['AGY_CLI_OSC7501'] === 'on';
+	const agy = callerIsAgy({
+		caller,
+		config,
+		spaceState: daos?.spaceState ?? null,
+	});
 	const closed = new Promise(resolve => {
 		process.stdin.once('close', resolve);
 	});
