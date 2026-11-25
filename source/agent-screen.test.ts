@@ -566,6 +566,17 @@ test('agy idle screens read an empty composer and strip the grey placeholder fro
 			`${name}`,
 		);
 	}
+
+	const theme256Idle = parseAgentScreen(
+		[
+			'────────────────────',
+			'\u001B[38;5;32m>\u001B[39m \u001B[38;5;246mAuto mode: edits & safe commands auto-approved (shift+tab to cycle)',
+			'────────────────────',
+		].join('\n'),
+		NOW,
+	);
+	t.is(theme256Idle.composer, '');
+	t.false(theme256Idle.lines.some(line => line.includes('Auto mode:')));
 });
 
 test('agy draft screens read drafts in insert, normal and factory modes, including wrapped lines', t => {

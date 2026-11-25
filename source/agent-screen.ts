@@ -662,11 +662,25 @@ function composerLine(
 	return {at: agy, glyph: '>'};
 }
 
+const PLACEHOLDER_SGR = new RegExp(
+	`^${ESC}\\[(?:2|90|38;5;(?:8|23[2-9]|24\\d|25[0-5]))m`,
+);
+const TRUECOLOR_SGR = new RegExp(`^${ESC}\\[38;2;(\\d+);(\\d+);(\\d+)m`);
+
+function isPlaceholderStyle(text: string): boolean {
+	if (PLACEHOLDER_SGR.test(text)) return true;
+	const rgb = TRUECOLOR_SGR.exec(text);
+	if (!rgb) return false;
+	const channels = [Number(rgb[1]), Number(rgb[2]), Number(rgb[3])];
+	return Math.max(...channels) - Math.min(...channels) <= 24;
+}
+
 function parseComposer(raw: string[], lines: string[]): string | null {
 	const input = composerLine(lines, raw);
 	if (!input) return null;
 	const {at, glyph} = input;
-	// Claude and Codex draw their placeholder dim (SGR 2); agy draws it grey (SGR 90).
+	// Claude and Codex draw their placeholder dim (SGR 2); agy draws it grey
+	// (SGR 90 in 16-color themes, or 256-color/truecolor grey such as 38;5;246).
 	const line = raw[at]!;
 	let afterPrompt = line.slice(line.indexOf(glyph) + 1);
 	while (
@@ -679,11 +693,7 @@ function parseComposer(raw: string[], lines: string[]): string | null {
 	}
 
 	if (/^[ \u00A0]/.test(afterPrompt)) afterPrompt = afterPrompt.slice(1);
-	if (
-		afterPrompt.startsWith(`${ESC}[2m`) ||
-		afterPrompt.startsWith(`${ESC}[90m`)
-	)
-		return '';
+	if (isPlaceholderStyle(afterPrompt)) return '';
 	const draft = [lines[at]!.slice(lines[at]!.indexOf(glyph) + 1)];
 	if (glyph !== '›') {
 		// A long Claude or agy draft wraps onto more lines inside the box.
