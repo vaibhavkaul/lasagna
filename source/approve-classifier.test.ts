@@ -6,6 +6,7 @@ import {teardown} from '../test/helpers/teardown.ts';
 import {rejectionOf} from '../test/helpers/thrown.ts';
 import {
 	classifierInput,
+	classifierRun,
 	classifyCommand,
 	defaultClassifierRun,
 	type ClassifierRun,
@@ -123,4 +124,28 @@ test('a check that outlives its deadline ends then, even if a child keeps its ou
 		expect(error.message).toBe('timed out after 0.3s');
 	});
 	expect(Date.now() - started < 5000).toBe(true);
+});
+
+test('the check starts claude in the environment it is given, less what names a space', async () => {
+	const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'classifier-'));
+	teardown(() => {
+		fs.rmSync(bin, {recursive: true, force: true});
+	});
+	fs.writeFileSync(
+		path.join(bin, 'claude'),
+		'#!/bin/sh\nprintf "%s|%s" "$FROM_ENVRC" "$LASAGNA_SPACE"\n',
+		{mode: 0o755},
+	);
+	expect(process.env['FROM_ENVRC']).toBeUndefined();
+	// A repo's own environment: the process's, with its .envrc.
+	const run = classifierRun({
+		...process.env,
+		PATH: `${bin}:${process.env['PATH'] ?? ''}`,
+		FROM_ENVRC: 'key-of-the-repo',
+		LASAGNA_SPACE: 'STA-1',
+	});
+	expect(await run([], '', 5000)).toStrictEqual({
+		status: 0,
+		stdout: 'key-of-the-repo|',
+	});
 });

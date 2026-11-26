@@ -5,12 +5,13 @@ import {spawnSync} from 'node:child_process';
 import {realpathSync} from 'node:fs';
 import {homedir, tmpdir, userInfo} from 'node:os';
 import path from 'node:path';
-import {classifyCommand, defaultClassifierRun} from './approve-classifier.ts';
+import {classifierRun, classifyCommand} from './approve-classifier.ts';
 import type {ApprovalPolicy} from './approve-policy.ts';
 import {newHoldId} from './holds.ts';
 import {MAIN_WORKTREE_KEY} from './space-utils.ts';
 import {spaceStatusKey} from './claude-status.ts';
 import {getMainRepoRoot, getRepoName} from './config.ts';
+import {defaultRepoContext} from './repo-context.ts';
 import {selfLaunchArgs} from './runtime.ts';
 import {rearmMissingTimers, type ScheduleDao} from './schedule.ts';
 import {
@@ -51,7 +52,8 @@ const PASSED_TO_TIMERS = [
 	'LASAGNA_STATUS_SOCKET',
 ];
 
-function timerBackend(): TimerBackend {
+/** `repo` is the one whose wake-ups these are, when not the process's own. */
+function timerBackend(repo?: {name: string; mainRoot: string}): TimerBackend {
 	const env = Object.fromEntries(
 		PASSED_TO_TIMERS.flatMap(name => {
 			const value = process.env[name];
@@ -59,8 +61,8 @@ function timerBackend(): TimerBackend {
 		}),
 	);
 	const context: TimerContext = {
-		repo: getRepoName(),
-		cwd: getMainRepoRoot(),
+		repo: repo?.name ?? getRepoName(),
+		cwd: repo?.mainRoot ?? getMainRepoRoot(),
 		launch: [process.execPath, ...selfLaunchArgs()],
 		env,
 		run(command, args) {
@@ -146,16 +148,19 @@ function approvalPolicy(key: string): ApprovalPolicy {
 }
 
 /** Run as the TUI starts, so wake-ups lost to a reboot come back. */
-export async function rearmSchedules(schedules: ScheduleDao): Promise<void> {
+export async function rearmSchedules(
+	schedules: ScheduleDao,
+	repo?: {name: string; mainRoot: string},
+): Promise<void> {
 	try {
 		const rearmed = await rearmMissingTimers(
 			schedules,
-			timerBackend(),
+			timerBackend(repo),
 			new Date(),
 		);
 		for (const job of rearmed) {
 			recordSupervision(
-				getRepoName(),
+				repo?.name ?? getRepoName(),
 				'tui',
 				{
 					action: 'schedule',
@@ -238,14 +243,15 @@ export function defaultSuperviseDeps(
 					cwd: request.cwd ?? agentCwd(key),
 					tempRoots: tempRoots(),
 				},
-				defaultClassifierRun,
+				// `claude` starts with the repo's `.envrc`, as the agents do.
+				classifierRun(defaultRepoContext().env),
 			);
 		},
 		policy: approvalPolicy,
 		store: () => schedules,
 		holds: () => holds,
 		newHoldId,
-		timers: timerBackend,
+		timers: () => timerBackend(),
 		caller: callerFromEnv(process.env),
 		readStdin: defaultReadStdin,
 		out(text) {

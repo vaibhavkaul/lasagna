@@ -16,6 +16,28 @@ import {
 const log = createLogger('gitlab-provider');
 const execFileAsync = promisify(execFile);
 export type GlabExecutor = (args: string[]) => Promise<string>;
+
+/**
+ * `glab` run for one repo: in its checkout and with its environment, when
+ * the process shows more repos than the one it was started in.
+ */
+export function glabExecutor(
+	host: string | undefined,
+	scope: {env?: NodeJS.ProcessEnv; cwd?: string},
+): GlabExecutor {
+	return async args => {
+		const {stdout} = await execFileAsync('glab', args, {
+			encoding: 'utf-8',
+			timeout: 15_000,
+			...(scope.cwd ? {cwd: scope.cwd} : {}),
+			env: {
+				...(scope.env ?? process.env),
+				...(host ? {GITLAB_HOST: host} : {}),
+			},
+		});
+		return stdout;
+	};
+}
 const emptyStatus = (): RailStatus => ({
 	pipeline: null,
 	unresolvedCommentCount: 0,
@@ -135,6 +157,8 @@ export class GitLabProvider implements VcsHostProvider {
 		executor?: GlabExecutor,
 		now = Date.now,
 		discover = discoverWorkspaceRepositories,
+		/** The repo's environment, where GITLAB_HOST is read. */
+		private readonly env: NodeJS.ProcessEnv = process.env,
 	) {
 		this.discover = discover;
 		this.host = host;
@@ -390,7 +414,7 @@ export class GitLabProvider implements VcsHostProvider {
 				const discovered = directory
 					? await this.discover(
 							directory,
-							this.host ?? process.env['GITLAB_HOST'] ?? 'gitlab.com',
+							this.host ?? this.env['GITLAB_HOST'] ?? 'gitlab.com',
 						)
 					: [{project: await this.getProjectPath(), branch: issueKey}];
 				const keys = new Set<string>();

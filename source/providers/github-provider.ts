@@ -26,6 +26,25 @@ const defaultGhExecutor: GhExecutor = async args => {
 	return stdout;
 };
 
+/**
+ * `gh` run for one repo: in its checkout and with its environment, when the
+ * process shows more repos than the one it was started in.
+ */
+export function ghExecutor(scope: {
+	env?: NodeJS.ProcessEnv;
+	cwd?: string;
+}): GhExecutor {
+	return async args => {
+		const {stdout} = await execFileAsync('gh', args, {
+			encoding: 'utf-8',
+			timeout: 15_000,
+			...(scope.cwd ? {cwd: scope.cwd} : {}),
+			...(scope.env ? {env: scope.env} : {}),
+		});
+		return stdout;
+	};
+}
+
 type PrNodeRaw = {
 	number?: number;
 	mergeable?: string;
@@ -160,6 +179,8 @@ export class GitHubProvider implements VcsHostProvider {
 		initialRepoSlug?: string | null,
 		discover: RepositoryDiscovery = discoverWorkspaceRepositories,
 		clock: {now?: () => number; linkedAt?: () => number} = {},
+		/** The repo's environment, where GH_HOST is read. */
+		private readonly env: NodeJS.ProcessEnv = process.env,
 	) {
 		this.discover = discover;
 		this.executor = executor ?? defaultGhExecutor;
@@ -465,7 +486,7 @@ export class GitHubProvider implements VcsHostProvider {
 		issueKeys: string[],
 		workspacePaths: ReadonlyMap<string, string>,
 	): Promise<Map<string, RailStatus>> {
-		const host = process.env['GH_HOST'] ?? 'github.com';
+		const host = this.env['GH_HOST'] ?? 'github.com';
 		const workspaces = new Map<string, string[]>();
 		const repositories = new Map<string, WorkspaceRepository>();
 		for (const issueKey of new Set(issueKeys)) {

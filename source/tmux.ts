@@ -134,7 +134,6 @@ import {
 	getListLayout,
 	getPaneWidths,
 	getRepoName,
-	readConfig,
 	type ResolvedCompanionSplit,
 	type PappardelleConfig,
 	type ResolvedAgentProfile,
@@ -211,7 +210,13 @@ import {
 	type SpaceIdentityDao,
 	type SpaceSessionNames,
 } from './space-identity.ts';
-import {MAIN_WORKTREE_KEY} from './space-utils.ts';
+import {
+	isMainSpaceName,
+	scopedSpace,
+	spaceBareKey,
+	spaceConfig,
+	spaceReportedConfig,
+} from './space-scope.ts';
 import {
 	calculateIdealListHeightForCount,
 	calculateLayoutForSize,
@@ -2541,7 +2546,7 @@ function isMissingSessionError(err: unknown): boolean {
 
 /** The profile a space was created with; the main space has none. */
 function savedSpaceProfile(issueKey: string): string | undefined {
-	return issueKey === MAIN_WORKTREE_KEY
+	return isMainSpaceName(issueKey)
 		? undefined
 		: spaceState().read(issueKey)?.profile;
 }
@@ -2691,7 +2696,7 @@ async function attachViewers(
 					listing,
 					seed() {
 						if (configuredSplits) return configuredSplits;
-						const load = readConfig();
+						const load = spaceConfig(issueKey);
 						// Without a config there are no splits to seed, and an
 						// invalid one is seeded once it is fixed.
 						return load.kind === 'valid'
@@ -2786,13 +2791,13 @@ async function attachViewers(
 	const profileName = savedSpaceProfile(issueKey);
 	// Without a config there is no agent profile to lose, so the built-in one
 	// is right. A broken config would replace the space's own.
-	const load = readReportedConfig();
+	const load = spaceReportedConfig(issueKey);
 	const invalidConfig = load.kind === 'invalid';
 	if (load.kind === 'valid') {
 		const {config} = load;
 		launch = {
 			rules: workspaceAwareAgents(config),
-			...(issueKey === MAIN_WORKTREE_KEY ? sousChefLaunch(config) : {}),
+			...(isMainSpaceName(issueKey) ? sousChefLaunch(config) : {}),
 		};
 		skipPermissions = getDangerouslySkipPermissions(config);
 		companionCommand = getCompanionCommand(config, issueTitle, profileName);
@@ -4036,10 +4041,17 @@ export function pretrustDirectoryForClaude(
  * The session environment for a space the TUI makes itself. A failure to find
  * the main checkout must not stop the session: the hook can still work it out.
  */
-function spaceSessionEnvArgs(
-	issueKey: string,
-	repoName = getRepoName(),
-): string[] {
+function spaceSessionEnvArgs(issueKey: string, repoName?: string): string[] {
+	// A space of another repo than the process's own carries that repo's name
+	// and main checkout, and the key it has there.
+	const scope = scopedSpace(issueKey);
+	if (scope)
+		return buildSessionEnvArgs(
+			scope.key,
+			repoName ?? scope.repo.name,
+			scope.repo.mainRoot,
+		);
+	repoName ??= getRepoName();
 	let mainRepoRoot: string | undefined;
 	try {
 		mainRepoRoot = getMainRepoRoot();
@@ -4257,7 +4269,7 @@ export async function ensureAgentSession(
 		gate,
 		...buildShellLaunchArgs(
 			buildAgentResumeCommand(
-				issueKey,
+				spaceBareKey(issueKey),
 				skipPermissions,
 				agentProfile,
 				sessionId,

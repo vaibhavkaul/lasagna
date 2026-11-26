@@ -97,6 +97,27 @@ test('idow creates a session using main config and worktree-local overrides', as
 	}
 });
 
+test('idow runs for a repo whose only config is its workdir config: no project, local or home file', async () => {
+	const fixture = setup();
+	const repoName = path.basename(fixture.main);
+	const workdir = path.dirname(fixture.main);
+	fs.rmSync(path.join(fixture.main, '.pappardelle.yml'));
+	fs.rmSync(path.join(fixture.main, '.pappardelle.local.yml'));
+	fs.mkdirSync(path.join(workdir, '.lasagna'));
+	fs.writeFileSync(
+		path.join(workdir, '.lasagna', 'workdir.yml'),
+		stringify({
+			...parse(fixture.config('From the work dir')),
+			repos: {[repoName]: null},
+		}),
+	);
+
+	const output = await fixture.run();
+
+	expect(output.includes('Workspace test-abc is ready!'), output).toBe(true);
+	expect(output.includes('Profile:   From the work dir'), output).toBe(true);
+});
+
 test('idow runs for a repo configured only in its workdir config', async () => {
 	const fixture = setup();
 	const repoName = path.basename(fixture.main);

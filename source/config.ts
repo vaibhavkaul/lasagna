@@ -7,7 +7,9 @@ import {scriptsDir} from './runtime.ts';
 import {
 	WORKDIR_CONFIG_FILE,
 	findWorkdir,
+	isWorkdirRepoName,
 	workdirListsRepo,
+	workdirRepoName,
 } from './repo-config-files.ts';
 import {parse as parseYaml, parseDocument} from 'yaml';
 import {
@@ -469,6 +471,100 @@ export interface PappardelleConfig {
 // ============================================================================
 
 /**
+ * A checkout as the rest of the code addresses it. `name` is what the repo's
+ * state and tmux sessions are keyed by.
+ */
+export type RepoRoots = {
+	/** The working tree: a linked worktree, or the main checkout. */
+	root: string;
+	/** The main checkout. */
+	mainRoot: string;
+	name: string;
+};
+
+/**
+ * The roots of the checkout that holds `directory`, from one git process.
+ * Throws NotInGitRepoError outside a checkout.
+ */
+export function repoRootsAt(directory: string): RepoRoots {
+	try {
+		const [root, commonDir] = execFileSync(
+			'git',
+			[
+				'-C',
+				directory,
+				'rev-parse',
+				'--show-toplevel',
+				'--path-format=absolute',
+				'--git-common-dir',
+			],
+			{encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe']},
+		)
+			.trim()
+			.split('\n');
+		if (!root || !commonDir) throw new Error('git reported no working tree');
+		return {
+			root,
+			mainRoot: path.dirname(commonDir.replace(/\/+$/, '')),
+			name: repoNameFromGitCommonDir(commonDir),
+		};
+	} catch {
+		throw new NotInGitRepoError();
+	}
+}
+
+/**
+ * The pseudo-repo of a work dir: where the state of spaces that belong to no
+ * single repo is kept (its root main space). The work dir is not a checkout,
+ * so both roots are the work dir itself.
+ */
+export function workdirRepoRoots(workdir: string): RepoRoots {
+	const root = path.resolve(workdir);
+	return {root, mainRoot: root, name: workdirRepoName(root)};
+}
+
+/** The config layers of a repo that isn't the one the process started in. */
+export function repoConfigPaths(repo: RepoRoots): ConfigPaths {
+	return {
+		homeConfigDir: getDefaultHomeConfigDir(),
+		// A work dir's own spaces read its top-level settings, whatever
+		// LASAGNA_WORKDIR says of the repos under it.
+		workdir: isWorkdirRepoName(repo.name)
+			? () => repo.mainRoot
+			: () => findWorkdir(repo.mainRoot),
+		repoName: () => repo.name,
+		projectDir: repo.root,
+		fallbackProjectDir: () => repo.mainRoot,
+	};
+}
+
+let defaultRepo: RepoRoots | undefined;
+
+/**
+ * Make `repo` the one the readers below answer for, in place of the checkout
+ * the process was started in. For a CLI verb whose space names another repo
+ * (`repo:KEY`), and for one run at a work dir's root, which is no checkout.
+ * Everything else that knows its space's repo asks `repoContext` instead.
+ */
+export function setDefaultRepo(repo: RepoRoots | undefined): void {
+	defaultRepo = repo;
+}
+
+/**
+ * Whether `root` is the working tree the process was started in and still
+ * answers for: not once `setDefaultRepo` pointed it at another repo or at a
+ * work dir, and not outside a checkout.
+ */
+export function startedIn(root: string): boolean {
+	if (defaultRepo) return false;
+	try {
+		return path.resolve(getRepoRoot()) === path.resolve(root);
+	} catch {
+		return false;
+	}
+}
+
+/**
  * Get the root of the working tree we are standing in. Inside a linked
  * worktree that is the worktree itself, not the main checkout — use
  * `getMainRepoRoot` when you specifically need the latter.
@@ -476,6 +572,7 @@ export interface PappardelleConfig {
 let repoRootCache: string | undefined;
 
 export function getRepoRoot(): string {
+	if (defaultRepo) return defaultRepo.root;
 	if (repoRootCache !== undefined) return repoRootCache;
 
 	try {
@@ -520,6 +617,7 @@ function getGitCommonDir(): string {
 let mainRepoRootCache: string | undefined;
 
 export function getMainRepoRoot(): string {
+	if (defaultRepo) return defaultRepo.mainRoot;
 	if (mainRepoRootCache !== undefined) return mainRepoRootCache;
 	mainRepoRootCache = resolveMainRepoRoot();
 	return mainRepoRootCache;
@@ -579,6 +677,7 @@ export function repoNameFromGitCommonDir(gitCommonDir: string): string {
 let cachedRepoName: string | null = null;
 
 export function getRepoName(): string {
+	if (defaultRepo) return defaultRepo.name;
 	if (cachedRepoName) return cachedRepoName;
 
 	try {
@@ -1110,6 +1209,7 @@ export type ConfigPaths = {
 };
 
 export function defaultConfigPaths(): ConfigPaths {
+	if (defaultRepo) return repoConfigPaths(defaultRepo);
 	return {
 		homeConfigDir: getDefaultHomeConfigDir(),
 		workdir: () => findWorkdir(getMainRepoRoot()),
@@ -1205,7 +1305,7 @@ const INFERRED_CONFIDENCES = ['high', 'medium', 'low'];
 /**
  * Split a workdir file into the layers that apply to one repo: the top
  * level without `repos`, then `repos.<repo>.inferred.config`, then the rest
- * of `repos.<repo>`. `inferred.sources` records where setup found each value
+ * of `repos.<repo>` (less `path`, which locates the repo). `inferred.sources` records where setup found each value
  * and is checked here but merged nowhere. Throws ConfigValidationError when
  * the file's shape is wrong anywhere, for any repo, so a mistake in one
  * repo's section isn't left for that repo alone to find.
@@ -1247,6 +1347,14 @@ function workdirLayers(
 			continue;
 		}
 
+		// Where the repo's checkout is, when not in a directory of its name;
+		// the list of a work dir's repos reads it (workdir.ts).
+		if (
+			section['path'] !== undefined &&
+			(typeof section['path'] !== 'string' || !section['path'])
+		)
+			errors.push(`${where}.path must be a non-empty string`);
+
 		const {inferred} = section;
 		if (inferred === undefined || inferred === null) continue;
 		if (!isPlainMap(inferred)) {
@@ -1278,10 +1386,12 @@ function workdirLayers(
 	const layers = [read(label, nonEmpty(top), 'top')];
 	if (!repoName || !Object.hasOwn(sections, repoName)) return layers;
 	// A repo listed with nothing under it is still listed.
-	const {inferred, ...own} = (sections[repoName] ?? {}) as Record<
-		string,
-		unknown
-	>;
+	// `path` says where the repo is; it is no setting of the repo's.
+	const {
+		inferred,
+		path: _path,
+		...own
+	} = (sections[repoName] ?? {}) as Record<string, unknown>;
 	const inferredConfig = isPlainMap(inferred) ? inferred['config'] : undefined;
 	if (isPlainMap(inferredConfig)) {
 		layers.push(
@@ -1419,6 +1529,9 @@ export function loadAgentProfileSources(
 export function configExists(): boolean {
 	try {
 		if (findRepoConfig('.pappardelle.yml') !== undefined) return true;
+		// A work dir's own config is its workdir file.
+		if (isWorkdirRepoName(getRepoName()))
+			return fs.existsSync(path.join(getMainRepoRoot(), WORKDIR_CONFIG_FILE));
 		const workdir = findWorkdir(getMainRepoRoot());
 		return workdir !== undefined && workdirListsRepo(workdir, getRepoName());
 	} catch {
@@ -1457,16 +1570,23 @@ export interface TemplateVars {
 /**
  * Expand template variables in a string
  * Supports ${VAR_NAME} syntax and falls back to environment variables
+ *
+ * `env` is the environment of the repo the template is for
+ * (`RepoContext.env`), which holds its `.envrc`; the process's own by default.
  */
-export function expandTemplate(template: string, vars: TemplateVars): string {
+export function expandTemplate(
+	template: string,
+	vars: TemplateVars,
+	env: NodeJS.ProcessEnv = process.env,
+): string {
 	return template.replace(/\$\{(\w+)\}/g, (_match, varName: string) => {
 		// First check provided vars
 		if (vars[varName] !== undefined) {
 			return vars[varName]!;
 		}
 		// Then check environment variables
-		if (process.env[varName] !== undefined) {
-			return process.env[varName]!;
+		if (env[varName] !== undefined) {
+			return env[varName]!;
 		}
 		// Return empty string for unset variables
 		return '';
@@ -1479,11 +1599,12 @@ export function expandTemplate(template: string, vars: TemplateVars): string {
 export function shouldInclude(
 	ifSet: string | undefined,
 	vars: TemplateVars,
+	env: NodeJS.ProcessEnv = process.env,
 ): boolean {
 	if (!ifSet) {
 		return true;
 	}
-	const value = vars[ifSet] ?? process.env[ifSet];
+	const value = vars[ifSet] ?? env[ifSet];
 	return value !== undefined && value !== '';
 }
 
@@ -2678,13 +2799,15 @@ export function buildWorkspaceTemplateVars(
 	config: PappardelleConfig | null,
 	issueTitle?: string,
 	profileName?: string,
+	/** The space's repo, when it isn't the one the process started in. */
+	repo?: RepoRoots,
 ): TemplateVars {
 	const vars: TemplateVars = {
 		ISSUE_KEY: issueKey,
 		WORKTREE_PATH: worktreePath,
-		REPO_ROOT: getRepoRoot(),
-		MAIN_REPO_ROOT: getMainRepoRoot(),
-		REPO_NAME: getRepoName(),
+		REPO_ROOT: repo?.root ?? getRepoRoot(),
+		MAIN_REPO_ROOT: repo?.mainRoot ?? getMainRepoRoot(),
+		REPO_NAME: repo?.name ?? getRepoName(),
 		SCRIPT_DIR: scriptsDir,
 	};
 	if (!config) return vars;

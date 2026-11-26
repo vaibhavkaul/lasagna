@@ -3,8 +3,15 @@ import {teardown} from '../test/helpers/teardown.ts';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {readConfig, type PappardelleConfig} from './config.ts';
+import {workdirFixture} from '../test/helpers/workdir-fixture.ts';
+import {
+	readConfig,
+	repoRootsAt,
+	setDefaultRepo,
+	type PappardelleConfig,
+} from './config.ts';
 import type {TrackerIssue} from './providers/types.ts';
+import {resetRepoContexts} from './repo-context.ts';
 import {
 	defaultCloseHooksDeps,
 	resolveDeinitCommands,
@@ -127,6 +134,44 @@ agent_profiles:
 			result.errors.some(error => error.includes('agent_profiles.opus.model')),
 	).toBe(true);
 	expect(fs.existsSync(marker)).toBe(false);
+});
+
+test("a repo's .envrc reaches its deinit commands, in their environment and in their templates", async () => {
+	teardown(resetRepoContexts);
+	teardown(() => {
+		setDefaultRepo(undefined);
+	});
+	const {repos} = workdirFixture({
+		repos: {
+			api: {
+				'.envrc': 'export DEINIT_TOKEN=from-envrc\n',
+				'.pappardelle.yml': [
+					'version: 1',
+					'profiles:',
+					'  t:',
+					'    display_name: T',
+					'pre_workspace_deinit:',
+					'  - name: note',
+					// The first is read by bash, the second filled in before it runs.
+					// eslint-disable-next-line no-template-curly-in-string -- a hook template
+					'    run: printf "%s %s" "$DEINIT_TOKEN" "${DEINIT_TOKEN}" > deinit-saw',
+					'',
+				].join('\n'),
+			},
+		},
+	});
+	const {root} = repos['api']!;
+	expect(process.env['DEINIT_TOKEN']).toBeUndefined();
+	setDefaultRepo(repoRootsAt(root));
+	const result = await runCloseHooks({
+		name: 'STA-1',
+		worktreePath: root,
+		trackerIssue: null,
+	});
+	expect(result).toStrictEqual({kind: 'ran'});
+	expect(fs.readFileSync(path.join(root, 'deinit-saw'), 'utf8')).toBe(
+		'from-envrc from-envrc',
+	);
 });
 
 test('a row the registry no longer lists is not attached', () => {

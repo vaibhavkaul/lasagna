@@ -15,7 +15,25 @@ const log = createLogger('envrc');
  * the loader decide whether to overwrite existing vars.
  */
 export function parseEnvrc(content: string): Record<string, string> {
-	const result: Record<string, string> = {};
+	return Object.fromEntries(
+		parseEnvrcEntries(content).map(({key, value}) => [key, value]),
+	);
+}
+
+export type EnvrcEntry = {
+	key: string;
+	value: string;
+	/**
+	 * Whether the shell would set the variable to exactly this text. A value
+	 * with a `$` or a backtick outside single quotes is expanded by the shell
+	 * (`export PATH="$PWD/bin:$PATH"`), which this parser does not do.
+	 */
+	literal: boolean;
+};
+
+/** The `export KEY=VALUE` lines of an .envrc, in order. */
+export function parseEnvrcEntries(content: string): EnvrcEntry[] {
+	const result: EnvrcEntry[] = [];
 	for (const rawLine of content.split('\n')) {
 		const line = rawLine.trim();
 		if (!line || line.startsWith('#')) continue;
@@ -37,7 +55,11 @@ export function parseEnvrc(content: string): Record<string, string> {
 			if (hashIndex !== -1) value = value.slice(0, hashIndex).trim();
 		}
 
-		result[key] = value;
+		result.push({
+			key,
+			value,
+			literal: quoted?.[1] === "'" || !/[$`]/.test(value),
+		});
 	}
 
 	return result;
@@ -50,10 +72,17 @@ export function parseEnvrc(content: string): Record<string, string> {
  * Vars already set in process.env are NOT overwritten — explicit env beats
  * the on-disk file. This matches direnv's general behavior of layering on top
  * of the inherited environment for the duration of the shell.
+ *
+ * With `override`, the file wins instead, as it does in a shell that sources
+ * it: for an environment inherited from somewhere other than this repo. A
+ * value only the shell could work out (`export PATH="$PWD/bin:$PATH"`) still
+ * leaves a variable that is set alone, since its unexpanded text would break
+ * what the inherited value keeps working.
  */
 export function loadEnvrcIntoProcessEnv(
 	repoRoot: string,
 	env: NodeJS.ProcessEnv = process.env,
+	options: {override?: boolean} = {},
 ): void {
 	const envrcPath = path.join(repoRoot, '.envrc');
 	let content: string;
@@ -69,10 +98,9 @@ export function loadEnvrcIntoProcessEnv(
 		return;
 	}
 
-	const parsed = parseEnvrc(content);
 	let applied = 0;
-	for (const [key, value] of Object.entries(parsed)) {
-		if (env[key] !== undefined) continue;
+	for (const {key, value, literal} of parseEnvrcEntries(content)) {
+		if (env[key] !== undefined && !(options.override && literal)) continue;
 		env[key] = value;
 		applied++;
 	}

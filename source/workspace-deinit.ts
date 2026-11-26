@@ -15,17 +15,24 @@ export interface DeinitContext {
 	repoRoot?: string;
 	mainRepoRoot?: string;
 	repoName?: string;
+	/**
+	 * The environment of the space's repo (`RepoContext.env`), which holds its
+	 * `.envrc`: the commands run in it, and a `${VAR}` no template variable
+	 * answers is read from it. The process's own by default.
+	 */
+	env?: NodeJS.ProcessEnv;
 }
 
 async function runCommand(
 	command: string,
 	cwd: string,
+	env: NodeJS.ProcessEnv,
 ): Promise<{exitCode: number | null}> {
 	return new Promise(resolve => {
 		const child = spawnQuietCommand('bash', ['-c', command], {
 			cwd,
 			timeout: 30_000,
-			env: {...process.env},
+			env: {...env},
 		});
 		child.on('close', code => resolve({exitCode: code}));
 		child.on('error', () => resolve({exitCode: 1}));
@@ -50,7 +57,11 @@ export async function runPreWorkspaceDeinit(
 		const expandedRun = expandVars(cmd.run, worktreePath, context);
 
 		const cwd = fs.existsSync(worktreePath) ? worktreePath : process.cwd();
-		const result = await runCommand(expandedRun, cwd);
+		const result = await runCommand(
+			expandedRun,
+			cwd,
+			context?.env ?? process.env,
+		);
 
 		if (result.exitCode !== 0) {
 			if (cmd.continue_on_error) {
@@ -85,5 +96,5 @@ function expandVars(
 	if (context?.issueKey) {
 		vars['ISSUE_NUMBER'] = context.issueKey.replace(/^[A-Z]+-/, '');
 	}
-	return expandTemplate(template, vars);
+	return expandTemplate(template, vars, context?.env);
 }

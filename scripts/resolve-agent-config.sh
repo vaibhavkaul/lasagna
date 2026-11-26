@@ -279,12 +279,16 @@ fi
 # so the warnings read the raw layers to name the file to edit: the
 # top-level ones, and the selected profile's. `eval` (not eval-all) keeps
 # filename per file.
+# A repo configured only in its workdir config can have no layer file at all:
+# no project file, no local file and no home config. yq given no file prints
+# its usage, so there is then nothing to scan and nothing to warn about.
 LAYER_SPEC_MERGE=()
-for layer in "${LAYERS[@]}"; do
+LAYER_CHECKS=""
+for layer in ${LAYERS[@]+"${LAYERS[@]}"}; do
     has_yaml_merge_keys "$(<"$layer")" && LAYER_SPEC_MERGE=(--yaml-fix-merge-anchor-to-spec)
 done
 # shellcheck disable=SC2016 # yq and jq expressions, not shell
-LAYER_CHECKS=$(PROFILE="$PROFILE" yq eval "${LAYER_SPEC_MERGE[@]}" -o=json -I=0 '
+[[ ${#LAYERS[@]} -eq 0 ]] || LAYER_CHECKS=$(PROFILE="$PROFILE" yq eval "${LAYER_SPEC_MERGE[@]}" -o=json -I=0 '
     explode(.) |
     ["model", "effort", "extra_args"] as $launch_keys |
     (.profiles[strenv(PROFILE)].claude // {}) as $profile_claude |

@@ -113,8 +113,6 @@ import {
 	getBeadsPrefixes,
 	readBeadsIssuePrefix,
 	getTeamPrefix,
-	getRepoRoot,
-	getMainRepoRoot,
 	getSousChefKey,
 	getRepoName,
 	getKeybindings,
@@ -153,7 +151,16 @@ import {
 	formatKillDoneResult,
 	KILL_DONE_EMPTY_MESSAGE,
 } from './kill-done-spaces.ts';
-import {buildSpawnEnv} from './spawn-env.ts';
+import {idowSpawnOptions} from './spawn-env.ts';
+import {
+	scopedSpace,
+	spaceBareKey,
+	spaceRepo,
+	spaceRepoRoots,
+	spaceTracker,
+	spaceVcsHost,
+} from './space-scope.ts';
+import {defaultRepoContext} from './repo-context.ts';
 import {
 	buildConfigFixConfirmContent,
 	buildConfigMigrationConfirmContent,
@@ -718,7 +725,12 @@ export default function App({
 			readMainWorktree: firstFrom(early?.mainWorktree, getMainWorktreeInfo),
 			readDirty: isWorktreeDirty,
 			statusKey: async (key, mainBranch) =>
-				spaceStatusKey(claudeStatus, repoName, key, async () => mainBranch),
+				spaceStatusKey(
+					claudeStatus,
+					scopedSpace(key)?.repo.name ?? repoName,
+					spaceBareKey(key),
+					async () => mainBranch,
+				),
 			getCachedIssue: getIssueCached,
 			fetchIssues: getIssues,
 			async readEmoji(issueKey, cachedIssue) {
@@ -1232,6 +1244,9 @@ export default function App({
 			const child = spawn('gh', ['repo', 'view', '--web'], {
 				detached: true,
 				stdio: 'ignore',
+				// Unset for the repo the TUI runs in, which is its own directory.
+				cwd: spaceRepoRoots(space.name)?.mainRoot,
+				env: spaceRepo(space.name).env,
 			});
 			child.on('error', err => {
 				log.error(`Failed to launch gh: ${err.message}`, err);
@@ -1250,8 +1265,8 @@ export default function App({
 
 		const request = ++openPRRequest.current;
 		const generation = showHeaderMessage(`Opening PR for ${space.name}...`);
-		void openPR(space.name, {
-			provider: createVcsHost(),
+		void openPR(spaceBareKey(space.name), {
+			provider: spaceVcsHost(space.name),
 			// link-pr appends, so the last link is the one recorded most recently.
 			linked: spaceState.read(space.name)?.prLinks?.at(-1),
 			isLatest: () => openPRRequest.current === request,
@@ -1281,7 +1296,9 @@ export default function App({
 			return;
 		}
 
-		void openIssueForKey(space.name).then(result => {
+		void openIssueForKey(spaceBareKey(space.name), {
+			createTracker: () => spaceTracker(space.name),
+		}).then(result => {
 			setHeaderWithTimeout(result.message, 3000);
 		});
 	};
@@ -1314,11 +1331,12 @@ export default function App({
 		}
 
 		const vars = buildWorkspaceTemplateVars(
-			space.name,
+			spaceBareKey(space.name),
 			worktreePath,
 			configMemo,
 			space.trackerIssue?.title ?? space.linearIssue?.title,
 			profileName,
+			spaceRepoRoots(space.name),
 		);
 
 		const launchId = ++ideLaunchCounter.current;
@@ -1329,7 +1347,7 @@ export default function App({
 			cwd: worktreePath,
 			detached: true,
 			stdio: 'ignore',
-			env: {...process.env, ...vars},
+			env: {...spaceRepo(space.name).env, ...vars},
 		});
 
 		// A GUI editor can exit long after launch, so failures are reported by
@@ -1411,6 +1429,7 @@ export default function App({
 			cwd: worktreePath,
 			detached: true,
 			stdio: ['ignore', 'pipe', 'pipe'],
+			env: spaceRepo(space.name).env,
 		});
 		child.stdout?.resume();
 		child.stderr?.resume();
@@ -1453,9 +1472,14 @@ export default function App({
 			async send() {
 				const result = await sendToSpaceAgent(targetSpace, text);
 				recordSupervision(
-					repoName,
+					scopedSpace(targetSpace)?.repo.name ?? repoName,
 					'tui',
-					{action: 'send', key: targetSpace, sent: text, detail: result},
+					{
+						action: 'send',
+						key: spaceBareKey(targetSpace),
+						sent: text,
+						detail: result,
+					},
 					new Date(),
 				);
 				if (result !== 'sent') {
@@ -1517,18 +1541,21 @@ export default function App({
 
 		// Build template vars and expand the command
 		const vars = buildWorkspaceTemplateVars(
-			space.name,
+			spaceBareKey(space.name),
 			worktreePath,
 			load.kind === 'valid' ? load.config : null,
 			space.trackerIssue?.title ?? space.linearIssue?.title,
+			undefined,
+			spaceRepoRoots(space.name),
 		);
-		const expandedCommand = expandTemplate(kb.run!, vars);
+		const {env} = spaceRepo(space.name);
+		const expandedCommand = expandTemplate(kb.run!, vars, env);
 
 		const child = spawn('bash', ['-c', expandedCommand], {
 			cwd: worktreePath,
 			detached: true,
 			stdio: ['ignore', 'pipe', 'pipe'],
-			env: {...process.env},
+			env: {...env},
 		});
 		child.stdout?.resume();
 		child.stderr?.resume();
@@ -1921,13 +1948,7 @@ export default function App({
 							agentProfileName: pending.agentProfileName,
 							inputIsIssueKey: pending.inputIsIssueKey,
 						}),
-						{
-							cwd: getRepoRoot(),
-							env: buildSpawnEnv(getRepoRoot(), {
-								mainRepoRoot: getMainRepoRoot(),
-								registerSpace: registry.keepsLifecycle,
-							}),
-						},
+						idowSpawnOptions(defaultRepoContext(), registry.keepsLifecycle),
 					);
 					if (result.code !== 0) {
 						throw new Error(
@@ -2459,14 +2480,10 @@ export default function App({
 
 		const child = spawnQuietCommand(
 			path.join(SCRIPTS_DIR, 'idow'),
-			buildOpenWorkspaceArgs(space.name),
+			buildOpenWorkspaceArgs(spaceBareKey(space.name)),
 			{
 				detached: true,
-				cwd: getRepoRoot(),
-				env: buildSpawnEnv(getRepoRoot(), {
-					mainRepoRoot: getMainRepoRoot(),
-					registerSpace: registry.keepsLifecycle,
-				}),
+				...idowSpawnOptions(spaceRepo(space.name), registry.keepsLifecycle),
 			},
 		);
 
@@ -2542,8 +2559,8 @@ export default function App({
 		let written = false;
 		try {
 			written = await applyStateChoice(
-				createIssueTracker(),
-				space.name,
+				spaceTracker(space.name),
+				spaceBareKey(space.name),
 				choice,
 			);
 		} catch (error) {
