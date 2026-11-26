@@ -4,7 +4,7 @@
 
 Where Pappardelle is one wide noodle, Lasagna stacks many layers. This fork is working towards:
 
-- **Many repos at once**: no longer tied to running inside a single git repo.
+- **Many repos at once** (works now): one rail for every repo in a work dir, the repo picked from the ticket key, and ticket spaces where one agent works a ticket across several repos. See [section 7](#7-advanced-wrangling-multi-repo-changes).
 - **Cloud workspaces**: sessions that run on remote boxes as well as your machine.
 - **A server for client agents**: so other agents and clients can drive and watch workspaces.
 
@@ -20,6 +20,14 @@ Where Pappardelle is one wide noodle, Lasagna stacks many layers. This fork is w
 | Skills                | `/init-lasagna`, `/update-lasagna`, `/configure-lasagna` | `/init-pappardelle`, …              |
 | Environment variables | `LASAGNA_*`                                              | `PAPPARDELLE_*`                     |
 | Workspace setup logs  | `~/Library/Logs/lasagna/`                                | `~/Library/Logs/stardust-workspace` |
+
+For a directory full of repos:
+
+```bash
+lasagna scan  ~/code/work      # find the repos and the ticket prefixes each one works on
+lasagna setup ~/code/work      # learn each repo's defaults with Claude, ask you, write .lasagna/workdir.yml
+cd ~/code/work && lasagna      # one rail for all of them
+```
 
 The config files keep Pappardelle's names and format: a repo's `.pappardelle.yml` and `.pappardelle.local.yml` are read as they are, and the home config is `~/.lasagna/.pappardelle.yml`.
 
@@ -439,6 +447,28 @@ Press `z` on a workspace and your phone buzzes with a notification — tap it an
 ## 7. Advanced: Wrangling Multi-Repo Changes
 
 Pappardelle is designed for single-repo workflows, but (experimentally) you can extend it to orchestrate changes across multiple repositories using a parent (pappa) repo.
+
+### Setting up a work dir: `lasagna scan` and `lasagna setup`
+
+`lasagna scan [dir]` finds the git checkouts in a directory (two levels deep; `--depth` changes it) and skips worktrees, bare repos and checkouts nested inside others. For each repo it reads the ticket keys in branch names, recent commit subjects and, when `gh` can reach the repo, PR titles, and counts each prefix. Prefixes seen only in commit text (`UTF-8`, `SHA-256`) are dropped. It prints the repos and a prefix map (each prefix's repos by share, and the default repo, which follows your own local branches) and writes `<dir>/.lasagna/scan.json`. It never changes a repo. `--dry-run` writes nothing; `--json` prints the result.
+
+`lasagna setup [dir]` runs scan, then works out each repo's config:
+
+- One headless `claude -p` per repo, four at a time, reads the repo's `CLAUDE.md`, `AGENTS.md` and README. It runs from a scratch directory under `~/.cache/lasagna-setup` with the repo added read-only, so the repo's own Claude hooks don't run, and it may only read files and Jira. When Claude has the Atlassian tools (or `acli` is logged in), it checks the prefixes against Jira; otherwise they come from the scan alone, and setup says so.
+- What it can set: `team_prefix`, `issue_tracker`, `post_workspace_init` steps for a fresh worktree, and on the repo's profile `display_name`, `keywords`, `tracker_projects`, `vcs.label` and the `PR_TEMPLATE` / `PR_TITLE_FORMAT` vars. Every value carries its source (a file and line, a Jira query, a scan count) and a confidence. A value it can't stand behind is left out with a note rather than costing the repo the rest.
+- A repo worked on under several prefixes gets a profile for each prefix your own branches use, so a new ticket can be filed in any of them. Run from a terminal, setup then asks for the repo's default prefix (for bare numbers and new tickets from free text), listing yours first, and saves the answer as your own setting.
+- Generated setup steps run in a shell of their own and with `continue_on_error`, so a step that fails or exits can't stop a space from opening.
+- It shows what would change per repo and asks: accept all, repo by repo, edit the file first, or quit.
+
+Setup writes only `repos.<name>.inferred` in `.lasagna/workdir.yml`, plus a top-level `version`, profile and shared issue tracker for the work dir's own spaces when they're missing. Settings you add beside `inferred`, your comments and a repo's own `.pappardelle.yml` stay and win over anything inferred; re-running setup rewrites only `inferred`. Repos never need a Lasagna file of their own.
+
+| Flag              |                                                                           |
+| ----------------- | ------------------------------------------------------------------------- |
+| `--yes`           | Don't ask: take the high-confidence values and the guessed default prefix |
+| `--dry-run`       | Print the proposal; write nothing                                         |
+| `--no-claude`     | Use the scan alone                                                        |
+| `--repo <name>`   | Only this repo (repeatable)                                               |
+| `--model <model>` | Passed to `claude`                                                        |
 
 ### A work dir: every repo on one rail
 
