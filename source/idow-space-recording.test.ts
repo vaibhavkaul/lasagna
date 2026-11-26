@@ -25,8 +25,8 @@ ${exitCode === 0 ? '' : `if [[ "$2" != space && "$2" != worktree-path && "$2" !=
 	return {
 		calls: () => fs.readFileSync(calls, 'utf8').trim().split('\n'),
 		env: {
-			PAPPARDELLE_EXECUTABLE: executable,
-			PAPPARDELLE_REGISTER_SPACE: '1',
+			LASAGNA_EXECUTABLE: executable,
+			LASAGNA_REGISTER_SPACE: '1',
 		},
 	};
 }
@@ -60,7 +60,7 @@ test('idow run by hand saves the profile of a new workspace without registering 
 	const fixture = setup();
 	const state = stateCli(fixture, 0);
 	const extraEnv = {
-		PAPPARDELLE_EXECUTABLE: state.env.PAPPARDELLE_EXECUTABLE,
+		LASAGNA_EXECUTABLE: state.env.LASAGNA_EXECUTABLE,
 	};
 	const repo = path.basename(fixture.main);
 	await fixture.run({extraEnv});
@@ -85,7 +85,7 @@ test('idow run by hand stops before starting sessions when the space cannot be r
 	const error = await rejectionOf(
 		fixture.run({
 			input: 'Make workspace startup faster',
-			extraEnv: {PAPPARDELLE_EXECUTABLE: state.env.PAPPARDELLE_EXECUTABLE},
+			extraEnv: {LASAGNA_EXECUTABLE: state.env.LASAGNA_EXECUTABLE},
 		}),
 	);
 	expect(String(error?.message)).toMatch(
@@ -98,7 +98,7 @@ test('idow run by hand stops before starting sessions when the space cannot be r
 // as the TUI's, in whichever mode the run is in.
 test('a new issue is recorded as created by Pappardelle, with its profile, before post_workspace_init', async () => {
 	const fixture = setup();
-	const stateDir = path.join(fixture.home, '.pappardelle');
+	const stateDir = path.join(fixture.home, '.lasagna');
 	const repoState = path.join(stateDir, 'repos/main checkout');
 	fs.appendFileSync(
 		path.join(fixture.main, '.pappardelle.local.yml'),
@@ -165,7 +165,7 @@ test('an existing issue is not recorded as created by Pappardelle', async () => 
 	await fixture.run();
 	expect(
 		fs.existsSync(
-			path.join(fixture.home, '.pappardelle/repos/main checkout/issue-meta'),
+			path.join(fixture.home, '.lasagna/repos/main checkout/issue-meta'),
 		),
 	).toBe(false);
 });

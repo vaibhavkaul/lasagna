@@ -146,7 +146,7 @@ export const defaultClassifierRun: ClassifierRun = async (
 		const env = Object.fromEntries(
 			Object.entries(process.env).filter(
 				([name]) =>
-					!name.startsWith('PAPPARDELLE_') &&
+					!name.startsWith('LASAGNA_') &&
 					name !== 'TMUX' &&
 					name !== 'TMUX_PANE',
 			),

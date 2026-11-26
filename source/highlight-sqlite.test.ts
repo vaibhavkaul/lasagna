@@ -66,7 +66,7 @@ test('clearing removes the row with the file', async () => {
 	expect(fs.existsSync(f.file)).toBe(false);
 });
 
-// A `pappardelle highlight` whose flag is off only writes the file. The
+// A `lasagna highlight` whose flag is off only writes the file. The
 // watcher learns of it the next time the database changes.
 test('a target file written without the database is reported as a request', async () => {
 	const f = fixture();

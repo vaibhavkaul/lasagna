@@ -67,8 +67,8 @@ get_issue_tracker_provider() {
 # instead of whatever copy its branch happens to carry.
 beads_repo_root() {
     local common_dir
-    if [[ -n "${PAPPARDELLE_MAIN_REPO_ROOT:-}" ]]; then
-        echo "$PAPPARDELLE_MAIN_REPO_ROOT"
+    if [[ -n "${LASAGNA_MAIN_REPO_ROOT:-}" ]]; then
+        echo "$LASAGNA_MAIN_REPO_ROOT"
         return
     fi
     common_dir=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || {
@@ -389,9 +389,9 @@ $quoted_prompt"
             # Convert markdown description to ADF JSON via the converter script
             local script_dir
             script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-            local hooks_dir="$script_dir/../plugins/pappardelle/hooks"
+            local hooks_dir="$script_dir/../plugins/lasagna/hooks"
             local adf_tmp
-            adf_tmp=$(mktemp /tmp/pappardelle-desc-XXXXXX.json)
+            adf_tmp=$(mktemp /tmp/lasagna-desc-XXXXXX.json)
             if ! python3 "$hooks_dir/markdown_to_adf.py" "$description" > "$adf_tmp"; then
                 echo "Error: Failed to convert description to ADF format" >&2
                 rm -f "$adf_tmp"
@@ -431,7 +431,7 @@ $quoted_prompt"
             # --body-file rather than -d: the prompt is arbitrary user prose and
             # can outgrow a comfortable argv entry.
             local desc_tmp
-            desc_tmp=$(mktemp /tmp/pappardelle-beads-desc-XXXXXX)
+            desc_tmp=$(mktemp /tmp/lasagna-beads-desc-XXXXXX)
             printf '%s' "$description" > "$desc_tmp"
 
             # The beads issue type shares issue_tracker.default_issue_type with
@@ -440,8 +440,8 @@ $quoted_prompt"
             beads_type=$(echo "$issue_type" | tr '[:upper:]' '[:lower:]')
 
             local err_tmp out_tmp issue_key bd_rc
-            err_tmp=$(mktemp /tmp/pappardelle-beads-err-XXXXXX)
-            out_tmp=$(mktemp /tmp/pappardelle-beads-out-XXXXXX)
+            err_tmp=$(mktemp /tmp/lasagna-beads-err-XXXXXX)
+            out_tmp=$(mktemp /tmp/lasagna-beads-out-XXXXXX)
             # No project assignment: a beads issue's prefix comes from the
             # database it lands in, not from anything the caller can choose.
             run_bd create --title "$title" --type "$beads_type" --body-file "$desc_tmp" --json \

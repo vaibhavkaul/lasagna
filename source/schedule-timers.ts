@@ -1,4 +1,4 @@
-// OS user timers that run `pappardelle schedule fire ID`: systemd on Linux and
+// OS user timers that run `lasagna schedule fire ID`: systemd on Linux and
 // launchd on macOS. Both survive the TUI restarting, which is the point: a
 // usage limit can be days away.
 
@@ -57,7 +57,7 @@ function timerId(job: Job): string {
 }
 
 export function systemdUnitName(repo: string, job: Job): string {
-	return `pappardelle-${repo.replaceAll(/[^\w:.-]/g, '_')}-${timerId(job)}`;
+	return `lasagna-${repo.replaceAll(/[^\w:.-]/g, '_')}-${timerId(job)}`;
 }
 
 export function systemdBackend(context: TimerContext): TimerBackend {
@@ -75,7 +75,7 @@ export function systemdBackend(context: TimerContext): TimerBackend {
 				context.run('systemd-run', [
 					'--user',
 					`--unit=${unit}`,
-					`--description=Pappardelle wake-up for ${job.key}`,
+					`--description=Lasagna wake-up for ${job.key}`,
 					// An elapsed one-shot timer otherwise stays loaded and holds its name.
 					'--timer-property=RemainAfterElapse=no',
 					// systemd otherwise batches timers to the minute.
@@ -112,7 +112,7 @@ export function systemdBackend(context: TimerContext): TimerBackend {
 }
 
 export function launchdLabel(repo: string, job: Job): string {
-	return `dev.pappardelle.${repo.replaceAll(/[^\w.-]/g, '_')}.${timerId(job)}`;
+	return `dev.lasagna.${repo.replaceAll(/[^\w.-]/g, '_')}.${timerId(job)}`;
 }
 
 function plistValue(value: unknown, indent: string): string {

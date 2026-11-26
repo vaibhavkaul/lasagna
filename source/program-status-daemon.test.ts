@@ -577,9 +577,9 @@ tmuxTest(
 			// tmux replaces the tabs between the fields attach reads with `_`
 			// for a client whose locale is not UTF-8.
 			LC_ALL: 'C.UTF-8',
-			PAPPARDELLE_SQLITE_STATE: '1',
-			PAPPARDELLE_STATE_DB: path.join(root, 'state.db'),
-			PAPPARDELLE_PROGRAM_STATUS_DIR: path.join(root, 'status'),
+			LASAGNA_SQLITE_STATE: '1',
+			LASAGNA_STATE_DB: path.join(root, 'state.db'),
+			LASAGNA_PROGRAM_STATUS_DIR: path.join(root, 'status'),
 		};
 		const tmux = (...args: string[]) =>
 			execFileSync('tmux', ['-S', tmuxSocket, ...args], {

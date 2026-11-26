@@ -748,7 +748,7 @@ async function holdPrompt(
 	if (!(await answerSettled(key, before, deny?.number, deps))) {
 		log({...entry, sent: keys.join(' '), detail: 'the prompt did not change'});
 		deps.err(
-			`Pressed ${keys.join(' ')} in ${key} to hold its prompt, but it still shows. Check it with \`pappardelle screen ${key}\``,
+			`Pressed ${keys.join(' ')} in ${key} to hold its prompt, but it still shows. Check it with \`lasagna screen ${key}\``,
 		);
 		return 1;
 	}
@@ -905,7 +905,7 @@ function describeJob(job: Job): string {
 const PANE_FIELDS = [
 	'#{session_name}',
 	'#{pane_id}',
-	'#{@pappardelle_title}',
+	'#{@lasagna_title}',
 	'#{pane_current_command}',
 	'#{pane_start_command}',
 ].join('\t');
@@ -920,7 +920,7 @@ function tuiPanes(deps: SuperviseDeps): string {
 
 	const rows = result.stdout
 		.split('\n')
-		.filter(line => line.startsWith('pappardelle-'))
+		.filter(line => line.startsWith('lasagna-'))
 		.map(line => line.split('\t'));
 	return [['SESSION', 'PANE', 'TITLE', 'RUNNING', 'STARTED AS'], ...rows]
 		.map(row => row.join('\t'))
@@ -943,7 +943,7 @@ async function focusLog(seconds: number, deps: SuperviseDeps): Promise<void> {
 			'#{session_name}:#{pane_id}:#{pane_active}',
 		])
 			.split('\n')
-			.filter(line => line.startsWith('pappardelle-') && line.endsWith(':1'))
+			.filter(line => line.startsWith('lasagna-') && line.endsWith(':1'))
 			.map(line => line.slice(0, -2))
 			.join(' ');
 		const clients = read([
@@ -1081,7 +1081,7 @@ async function execute(
 				if (stuck) {
 					log({...entry, detail: `${question.question}; stuck: ${stuck}`});
 					deps.err(
-						`Answering ${key} stopped: ${stuck} didn't show on screen. Check it with \`pappardelle screen ${key}\``,
+						`Answering ${key} stopped: ${stuck} didn't show on screen. Check it with \`lasagna screen ${key}\``,
 					);
 					return 1;
 				}
@@ -1178,7 +1178,7 @@ async function execute(
 			) {
 				log({...entry, detail: 'the prompt did not change'});
 				deps.err(
-					`Pressed ${shown} in ${key}, but it still shows the same prompt. Check it with \`pappardelle screen ${key}\``,
+					`Pressed ${shown} in ${key}, but it still shows the same prompt. Check it with \`lasagna screen ${key}\``,
 				);
 				return 1;
 			}

@@ -16,10 +16,10 @@ function install(options: {executable: boolean; directory?: string}) {
 	);
 	fs.mkdirSync(path.join(installDir, 'scripts'), {recursive: true});
 	fs.copyFileSync(
-		path.join(root, 'scripts', 'pappardelle-shim-template.sh'),
-		path.join(installDir, 'scripts', 'pappardelle-shim-template.sh'),
+		path.join(root, 'scripts', 'lasagna-shim-template.sh'),
+		path.join(installDir, 'scripts', 'lasagna-shim-template.sh'),
 	);
-	const executable = path.join(installDir, 'dist', 'pappardelle');
+	const executable = path.join(installDir, 'dist', 'lasagna');
 	if (options.executable) {
 		fs.mkdirSync(path.dirname(executable));
 		fs.writeFileSync(
@@ -45,13 +45,13 @@ function install(options: {executable: boolean; directory?: string}) {
 				PATH: process.env['PATH'],
 				// tmux falls back to the live tmux directory without it.
 				TMUX_TMPDIR: process.env['TMUX_TMPDIR'],
-				PAPPARDELLE_INSTALL_SOURCE_ONLY: '1',
+				LASAGNA_INSTALL_SOURCE_ONLY: '1',
 			},
 		},
 	);
 	if (written.status !== 0)
 		throw new Error(`install_shim failed: ${written.stderr}`);
-	return {shim: path.join(home, '.local', 'bin', 'pappardelle'), executable};
+	return {shim: path.join(home, '.local', 'bin', 'lasagna'), executable};
 }
 
 // PATH is empty: the shim needs no Bun, nor anything else, to start the executable.

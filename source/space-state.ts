@@ -4,7 +4,7 @@
 // sous-chef skill (and any other consumer) can brief the chef without
 // shelling out to gh or reading the raw conversation jsonl itself.
 //
-// Layout: ~/.pappardelle/repos/{repoName}/space-state/{ISSUE-KEY}.json
+// Layout: ~/.lasagna/repos/{repoName}/space-state/{ISSUE-KEY}.json
 //
 // Written by the Pappardelle TUI after each rail-status poll. Reads are
 // cheap and failure-tolerant — consumers should treat missing/malformed
@@ -17,8 +17,9 @@ import {homedir} from 'node:os';
 import path from 'node:path';
 import {PIPELINE_STATUSES, type PipelineStatus} from './providers/types.ts';
 import type {Unreadable} from './state-db.ts';
+import {STATE_DIR_NAME} from './state-dir.ts';
 
-const DEFAULT_BASE_DIR = path.join(homedir(), '.pappardelle');
+const DEFAULT_BASE_DIR = path.join(homedir(), STATE_DIR_NAME);
 
 export interface SpaceRecap {
 	customTitle?: string;
@@ -26,7 +27,7 @@ export interface SpaceRecap {
 	lastAssistantExcerpt?: string;
 }
 
-/** A PR or MR recorded for one checkout in a space by `pappardelle link-pr`. */
+/** A PR or MR recorded for one checkout in a space by `lasagna link-pr`. */
 export type SpacePrLink = {
 	host: string;
 	project: string;
@@ -57,7 +58,7 @@ export interface SpaceState {
 	 * The agent profile whose agent was last started in the space's agent
 	 * session, which is the one running there: a picker override launches once
 	 * and is saved nowhere else. The hook that records the agent's session id
-	 * (plugins/pappardelle/hooks/agent_session.py) reads it.
+	 * (plugins/lasagna/hooks/agent_session.py) reads it.
 	 */
 	agentProfile?: LaunchedAgentProfile;
 }
@@ -230,8 +231,8 @@ export function claudeProjectDir(
  *
  * Claude Code stores transcripts under `~/.claude/projects/<encoded-cwd>/`,
  * where `<encoded-cwd>` is the absolute worktree path with `/` and `.` both
- * replaced by `-` (e.g. `/Users/me/.worktrees/repo/STA-1` →
- * `-Users-me--worktrees-repo-STA-1`). Returns the path of the newest
+ * replaced by `-` (e.g. `/Users/me/.lasagna/worktrees/repo/STA-1` →
+ * `-Users-me--lasagna-worktrees-repo-STA-1`). Returns the path of the newest
  * top-level `.jsonl` in that directory, or `null` if none exists.
  *
  * Subagent jsonls live in nested subdirectories (`subagents/*.jsonl`) and are
@@ -284,7 +285,7 @@ export type AgentSessionsLookup =
 /**
  * Each agent profile's latest conversation in a space, by agent profile name,
  * written only by the agent's SessionStart/UserPromptSubmit hook
- * (plugins/pappardelle/hooks/agent_session.py). It lives beside the space-state file rather than
+ * (plugins/lasagna/hooks/agent_session.py). It lives beside the space-state file rather than
  * in it: the TUI rewrites that file after every rail poll, and a hook write
  * landing between the TUI's read and its rename would be lost. Keyed by agent
  * profile so a one-launch override doesn't take the profile's own

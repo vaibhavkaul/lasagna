@@ -20,7 +20,7 @@ const session = `${agent}-status-live`;
 const reply = `${agent.toUpperCase()}_VERIFIED`;
 const task = `Return only the two parts ${agent.toUpperCase()}_ and VERIFIED joined together with no spaces. Do not use tools or inspect any files.`;
 const shellStartup = path.join(harness.root, 'shell-startup');
-writeFileSync(shellStartup, "PS1='PAPPARDELLE_FIXTURE_PROMPT> '\n");
+writeFileSync(shellStartup, "PS1='LASAGNA_FIXTURE_PROMPT> '\n");
 
 function reports() {
 	const dir = path.join(harness.root, 'trace');
@@ -143,7 +143,7 @@ try {
 	await harness.tmux(['send-keys', '-t', `=${session}:`, 'Enter']);
 	await until(
 		async () => harness.screen(session),
-		screen => screen.trimEnd().endsWith('PAPPARDELLE_FIXTURE_PROMPT>'),
+		screen => screen.trimEnd().endsWith('LASAGNA_FIXTURE_PROMPT>'),
 		`${agent} returned to its fixture shell`,
 		30000,
 	);

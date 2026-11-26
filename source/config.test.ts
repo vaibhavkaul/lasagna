@@ -3345,13 +3345,13 @@ test('listAgentProfiles labels each agent profile with its config files', () => 
 			agentProfileTestConfig({
 				agent_profiles: {codex: {command: 'codex'}, aider: {command: 'aider'}},
 			}),
-			{codex: ['.pappardelle.local.yml', '~/.pappardelle/.pappardelle.yml']},
+			{codex: ['.pappardelle.local.yml', '~/.lasagna/.pappardelle.yml']},
 		),
 	).toStrictEqual([
 		{name: 'claude', source: 'built-in'},
 		{
 			name: 'codex',
-			source: '.pappardelle.local.yml + ~/.pappardelle/.pappardelle.yml',
+			source: '.pappardelle.local.yml + ~/.lasagna/.pappardelle.yml',
 		},
 		{name: 'aider', source: 'built-in'},
 	]);
@@ -3414,7 +3414,7 @@ test('loadAgentProfileSources names every layer that defines an agent profile, t
 				projectDir: path.join(dir, 'project'),
 			}),
 		).toStrictEqual({
-			codex: ['.pappardelle.local.yml', '~/.pappardelle/.pappardelle.yml'],
+			codex: ['.pappardelle.local.yml', '~/.lasagna/.pappardelle.yml'],
 			opus: ['.pappardelle.yml'],
 		});
 	} finally {

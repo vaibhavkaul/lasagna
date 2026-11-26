@@ -1,4 +1,4 @@
-// The tools `pappardelle mcp` serves. Each maps its JSON input onto a CLI call,
+// The tools `lasagna mcp` serves. Each maps its JSON input onto a CLI call,
 // so the CLI keeps owning validation and behavior. Text goes on stdin rather
 // than in argv so that text starting with "-" isn't read as a flag.
 //
@@ -248,7 +248,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
 	defineTool({
 		name: 'space_get',
 		description:
-			'What Pappardelle knows about a space: phase, issue title, worktree path, branch, profile, recorded agent session ids, tmux socket, session names and targets, pane ids, PR, pipeline and status. Use it rather than building session names or paths from the key. all lists the main space and every open space',
+			'What Lasagna knows about a space: phase, issue title, worktree path, branch, profile, recorded agent session ids, tmux socket, session names and targets, pane ids, PR, pipeline and status. Use it rather than building session names or paths from the key. all lists the main space and every open space',
 		readOnly: true,
 		inputSchema: {
 			space,
@@ -310,7 +310,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
 				.boolean()
 				.optional()
 				.describe(
-					"Also make the space's agent pane the active pane in the Pappardelle window, as Enter does in the rail",
+					"Also make the space's agent pane the active pane in the Lasagna window, as Enter does in the rail",
 				),
 		},
 		toCli: ({key, focus}) => ({

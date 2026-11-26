@@ -151,8 +151,8 @@ test('space_get maps onto space get, and all onto space list', async () => {
 		newSpaceIdentity({
 			repo: state.repo,
 			key: 'STA-1',
-			worktreePath: '/home/u/.worktrees/repo/STA-1',
-			socket: 'pappardelle_inner',
+			worktreePath: '/home/u/.lasagna/worktrees/repo/STA-1',
+			socket: 'lasagna_inner',
 		}),
 	);
 	await state.daos.registry.add('STA-1');
@@ -165,7 +165,7 @@ test('space_get maps onto space get, and all onto space list', async () => {
 				checkout: {repoName: state.repo, mainRoot: '/repo'},
 			}),
 			daos: () => state.daos,
-			env: {PAPPARDELLE_SPACE: 'STA-1'},
+			env: {LASAGNA_SPACE: 'STA-1'},
 			cwd: '/',
 			runner: () => ({status: 1, stdout: ''}),
 			gitBranch: async () => null,
@@ -352,7 +352,7 @@ const pluginHooks = path.join(
 	import.meta.dirname,
 	'..',
 	'plugins',
-	'pappardelle',
+	'lasagna',
 	'hooks',
 );
 
@@ -365,20 +365,18 @@ test("Claude Code's approval hook matches the auto-approved tools and no others"
 		};
 	};
 	const entry = hooks.PreToolUse.find(({hooks}) =>
-		hooks.some(({command}) => command.includes('approve-pappardelle-tool')),
+		hooks.some(({command}) => command.includes('approve-lasagna-tool')),
 	);
 	const matcher = new RegExp(`^(${entry!.matcher})$`);
 	const names = MCP_TOOLS.map(tool => tool.name);
 	expect(
-		names.filter(name =>
-			matcher.test(`mcp__plugin_pappardelle_pappardelle__${name}`),
-		),
+		names.filter(name => matcher.test(`mcp__plugin_lasagna_lasagna__${name}`)),
 	).toStrictEqual([...AUTO_APPROVED_TOOLS]);
 });
 
 test('the approval hook answers allow', () => {
 	const {stdout, status} = spawnSync(
-		path.join(pluginHooks, 'approve-pappardelle-tool.sh'),
+		path.join(pluginHooks, 'approve-lasagna-tool.sh'),
 		{encoding: 'utf8'},
 	);
 	expect(status).toBe(0);

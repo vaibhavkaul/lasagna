@@ -31,6 +31,7 @@ import {
 	getMainWorktreeInfo,
 	INNER_SOCKET,
 } from './tmux.ts';
+import {dropPappardelleEnv} from './pappardelle-env.ts';
 import type {PaneLayout} from './types.ts';
 import {
 	configExists,
@@ -108,6 +109,9 @@ import {exitAfterFlush} from './exit-after-flush.ts';
 
 const SCRIPTS_DIR = scriptsDir;
 const REARM_SCHEDULES_DELAY_MS = 5000;
+
+// Before anything is started: tmux servers, idow and agents inherit this.
+dropPappardelleEnv();
 
 const gate = subcommandGate(process.argv.slice(2));
 if (gate.action === 'help') {
@@ -231,7 +235,7 @@ if (
 	cli.flags.profile !== undefined &&
 	(!cli.flags.profile.trim() || cli.input.length === 0)
 ) {
-	console.error('Usage: pappardelle --profile <name> <prompt or issue-key>');
+	console.error('Usage: lasagna --profile <name> <prompt or issue-key>');
 	process.exit(1);
 }
 
@@ -241,14 +245,12 @@ if (cli.flags.agentProfile?.trim() === '') {
 }
 
 if (cli.flags.agentProfile !== undefined && cli.input.length === 0) {
-	console.error(
-		'Usage: pappardelle --agent-profile <name> <prompt or issue-key>',
-	);
+	console.error('Usage: lasagna --agent-profile <name> <prompt or issue-key>');
 	process.exit(1);
 }
 
 if (cli.flags.resume && cli.input.length === 0) {
-	console.error('Usage: pappardelle --resume <prompt or issue-key>');
+	console.error('Usage: lasagna --resume <prompt or issue-key>');
 	process.exit(1);
 }
 
@@ -296,7 +298,7 @@ function checkConfig(): void {
 		repoRoot = getRepoRoot();
 	} catch {
 		console.error(
-			'\x1b[31mError: pappardelle must be run from within a git repository.\x1b[0m',
+			'\x1b[31mError: lasagna must be run from within a git repository.\x1b[0m',
 		);
 		console.error(
 			'\x1b[33mPlease navigate to a git repository and try again.\x1b[0m',
@@ -311,7 +313,7 @@ function checkConfig(): void {
 			);
 			console.error('');
 			console.error(
-				'\x1b[33mPappardelle requires a configuration file to operate.\x1b[0m',
+				'\x1b[33mLasagna requires a configuration file to operate.\x1b[0m',
 			);
 			console.error(
 				`Please create .pappardelle.yml at: ${repoRoot}/.pappardelle.yml`,
@@ -350,7 +352,7 @@ if (cli.input[0] === 'link-pr') {
 	try {
 		if (cli.input.length !== 2)
 			throw new Error(
-				'Usage: pappardelle link-pr <url> [--workspace <workspace-root>]',
+				'Usage: lasagna link-pr <url> [--workspace <workspace-root>]',
 			);
 		const providers = loadProviderConfigs();
 		// A GitLab host from a layer that failed to parse would link the wrong MR.
@@ -377,7 +379,7 @@ if (cli.input[0] === 'link-pr') {
 
 if (cli.input.length === 0) {
 	startStartupTrace();
-	createLogger('cli').info('Pappardelle starting');
+	createLogger('cli').info('Lasagna starting');
 }
 const configurationDone = startupTrace.current?.begin('configuration');
 checkConfig();
@@ -391,11 +393,11 @@ if (isRestart) {
 	process.exit(await restartRepo(repoName, defaultRestartCommandDeps()));
 }
 
-// Handle `pappardelle highlight STA-XXX`: record the request and exit
+// Handle `lasagna highlight STA-XXX`: record the request and exit
 if (cli.input[0] === 'highlight') {
 	const issueKey = cli.input[1];
 	if (!issueKey) {
-		console.error('Usage: pappardelle highlight <issue-key> [--focus]');
+		console.error('Usage: lasagna highlight <issue-key> [--focus]');
 		process.exit(1);
 	}
 
@@ -406,7 +408,7 @@ if (cli.input[0] === 'highlight') {
 	process.exit(0);
 }
 
-// Handle `pappardelle send STA-XXX text` — submit a prompt to a space's agent
+// Handle `lasagna send STA-XXX text` — submit a prompt to a space's agent
 if (cli.input[0] === 'send') {
 	const {
 		key: rawKey,
@@ -426,7 +428,7 @@ if (cli.input[0] === 'send') {
 
 	if (!rawKey || (!text && keys.length === 0)) {
 		console.error(
-			'Usage: pappardelle send <issue-key> [--force] [text]  (or text on stdin)\n       pappardelle send <issue-key> --keys <key> [--keys <key>]...',
+			'Usage: lasagna send <issue-key> [--force] [text]  (or text on stdin)\n       lasagna send <issue-key> --keys <key> [--keys <key>]...',
 		);
 		process.exit(1);
 	}
@@ -460,7 +462,7 @@ if (cli.input[0] === 'send') {
 if (cli.input[0] === 'close') {
 	const rawKey = cli.input[1];
 	if (!rawKey || cli.input.length !== 2) {
-		console.error('Usage: pappardelle close <issue-key> [--yes]');
+		console.error('Usage: lasagna close <issue-key> [--yes]');
 		process.exit(1);
 	}
 
@@ -493,7 +495,7 @@ if (cli.input[0] === 'spaces') {
 if (cli.input[0] === 'read') {
 	const rawKey = cli.input[1];
 	if (!rawKey || cli.input.length > 2) {
-		console.error('Usage: pappardelle read <issue-key> [--turns N] [--json]');
+		console.error('Usage: lasagna read <issue-key> [--turns N] [--json]');
 		process.exit(1);
 	}
 
@@ -688,7 +690,7 @@ async function maintainSessions() {
 	cleanupDone?.();
 	if (killed > 0) {
 		console.error(
-			`\x1b[33mPappardelle: cleared ${killed} stale outer-socket session(s) — they'll be recreated on the inner socket.\x1b[0m`,
+			`\x1b[33mLasagna: cleared ${killed} stale outer-socket session(s) — they'll be recreated on the inner socket.\x1b[0m`,
 		);
 	}
 
@@ -766,7 +768,7 @@ async function maintainSessions() {
 	reapingDone?.();
 	if (innerReaped > 0) {
 		console.error(
-			`\x1b[33mPappardelle: reaped ${innerReaped} orphaned inner-socket session(s).\x1b[0m`,
+			`\x1b[33mLasagna: reaped ${innerReaped} orphaned inner-socket session(s).\x1b[0m`,
 		);
 	}
 }
@@ -910,7 +912,7 @@ if (tmuxSocket && railPaneId)
 await renderer.closed;
 process.exit(0);
 
-/** What `pappardelle send` prints when the send did not go through. */
+/** What `lasagna send` prints when the send did not go through. */
 function sendRefusal(
 	result: SendToSpaceAgentResult,
 	issueKey: string,
@@ -922,15 +924,15 @@ function sendRefusal(
 		}
 
 		case 'prompt': {
-			return `Not sent: ${issueKey} is showing a permission prompt, a question or a Codex dialog. Answer it with \`pappardelle answer ${issueKey}\`; Escape can still be pressed on a prompt or question`;
+			return `Not sent: ${issueKey} is showing a permission prompt, a question or a Codex dialog. Answer it with \`lasagna answer ${issueKey}\`; Escape can still be pressed on a prompt or question`;
 		}
 
 		case 'draft': {
-			return `Not sent: ${issueKey}'s input box has text that sending would clear. Check it with \`pappardelle screen ${issueKey}\`, or pass --force`;
+			return `Not sent: ${issueKey}'s input box has text that sending would clear. Check it with \`lasagna screen ${issueKey}\`, or pass --force`;
 		}
 
 		case 'unsubmitted': {
-			return `Not submitted: the text is in ${issueKey}'s input box but two Enters did not send it. Check it with \`pappardelle screen ${issueKey}\` before sending again`;
+			return `Not submitted: the text is in ${issueKey}'s input box but two Enters did not send it. Check it with \`lasagna screen ${issueKey}\` before sending again`;
 		}
 
 		case 'no-session': {
@@ -946,7 +948,7 @@ function sendRefusal(
 
 		case 'failed': {
 			return typedText
-				? `Failed to send to ${issueKey}. The text may still have reached its input box: check it with \`pappardelle screen ${issueKey}\``
+				? `Failed to send to ${issueKey}. The text may still have reached its input box: check it with \`lasagna screen ${issueKey}\``
 				: `Failed to press keys in ${issueKey}`;
 		}
 	}

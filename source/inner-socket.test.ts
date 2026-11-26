@@ -1,5 +1,5 @@
 // Tests for the inner-socket routing that isolates per-issue claude/companion
-// sessions onto `tmux -L pappardelle_inner`. See STA-860.
+// sessions onto `tmux -L lasagna_inner`. See STA-860.
 //
 // The point of these tests is not to exercise real tmux (that belongs in the
 // integration-tests/ directory) — it's to lock down the argv shape the
@@ -61,8 +61,8 @@ const NOTHING: ProtectedSessions = {names: new Set(), keys: new Set()};
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const TMUX_SOURCE = readFileSync(join(__dirname, 'tmux.ts'), 'utf-8');
 
-test('INNER_SOCKET is pappardelle_inner', () => {
-	expect(INNER_SOCKET).toBe('pappardelle_inner');
+test('INNER_SOCKET is lasagna_inner', () => {
+	expect(INNER_SOCKET).toBe('lasagna_inner');
 });
 
 test('innerTmuxArgs prefixes -L INNER_SOCKET', () => {
@@ -70,7 +70,7 @@ test('innerTmuxArgs prefixes -L INNER_SOCKET', () => {
 		innerTmuxArgs(['has-session', '-t', 'claude-repo-STA-1']),
 	).toStrictEqual([
 		'-L',
-		'pappardelle_inner',
+		'lasagna_inner',
 		'has-session',
 		'-t',
 		'claude-repo-STA-1',
@@ -78,7 +78,7 @@ test('innerTmuxArgs prefixes -L INNER_SOCKET', () => {
 });
 
 test('innerTmuxArgs with empty args still includes -L prefix', () => {
-	expect(innerTmuxArgs([])).toStrictEqual(['-L', 'pappardelle_inner']);
+	expect(innerTmuxArgs([])).toStrictEqual(['-L', 'lasagna_inner']);
 });
 
 test('innerTmuxArgs does not mutate the input array', () => {
@@ -111,7 +111,7 @@ test('new-session for per-issue sessions routes through innerTmuxArgs', () => {
 
 test('every per-issue new-session carries the space session environment', () => {
 	// A Claude started by hand in the pane reports its status under
-	// PAPPARDELLE_SPACE, so a session the TUI makes must carry it just like one
+	// LASAGNA_SPACE, so a session the TUI makes must carry it just like one
 	// start-agent-session.sh makes. Without it, the fix from
 	// chardigio/pappardelle#22 holds only until the next reboot.
 	const agent =
@@ -151,7 +151,7 @@ test('companion session launches nothing when the command is empty (plain shell)
 
 test('no bare `tmux new-session -d` survives for per-issue sessions', () => {
 	// The only new-session call that is allowed to skip the inner socket is the
-	// outer `pappardelle-{repo}` root session in cli.tsx. Inside tmux.ts, every
+	// outer `lasagna-{repo}` root session in cli.tsx. Inside tmux.ts, every
 	// new-session call must go through innerTmuxArgs.
 	const bareDetachedNewSession = TMUX_SOURCE.match(
 		/spawnSync\(\s*['"]tmux['"]\s*,\s*\[\s*['"]new-session['"]\s*,\s*['"]-d['"]/g,
@@ -176,7 +176,7 @@ test('switch-client and list-clients route through innerTmuxArgs', () => {
 });
 
 test('has-session via spawnSync routes through innerTmuxArgs', () => {
-	// The outer pappardelle-{repo} session's `has-session` goes through
+	// The outer lasagna-{repo} session's `has-session` goes through
 	// defaultOuterTmuxRunner. Every spawnSync form must route through
 	// innerTmuxArgs — a bare `spawnSync('tmux', ['has-session', ...])` would
 	// silently target the default socket and miss per-issue sessions.
@@ -185,7 +185,7 @@ test('has-session via spawnSync routes through innerTmuxArgs', () => {
 	);
 	expect(
 		bareHasSession,
-		'has-session spawnSync calls must go through innerTmuxArgs; the outer `pappardelle-{repo}` session uses defaultOuterTmuxRunner',
+		'has-session spawnSync calls must go through innerTmuxArgs; the outer `lasagna-{repo}` session uses defaultOuterTmuxRunner',
 	).toBe(null);
 	expect(
 		TMUX_SOURCE,
@@ -264,7 +264,7 @@ test('kill-session for per-issue sessions routes through innerTmuxArgs', () => {
 	).toBe(null);
 });
 
-test('pappardelle send resolves and pastes on the inner socket by default', () => {
+test('lasagna send resolves and pastes on the inner socket by default', () => {
 	// sendToSpaceAgent and resolveInnerSessionTarget accept a runner for tests;
 	// production must default to the inner-socket runner or relays land on the
 	// default socket, where no per-issue session exists.
@@ -293,7 +293,7 @@ function makeFakeRunner(options: {
 	listSessionsStatus?: number;
 	listSessionsError?: Error;
 	killStatus?: (name: string) => number;
-	/** Each session's PAPPARDELLE_SPACE. */
+	/** Each session's LASAGNA_SPACE. */
 	spaces?: Record<string, string>;
 }): {runner: OuterTmuxRunner; calls: string[][]} {
 	const calls: string[][] = [];
@@ -317,7 +317,7 @@ function makeFakeRunner(options: {
 			const space = options.spaces?.[(args[2] ?? '').slice(1, -1)];
 			return space === undefined
 				? {status: 1, stdout: ''}
-				: {status: 0, stdout: `PAPPARDELLE_SPACE=${space}\n`};
+				: {status: 0, stdout: `LASAGNA_SPACE=${space}\n`};
 		}
 		return {status: 0, stdout: ''};
 	};

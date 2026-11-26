@@ -2,6 +2,7 @@ import {spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import {homedir} from 'node:os';
 import path from 'node:path';
+import {STATE_DIR_NAME} from './state-dir.ts';
 
 // Claude Code and agy load the plugin in place from the install this runs
 // from, so a new install is live after /reload-plugins (Claude Code) or in new
@@ -18,20 +19,29 @@ import path from 'node:path';
 // declares no hooks (left out, Codex would load Claude Code's), and the
 // session hook goes in ~/.codex/hooks.json, which Codex trusts per command.
 
-const MARKETPLACE = 'pappardelle-marketplace';
-const PLUGIN_ID = `pappardelle@${MARKETPLACE}`;
+//
+// Lasagna installs beside Pappardelle, into the same agent config files, and
+// both installers remove what they take for their own old entries. So every
+// name here is Lasagna's own, and each removal below matches only that name:
+// the marketplace, the plugin, the hook directory, the Codex session hook's
+// script and agy's named hook. Pappardelle's installer drops any Codex hook
+// running a record-agent-session.py that is not its own, which is why
+// Lasagna's script has another name.
+
+const MARKETPLACE = 'lasagna-marketplace';
+const PLUGIN_ID = `lasagna@${MARKETPLACE}`;
 
 // Before the hooks shipped in the plugin, install.sh copied them to
-// ~/.pappardelle/hooks and users merged commands running them into
+// ~/.lasagna/hooks and users merged commands running them into
 // ~/.claude/settings.json. Left in place, every hook would fire twice. The
 // scripts themselves stay: sessions open during an update keep running the old
 // commands until they reload.
-const LEGACY_HOOK_DIR = '.pappardelle/hooks/';
+const LEGACY_HOOK_DIR = `${STATE_DIR_NAME}/hooks/`;
 
-// Older installs pointed Codex's session hook at ~/.pappardelle/hooks or at
+// Older installs pointed Codex's session hook at ~/.lasagna/hooks or at
 // another install; any copy left beside this install's records every
 // session twice.
-const CODEX_SESSION_HOOK = 'record-agent-session.py';
+const CODEX_SESSION_HOOK = 'record-lasagna-session.py';
 const CODEX_SESSION_EVENTS: Array<[event: string, matcher?: string]> = [
 	['SessionStart', 'startup|resume|clear'],
 	['UserPromptSubmit'],
@@ -128,7 +138,7 @@ function installForClaude(deps: PluginInstallDeps): Outcome {
 	}
 
 	deps.print(
-		`Installed the Pappardelle plugin for Claude Code from ${deps.repoDir}. Run /reload-plugins in open sessions to load it.`,
+		`Installed the Lasagna plugin for Claude Code from ${deps.repoDir}. Run /reload-plugins in open sessions to load it.`,
 	);
 	return 'installed';
 }
@@ -149,7 +159,7 @@ function installForCodex(deps: PluginInstallDeps): Outcome {
 		['plugin', 'add', PLUGIN_ID],
 	]);
 	if (outcome !== 'installed') return outcome;
-	deps.print('Installed the Pappardelle plugin for Codex.');
+	deps.print('Installed the Lasagna plugin for Codex.');
 	installCodexSessionHook(deps);
 	return 'installed';
 }
@@ -159,7 +169,7 @@ function installCodexSessionHook(deps: PluginInstallDeps): void {
 	const script = path.join(
 		deps.repoDir,
 		'plugins',
-		'pappardelle',
+		'lasagna',
 		'hooks',
 		CODEX_SESSION_HOOK,
 	);
@@ -197,12 +207,12 @@ function installCodexSessionHook(deps: PluginInstallDeps): void {
 	if (!removed && !added) return;
 	settings.hooks = hooks;
 	if (original !== undefined) {
-		deps.writeFile(`${file}.pappardelle.bak`, original);
+		deps.writeFile(`${file}.lasagna.bak`, original);
 	}
 
 	deps.writeFile(file, JSON.stringify(settings, null, 2) + '\n');
 	deps.print(
-		`Pointed the Codex session hook in ${file} at this install${original === undefined ? '' : ` (backup: ${file}.pappardelle.bak)`}.`,
+		`Pointed the Codex session hook in ${file} at this install${original === undefined ? '' : ` (backup: ${file}.lasagna.bak)`}.`,
 	);
 	if (added) {
 		deps.print(
@@ -229,16 +239,16 @@ function installCodexSessionHook(deps: PluginInstallDeps): void {
 function installForAgy(deps: PluginInstallDeps): Outcome {
 	if (!deps.exists(deps.agyConfigDir)) {
 		deps.print(
-			`agy is not set up (no ${deps.agyConfigDir}); skipped its plugin. Run pappardelle plugin install again after first using agy.`,
+			`agy is not set up (no ${deps.agyConfigDir}); skipped its plugin. Run lasagna plugin install again after first using agy.`,
 		);
 		return 'skipped';
 	}
 
-	const target = path.join(deps.repoDir, 'plugins', 'pappardelle');
-	const link = path.join(deps.agyConfigDir, 'plugins', 'pappardelle');
+	const target = path.join(deps.repoDir, 'plugins', 'lasagna');
+	const link = path.join(deps.agyConfigDir, 'plugins', 'lasagna');
 	if (deps.readLink(link) === undefined && deps.exists(link)) {
 		deps.print(
-			`${link} is a copy installed by agy; run agy plugin uninstall pappardelle, then pappardelle plugin install again.`,
+			`${link} is a copy installed by agy; run agy plugin uninstall lasagna, then lasagna plugin install again.`,
 		);
 		return 'failed';
 	}
@@ -247,11 +257,11 @@ function installForAgy(deps: PluginInstallDeps): Outcome {
 	removeAgyLegacyHook(deps);
 	if (agyDisabledPlugin(deps)) {
 		deps.print(
-			`Linked the Pappardelle plugin into agy at ${link}, but agy has it disabled; run agy plugin enable pappardelle to load it.`,
+			`Linked the Lasagna plugin into agy at ${link}, but agy has it disabled; run agy plugin enable lasagna to load it.`,
 		);
 	} else {
 		deps.print(
-			`Linked the Pappardelle plugin into agy at ${link}. New agy sessions load it.`,
+			`Linked the Lasagna plugin into agy at ${link}. New agy sessions load it.`,
 		);
 	}
 
@@ -259,9 +269,9 @@ function installForAgy(deps: PluginInstallDeps): Outcome {
 }
 
 // install-agy-hooks.sh merged this named hook, running the copy in
-// ~/.pappardelle/hooks, into agy's global hooks.json. Left there it records
+// ~/.lasagna/hooks, into agy's global hooks.json. Left there it records
 // every agy session a second time.
-const AGY_LEGACY_HOOK = 'pappardelle-session';
+const AGY_LEGACY_HOOK = 'lasagna-session';
 
 function removeAgyLegacyHook(deps: PluginInstallDeps): void {
 	const file = path.join(deps.agyConfigDir, 'hooks.json');
@@ -285,10 +295,10 @@ function removeAgyLegacyHook(deps: PluginInstallDeps): void {
 	const kept = Object.fromEntries(
 		Object.entries(hooks).filter(([name]) => name !== AGY_LEGACY_HOOK),
 	);
-	deps.writeFile(`${file}.pappardelle.bak`, original);
+	deps.writeFile(`${file}.lasagna.bak`, original);
 	deps.writeFile(file, JSON.stringify(kept, null, 2) + '\n');
 	deps.print(
-		`Removed the old ${AGY_LEGACY_HOOK} hook from ${file} (backup: ${file}.pappardelle.bak).`,
+		`Removed the old ${AGY_LEGACY_HOOK} hook from ${file} (backup: ${file}.lasagna.bak).`,
 	);
 }
 
@@ -299,7 +309,7 @@ function agyDisabledPlugin(deps: PluginInstallDeps): boolean {
 		const parsed = JSON.parse(config) as {
 			plugins?: Record<string, {enabled?: boolean}>;
 		};
-		return parsed.plugins?.['pappardelle']?.enabled === false;
+		return parsed.plugins?.['lasagna']?.enabled === false;
 	} catch {
 		return false;
 	}
@@ -325,16 +335,16 @@ function removeHooks(
 		settings = JSON.parse(current) as HookSettings;
 	} catch {
 		deps.print(
-			`Could not parse ${file}; remove any old Pappardelle hooks from it by hand.`,
+			`Could not parse ${file}; remove any old Lasagna hooks from it by hand.`,
 		);
 		return;
 	}
 
 	if (!stripHooks(settings, isOld)) return;
-	deps.writeFile(`${file}.pappardelle.bak`, original);
+	deps.writeFile(`${file}.lasagna.bak`, original);
 	deps.writeFile(file, JSON.stringify(settings, null, 2) + '\n');
 	deps.print(
-		`Removed the old Pappardelle hooks from ${file} (backup: ${file}.pappardelle.bak).`,
+		`Removed the old Lasagna hooks from ${file} (backup: ${file}.lasagna.bak).`,
 	);
 }
 

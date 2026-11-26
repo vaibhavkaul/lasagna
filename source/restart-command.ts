@@ -28,9 +28,9 @@ import {stateDaosByRepo} from './state-daos.ts';
 import {DEFAULT_REPO_STATE_ROOT, type TuiMarkerDao} from './tui-marker.ts';
 import {confirm} from './confirm.ts';
 
-// `pappardelle restart` reruns this repo's TUI in its pane, on the build that
+// `lasagna restart` reruns this repo's TUI in its pane, on the build that
 // ran the command, and waits for it to report ready.
-// `pappardelle restart --hard` also ends every agent/companion session (the
+// `lasagna restart --hard` also ends every agent/companion session (the
 // inner tmux server); each agent resumes its own conversation the next time
 // its space is selected.
 
@@ -61,7 +61,7 @@ export async function restartRepo(
 	);
 	if (!tui) {
 		deps.print(
-			`No running Pappardelle TUI for ${repoName}. Start one with pappardelle.`,
+			`No running Lasagna TUI for ${repoName}. Start one with lasagna.`,
 		);
 		return 0;
 	}

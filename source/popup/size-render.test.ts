@@ -18,7 +18,8 @@ const cases: Array<{cols: number; props: ConfirmPopupProps}> = [
 		cols: 30,
 		props: {
 			title: 'Close Space',
-			message: '/home/user/.worktrees/project/very-long-branch-name-here',
+			message:
+				'/home/user/.lasagna/worktrees/project/very-long-branch-name-here',
 			isDestructive: true,
 		},
 	},
@@ -36,7 +37,7 @@ const cases: Array<{cols: number; props: ConfirmPopupProps}> = [
 		props: {
 			title: 'Remove Worktree',
 			message:
-				'Remove worktree /home/u/.worktrees/pappardelle/sta-1234-fix-thing?',
+				'Remove worktree /home/u/.lasagna/worktrees/pappardelle/sta-1234-fix-thing?',
 			isDestructive: true,
 		},
 	},

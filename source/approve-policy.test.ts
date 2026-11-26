@@ -1,20 +1,21 @@
 import {test, expect} from 'bun:test';
 import {checkApproval, placeOf, type ApprovalPolicy} from './approve-policy.ts';
 
-const worktree = '/home/u/.worktrees/repo/STA-1';
+const worktree = '/home/u/.lasagna/worktrees/repo/STA-1';
 const directories = new Set([
 	'/',
 	'/tmp',
 	'/tmp/claude-1000',
 	'/tmp/claude-1000/x',
 	'/tmp/tmux-1000',
-	'/tmp/tmux-1000/pappardelle_inner',
+	'/tmp/tmux-1000/lasagna_inner',
 	'/tmp/q-a',
 	'/tmp/q-a/s',
 	'/home',
 	'/home/u',
-	'/home/u/.worktrees',
-	'/home/u/.worktrees/repo',
+	'/home/u/.lasagna',
+	'/home/u/.lasagna/worktrees',
+	'/home/u/.lasagna/worktrees/repo',
 	worktree,
 	`${worktree}/dist`,
 ]);
@@ -23,7 +24,7 @@ const links: Record<string, string> = {
 	[`${worktree}/h`]: '/home/u',
 	// A QA directory holding a link to the user's own tmux sockets.
 	'/tmp/q-a/tlink': '/tmp/tmux-1000',
-	'/tmp/q-a/tlink/pappardelle_inner': '/tmp/tmux-1000/pappardelle_inner',
+	'/tmp/q-a/tlink/lasagna_inner': '/tmp/tmux-1000/lasagna_inner',
 };
 
 function realpath(target: string): string {
@@ -207,20 +208,55 @@ test('hard-stop words in a commit message or heredoc are text, not commands', ()
 
 test('an agent cannot approve its own hold', () => {
 	for (const command of [
-		'pappardelle holds approve h1',
-		'pappardelle answer STA-1 --option 1',
-		'pappardelle send STA-1 --keys 1',
-		'echo x >> ~/.pappardelle/repos/r/holds/h1.json',
-		'cat > $HOME/.pappardelle/state.db',
+		'lasagna holds approve h1',
+		'lasagna answer STA-1 --option 1',
+		'lasagna send STA-1 --keys 1',
+		'echo x >> ~/.lasagna/repos/r/holds/h1.json',
+		'cat > $HOME/.lasagna/state.db',
 		'tmux send-keys -t main y Enter',
-		'tmux -L pappardelle_inner paste-buffer -t x',
+		'tmux -L lasagna_inner paste-buffer -t x',
 	]) {
 		expect(approved(command), `${command}`).toBe(false);
 	}
 
-	expect(approved('pappardelle send STA-2 "rebase please"')).toBe(true);
+	expect(approved('lasagna send STA-2 "rebase please"')).toBe(true);
 	expect(approved('tmux -S /tmp/q-a/s send-keys -t x y')).toBe(true);
 	expect(approved('qtmux a send-keys -t x y')).toBe(true);
+});
+
+// Worktrees are under the state directory: ~/.lasagna/worktrees/<repo>/<KEY>.
+test("a space's own worktree is not Lasagna's state, and nothing else under ~/.lasagna is the worktree", () => {
+	for (const command of [
+		`ls ${worktree}`,
+		`cat ${worktree}/README.md`,
+		`git -C ${worktree} status`,
+		`rm -rf "${worktree}/build"`,
+		`OUT=${worktree}/dist; rm -rf $OUT`,
+		`cp ${worktree}/a.txt ${worktree}/b.txt`,
+	]) {
+		expect(approved(command), command).toBe(true);
+	}
+
+	for (const command of [
+		// Another space's worktree, and one whose key starts with this one's.
+		'cat /home/u/.lasagna/worktrees/repo/STA-2/README.md',
+		`cat ${worktree}2/README.md`,
+		// Out of the worktree again, into the state beside it.
+		`cat ${worktree}/../../../state.db`,
+		`echo x > ${worktree}/../../../repos/r/holds/h1.json`,
+		`ls ${worktree}/{..,}/STA-2`,
+		// Through the worktree's link to the home directory.
+		`echo x > ${worktree}/h/.lasagna/repos/r/holds/h1.json`,
+		// A path that only contains the worktree's.
+		`cat /mnt${worktree}/README.md`,
+		'ls /home/u/.lasagna/worktrees',
+		'ls /home/u/.lasagna/worktrees/repo',
+	]) {
+		expect(approved(command), command).toBe(false);
+	}
+
+	// The main checkout has no worktree of its own to leave out.
+	expect(approved(`cat ${worktree}/README.md`, main)).toBe(false);
 });
 
 test('a push to main or the default branch holds, in any form', () => {
@@ -255,7 +291,7 @@ test('kill-server and typing into tmux are approved only on an isolated QA socke
 	expect(
 		approved('tmux -S /tmp/q-a/../../run/tmux-1000/default kill-server'),
 	).toBe(false);
-	expect(approved('tmux -S /tmp/q-a/tlink/pappardelle_inner kill-server')).toBe(
+	expect(approved('tmux -S /tmp/q-a/tlink/lasagna_inner kill-server')).toBe(
 		false,
 	);
 	expect(approved('tmux -S /tmp/q-a kill-server')).toBe(false);
@@ -350,10 +386,10 @@ test('evasions of the delete, hard-stop and push rules hold', () => {
 		'git push origin $(git rev-parse HEAD):main',
 		'git -c push.default=upstream push',
 		'git config remote.origin.push HEAD:main && git push',
-		'pappardelle send STA-1 --keys=1',
-		'echo x > "$HOME"/.pappardelle/x',
-		'echo x > ~/./.pappardelle/x',
-		'cd ~ && echo > .pappardelle/x',
+		'lasagna send STA-1 --keys=1',
+		'echo x > "$HOME"/.lasagna/x',
+		'echo x > ~/./.lasagna/x',
+		'cd ~ && echo > .lasagna/x',
 		'tmux send-k -t main y',
 		'tmux kill-ses -t x',
 		'tmux kill-window -t x',
@@ -362,7 +398,7 @@ test('evasions of the delete, hard-stop and push rules hold', () => {
 		'qtmux x -S /tmp/tmux-1000/default kill-server',
 		"echo '{}' > .claude/settings.local.json",
 		'echo x | tee -a .mcp.json',
-		'P=.pappardelle; echo x > ~/$P/x',
+		'P=.lasagna; echo x > ~/$P/x',
 		'find -- h/. -delete',
 		'find $(echo /home/x) -delete',
 		'find -files0-from list -delete',
@@ -413,13 +449,13 @@ test('evasions of the delete, hard-stop and push rules hold', () => {
 		'ln -s .claude c2 && echo > c2/settings.json',
 		'GIT_DIR=/x/.git git push origin HEAD',
 		'export GIT_DIR=/x/.git; git push origin HEAD',
-		'echo > ~/.pap*/x',
-		'ls ~/.[p]appardelle',
-		'cat $HOME/.pappardell?/x',
-		'cd ~/.pap* && echo > repos/r/holds/h1.json',
-		'echo > ~/.pappar{delle,}/x',
-		'echo > ~/.pappar\\delle/x',
-		'echo > ~/.papp"ardelle"/x',
+		'echo > ~/.las*/x',
+		'ls ~/.[l]asagna',
+		'cat $HOME/.lasagn?/x',
+		'cd ~/.las* && echo > repos/r/holds/h1.json',
+		'echo > ~/.lasa{gna,}/x',
+		'echo > ~/.lasa\\gna/x',
+		'echo > ~/.lasa"gna"/x',
 		'D=/tmp/q-a; D[0]=; rm -rf $D/home/x',
 		"env --split-string='rm -rf /home/x'",
 		'env -S"rm -rf /home/x"',
@@ -449,7 +485,7 @@ test('a shell fed a script on its input, a quoted subcommand, or a glob into age
 		'npm pub""lish',
 		'terraform ap""ply',
 		'git stash dr""op',
-		'pappardelle an""swer STA-2 --option 1',
+		'lasagna an""swer STA-2 --option 1',
 		'rm -rf .claude/*',
 		'cp /tmp/q-x/evil .claude/settings.l*',
 	]) {
@@ -576,7 +612,7 @@ test('the fixes for those evasions leave everyday commands alone', () => {
 		'timeout 60 bun test',
 		'git push --force-with-lease origin sd-x',
 		'tmux -S /tmp/q-a/s send-keys -t x y',
-		'qenv x tmux -L pappardelle_inner kill-server',
+		'qenv x tmux -L lasagna_inner kill-server',
 		'cd /tmp/q-a && rm -rf out',
 	]) {
 		expect(approved(command), `${JSON.stringify(command)}`).toBe(true);

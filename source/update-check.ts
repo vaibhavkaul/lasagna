@@ -4,11 +4,12 @@ import {homedir} from 'node:os';
 import {execFileSync, spawnSync} from 'node:child_process';
 import path from 'node:path';
 import {createLogger} from './logger.ts';
+import {STATE_DIR_NAME} from './state-dir.ts';
 
 const log = createLogger('update-check');
 
 const RELEASES_API_URL =
-	'https://api.github.com/repos/chardigio/pappardelle/releases/latest';
+	'https://api.github.com/repos/vaibhavkaul/lasagna/releases/latest';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const HTTP_TIMEOUT_MS = 3000;
 
@@ -137,7 +138,7 @@ export type DisplayVersion = {
 //
 // Release tags (vX.Y.Z) live only on the standalone chardigio/pappardelle repo,
 // never in the stardust-labs monorepo. So:
-//   1. A real release checkout (run from ~/.pappardelle/repo) carries the tag in
+//   1. A real release checkout (run from ~/.lasagna/repo) carries the tag in
 //      its own git tree → report it as the released version (isDev: false).
 //   2. A dev/worktree build (run from the monorepo, where no release tag is
 //      reachable) reports the latest release the user has installed at
@@ -151,7 +152,7 @@ export type DisplayVersion = {
 // bumps it, so its version is always a lie for display purposes.
 export function resolveDisplayVersion(
 	projectDir: string,
-	installedRoot: string = path.join(homedir(), '.pappardelle', 'repo'),
+	installedRoot: string = path.join(homedir(), STATE_DIR_NAME, 'repo'),
 ): DisplayVersion {
 	const own = readInstalledVersionFromGit(projectDir);
 	if (own) return {version: own, isDev: false};
@@ -219,12 +220,12 @@ export class JsonUpdateCheckDao implements UpdateCheckDao {
 // LOCAL_MODE detection
 // ============================================================================
 
-// Pappardelle ships as a clone at ~/.pappardelle/repo/. When running from
+// Pappardelle ships as a clone at ~/.lasagna/repo/. When running from
 // anywhere else (a checkout, or the snapshot install.sh makes of one at
-// ~/.pappardelle/local/), we're in LOCAL_MODE and skip the update prompt: that
+// ~/.lasagna/local/), we're in LOCAL_MODE and skip the update prompt: that
 // build isn't a release, so comparing its version would always prompt.
 export function isLocalMode(projectDir: string): boolean {
-	const installedRoot = path.join(homedir(), '.pappardelle', 'repo');
+	const installedRoot = path.join(homedir(), STATE_DIR_NAME, 'repo');
 	const normalizedProject = path.resolve(projectDir);
 	return (
 		normalizedProject !== installedRoot &&
@@ -243,7 +244,7 @@ async function fetchLatestVersion(): Promise<string | null> {
 		const res = await fetch(RELEASES_API_URL, {
 			headers: {
 				Accept: 'application/vnd.github+json',
-				'User-Agent': 'pappardelle-update-check',
+				'User-Agent': 'lasagna-update-check',
 			},
 			signal: controller.signal,
 		});
@@ -331,11 +332,11 @@ export async function checkForUpdate(
 }
 
 export function pappardelleInstallCommand(): string {
-	return 'curl -fsSL https://raw.githubusercontent.com/chardigio/pappardelle/main/install.sh | bash';
+	return 'curl -fsSL https://raw.githubusercontent.com/vaibhavkaul/lasagna/main/install.sh | bash';
 }
 
 /**
- * The script the `U` update and `pappardelle update` run. The TUI kills its own
+ * The script the `U` update and `lasagna update` run. The TUI kills its own
  * tmux session as soon as the script returns, which takes the pane and any
  * error text with it, so a failed update used to look like Pappardelle quitting
  * for no reason. On failure this points at a log that outlives the pane and,
@@ -348,11 +349,11 @@ export function updateShellScript({
 	waitOnFailure = true,
 }: {installCommand?: string; waitOnFailure?: boolean} = {}): string {
 	const failureMessage =
-		'The Pappardelle update failed (exit %s). The log is at %s.\\n' +
+		'The Lasagna update failed (exit %s). The log is at %s.\\n' +
 		(waitOnFailure ? 'Press any key to close.\\n' : '');
 	return [
 		'set -o pipefail',
-		'log="$HOME/.pappardelle/logs/update.log"',
+		`log="$HOME/${STATE_DIR_NAME}/logs/update.log"`,
 		'mkdir -p "$(dirname "$log")"',
 		`{ ${installCommand}; } 2>&1 | tee "$log"`,
 		'status=$?',
@@ -370,7 +371,7 @@ export function runUpdateScript(options: {waitOnFailure: boolean}): number {
 		stdio: 'inherit',
 		env: {
 			...process.env,
-			PAPPARDELLE_BUN: bunForChildren(),
+			LASAGNA_BUN: bunForChildren(),
 		},
 	});
 	return result.status ?? 1;

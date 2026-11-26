@@ -2,7 +2,7 @@
 // past a hard stop, or the model check said no. Each hold waits here until the
 // chef approves or dismisses it. An approved hold lets space_answer approve
 // that same prompt once more, when the agent retries it. Holds live in
-// ~/.pappardelle/repos/{repo}/holds/, one file each.
+// ~/.lasagna/repos/{repo}/holds/, one file each.
 
 import {randomUUID} from 'node:crypto';
 import {

@@ -1,0 +1,22 @@
+{
+	"name": "lasagna",
+	"version": "1.1.0",
+	"description": "Install, update, configure, and monitor Lasagna workspaces. Lasagna is a fork of Pappardelle (github.com/chardigio/pappardelle). Provides the init-lasagna, update-lasagna, configure-lasagna, sous-chef and link-pr skills.",
+	"author": {
+		"name": "chardigio",
+		"email": "hi@charliedigiovanna.com"
+	},
+	"homepage": "https://github.com/vaibhavkaul/lasagna",
+	"repository": "https://github.com/vaibhavkaul/lasagna",
+	"license": "MIT",
+	"keywords": [
+		"lasagna",
+		"pappardelle",
+		"worktree",
+		"workspace",
+		"tui",
+		"configuration"
+	],
+	"skills": "./skills/",
+	"hooks": {"hooks": {}}
+}

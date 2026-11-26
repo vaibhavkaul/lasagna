@@ -29,8 +29,8 @@ const tmuxTest = spawnSync('tmux', ['-V']).status === 0 ? test : test.skip;
 const dir = fs.realpathSync(fs.mkdtempSync(`${tmpdir()}/pcs-`));
 const outer = `${dir}/o`;
 const inner = `${dir}/i`;
-const env = {...process.env, SHELL: '/bin/sh', PAPPARDELLE_TMUX_SOCKET: inner};
-Object.assign(process.env, {SHELL: '/bin/sh', PAPPARDELLE_TMUX_SOCKET: inner});
+const env = {...process.env, SHELL: '/bin/sh', LASAGNA_TMUX_SOCKET: inner};
+Object.assign(process.env, {SHELL: '/bin/sh', LASAGNA_TMUX_SOCKET: inner});
 
 // Inner calls already carry `-S inner` from innerTmuxArgs, which wins over
 // the leading `-S outer`.
@@ -299,7 +299,7 @@ tmuxTest(
 		const settled = companionSplitPaneIds();
 
 		// A split client that left forces new split panes only.
-		const logsTty = await display(settled[1]!, '#{@pappardelle_client_tty}');
+		const logsTty = await display(settled[1]!, '#{@lasagna_client_tty}');
 		await innerTmux('detach-client', '-t', logsTty);
 		expect(await syncCompanionSplits(layout, a, {run})).toBe('applied');
 		const rebuilt = companionSplitPaneIds();

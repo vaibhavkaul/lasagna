@@ -1,7 +1,7 @@
 // The TUI's ready marker as a row, with tui.json kept beside it.
 //
 // A marker written by a TUI that runs without the database is imported the
-// next time it is read, which is how `pappardelle restart` from a build with
+// next time it is read, which is how `lasagna restart` from a build with
 // the database still sees a TUI without it come up.
 
 import {createLogger} from './logger.ts';

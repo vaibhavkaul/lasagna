@@ -179,8 +179,8 @@ export class StartupTrace {
 	}
 }
 
-const enabled = process.env['PAPPARDELLE_STARTUP_TRACE'] === '1';
-const parent = process.env['PAPPARDELLE_STARTUP_PARENT'];
+const enabled = process.env['LASAGNA_STARTUP_TRACE'] === '1';
+const parent = process.env['LASAGNA_STARTUP_PARENT'];
 const parentLaunchId =
 	parent && /^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/.test(parent)
 		? parent
@@ -204,9 +204,9 @@ export function startupSessionEnvArgs(): string[] {
 	return startupTrace.current
 		? [
 				'-e',
-				'PAPPARDELLE_STARTUP_TRACE=1',
+				'LASAGNA_STARTUP_TRACE=1',
 				'-e',
-				`PAPPARDELLE_STARTUP_PARENT=${startupTrace.current.launchId}`,
+				`LASAGNA_STARTUP_PARENT=${startupTrace.current.launchId}`,
 			]
 		: [];
 }

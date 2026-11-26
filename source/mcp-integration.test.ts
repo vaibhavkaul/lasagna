@@ -1,4 +1,4 @@
-// `pappardelle mcp` as a client sees it: a real stdio server running the real
+// `lasagna mcp` as a client sees it: a real stdio server running the real
 // CLI against a real tmux server. tmux runs under its own TMUX_TMPDIR with
 // $TMUX unset, which is what keeps it off the user's servers, and it is killed
 // through its socket path only.
@@ -48,9 +48,9 @@ profiles:
 	const inherited = Object.fromEntries(
 		Object.entries(process.env).filter(
 			([name]) =>
-				name === 'PAPPARDELLE_SQLITE_STATE' ||
-				name === 'PAPPARDELLE_STATUS_SOCKET' ||
-				!/^(TMUX|PAPPARDELLE_)/.test(name),
+				name === 'LASAGNA_SQLITE_STATE' ||
+				name === 'LASAGNA_STATUS_SOCKET' ||
+				!/^(TMUX|LASAGNA_)/.test(name),
 		),
 	) as Record<string, string>;
 	const env: Record<string, string> = {
@@ -128,7 +128,7 @@ test('spaces_list answers from the CLI in a configured repo', async () => {
 	const f = fixture();
 	const registry = path.join(
 		f.home,
-		'.pappardelle',
+		'.lasagna',
 		'repos',
 		'project',
 		'open-spaces.json',
@@ -146,7 +146,7 @@ test('spaces_list answers from the CLI in a configured repo', async () => {
 	).toStrictEqual([['STE-1', 'agent-project-STE-1']]);
 });
 
-test('with no PAPPARDELLE_SPACE, the worktree path names the space for the server and the CLI', async () => {
+test('with no LASAGNA_SPACE, the worktree path names the space for the server and the CLI', async () => {
 	const f = fixture();
 	const git = (...args: string[]) =>
 		spawnSync(
@@ -155,7 +155,7 @@ test('with no PAPPARDELLE_SPACE, the worktree path names the space for the serve
 			{encoding: 'utf8'},
 		);
 	git('commit', '--quiet', '--allow-empty', '-m', 'init');
-	const tree = path.join(f.home, '.worktrees', 'project', 'KEY-9');
+	const tree = path.join(f.home, '.lasagna', 'worktrees', 'project', 'KEY-9');
 	git('worktree', 'add', '--quiet', tree, '-b', 'KEY-9');
 	prepareSpace(f, 'KEY-9', tree);
 	const client = await connect({...f, repo: tree});
@@ -211,7 +211,7 @@ echo '{"state":"open","number":7,"head":{"repo":{"full_name":"o/child"},"ref":"s
 		fs.readFileSync(
 			path.join(
 				f.home,
-				'.pappardelle',
+				'.lasagna',
 				'repos',
 				'project',
 				'space-state',
@@ -251,7 +251,7 @@ tmuxTest(
 		const f = fixture();
 		const tmuxEnv = f.env;
 		const tmux = (...args: string[]) => {
-			const r = spawnSync('tmux', ['-L', 'pappardelle_inner', ...args], {
+			const r = spawnSync('tmux', ['-L', 'lasagna_inner', ...args], {
 				encoding: 'utf8',
 				env: tmuxEnv,
 				timeout: 5000,
@@ -273,7 +273,7 @@ tmuxTest(
 
 		tmux('new-session', '-d', '-s', 'agent-project-KEY-1', '-x', '200', 'cat');
 		prepareSpace(f, 'KEY-1');
-		const client = await connect(f, {PAPPARDELLE_SPACE: 'KEY-1'});
+		const client = await connect(f, {LASAGNA_SPACE: 'KEY-1'});
 		expect(client.getInstructions() ?? '').toMatch(
 			/space KEY-1 \(repo project\)/,
 		);
@@ -341,7 +341,7 @@ tmuxTest(
 		const f = fixture();
 		const tmuxEnv = f.env;
 		const tmux = (...args: string[]) => {
-			const r = spawnSync('tmux', ['-L', 'pappardelle_inner', ...args], {
+			const r = spawnSync('tmux', ['-L', 'lasagna_inner', ...args], {
 				encoding: 'utf8',
 				env: tmuxEnv,
 				timeout: 5000,
@@ -400,7 +400,7 @@ tmuxTest(
 		await delay(500);
 		// The sous-chef, which answers for the spaces.
 		const client = await connect(f, {
-			PAPPARDELLE_SPACE: 'main',
+			LASAGNA_SPACE: 'main',
 			PATH: `${bin}:${f.env['PATH'] ?? ''}`,
 		});
 		const call = async (name: string, args: Record<string, unknown>) =>
@@ -459,13 +459,7 @@ tmuxTest(
 
 		const log = fs
 			.readFileSync(
-				path.join(
-					f.home,
-					'.pappardelle',
-					'repos',
-					'project',
-					'supervise.jsonl',
-				),
+				path.join(f.home, '.lasagna', 'repos', 'project', 'supervise.jsonl'),
 				'utf8',
 			)
 			.trim()

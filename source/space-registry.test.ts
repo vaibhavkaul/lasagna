@@ -286,11 +286,11 @@ test('json: a registry file that cannot be read throws, and never reads as empty
 	}
 });
 
-test('getRegistryPathForRepo keeps each repo under ~/.pappardelle/repos/', () => {
+test('getRegistryPathForRepo keeps each repo under ~/.lasagna/repos/', () => {
 	const first = getRegistryPathForRepo('stardust-labs');
-	expect(
-		first.endsWith('/.pappardelle/repos/stardust-labs/open-spaces.json'),
-	).toBe(true);
+	expect(first.endsWith('/.lasagna/repos/stardust-labs/open-spaces.json')).toBe(
+		true,
+	);
 	expect(first).not.toBe(getRegistryPathForRepo('pappa-chex'));
 });
 

@@ -33,7 +33,7 @@ function isParseArgsError(error: unknown): error is Error {
 }
 
 function usage(message: string): number {
-	console.error(`pappardelle --internal-state: ${message}`);
+	console.error(`lasagna --internal-state: ${message}`);
 	return 2;
 }
 
@@ -269,7 +269,7 @@ try {
 		process.exitCode = usage(`${name}: ${error.message}`);
 	} else {
 		console.error(
-			`pappardelle --internal-state ${name}: ${error instanceof Error ? error.message : String(error)}`,
+			`lasagna --internal-state ${name}: ${error instanceof Error ? error.message : String(error)}`,
 		);
 		// Not 1: idow reads `space get`'s 1 as "no such space" and carries on.
 		process.exitCode = 3;

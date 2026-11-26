@@ -2,6 +2,7 @@ import {mkdir, open, stat, unlink, writeFile} from 'node:fs/promises';
 import {homedir} from 'node:os';
 import path from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
+import {STATE_DIR_NAME} from './state-dir.ts';
 import {processIsAlive} from './tui-marker.ts';
 
 export class SendLockTimeout extends Error {}
@@ -31,7 +32,7 @@ export async function withSendLock<T>(
 		isAlive?: (pid: number) => boolean;
 	} = {},
 ): Promise<T> {
-	const dir = options.dir ?? path.join(homedir(), '.pappardelle', 'send-locks');
+	const dir = options.dir ?? path.join(homedir(), STATE_DIR_NAME, 'send-locks');
 	const isAlive = options.isAlive ?? processIsAlive;
 	const file = path.join(dir, `${session}.lock`);
 	const deadline = Date.now() + (options.timeoutMs ?? SEND_LOCK_TIMEOUT_MS);

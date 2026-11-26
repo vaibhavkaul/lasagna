@@ -36,6 +36,7 @@ import {
 	type LaunchField,
 } from './config-launch-flags.ts';
 import {configErrors} from './config-validation.ts';
+import {STATE_DIR_NAME} from './state-dir.ts';
 
 // ============================================================================
 // Types
@@ -121,7 +122,7 @@ export interface AgentProfileConfig {
 	/**
 	 * Appended for the resume attempt of the resume-then-launch chain.
 	 * `{session_id}` is replaced with the session id the agent's hook recorded
-	 * for the space (see plugins/pappardelle/hooks/agent_session.py); with none recorded, the
+	 * for the space (see plugins/lasagna/hooks/agent_session.py); with none recorded, the
 	 * resume attempt is skipped (claude falls back to `--continue`). Built in
 	 * where the agent's entry in scripts/builtin-agents.json has one; any
 	 * other agent defaults to none, which skips the resume attempt entirely
@@ -522,7 +523,7 @@ export function getMainRepoRoot(): string {
 function resolveMainRepoRoot(): string {
 	// Set by whoever created this workspace, so a worktree session is told its
 	// main checkout instead of forking git to work it out again.
-	const injected = process.env['PAPPARDELLE_MAIN_REPO_ROOT'];
+	const injected = process.env['LASAGNA_MAIN_REPO_ROOT'];
 	if (injected) return injected;
 
 	try {
@@ -540,7 +541,7 @@ function resolveMainRepoRoot(): string {
  * `.pappardelle.yml` is checked out into the worktree and found there; one kept
  * out of git exists only in the main checkout. `.pappardelle.local.yml` is
  * gitignored but copied into each worktree by workspace setup, so the worktree's
- * copy wins. Mirrors `find_repo_config` in plugins/pappardelle/hooks/tracker_config.py.
+ * copy wins. Mirrors `find_repo_config` in plugins/lasagna/hooks/tracker_config.py.
  */
 export function findRepoConfig(filename: string): string | undefined {
 	const inWorkingTree = path.join(getRepoRoot(), filename);
@@ -691,10 +692,10 @@ function isKeybindingList(value: unknown): value is KeybindingConfig[] {
 }
 
 /**
- * The default home config directory: ~/.pappardelle/
+ * The default home config directory: ~/.lasagna/
  */
 export function getDefaultHomeConfigDir(): string {
-	return path.join(os.homedir(), '.pappardelle');
+	return path.join(os.homedir(), STATE_DIR_NAME);
 }
 
 /**
@@ -720,7 +721,7 @@ export function loadConfigFromPaths(opts: ConfigPaths): PappardelleConfig {
 	return buildConfigFromLayers(layers);
 }
 
-const HOME_CONFIG_LABEL = '~/.pappardelle/.pappardelle.yml';
+const HOME_CONFIG_LABEL = `~/${STATE_DIR_NAME}/.pappardelle.yml`;
 
 /** The three config files, lowest priority first; `path` is unset for a missing file. */
 export function configLayerFiles({
@@ -992,7 +993,7 @@ export function mergedAgentProfiles(
 
 /**
  * Load the .pappardelle.yml config from the repository root.
- * Supports 3-layer merge: home (~/.pappardelle/.pappardelle.yml) →
+ * Supports 3-layer merge: home (~/.lasagna/.pappardelle.yml) →
  * project (.pappardelle.yml) → local (.pappardelle.local.yml).
  */
 export function loadConfig(): PappardelleConfig {

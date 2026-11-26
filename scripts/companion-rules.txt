@@ -1,4 +1,4 @@
-You are working in a Pappardelle space: the user watches your agent session and a companion pane next to it. The companion is the view the user has of what you are doing, so keep it showing that, all session, with the pappardelle MCP tools:
+You are working in a Lasagna space: the user watches your agent session and a companion pane next to it. The companion is the view the user has of what you are doing, so keep it showing that, all session, with the lasagna MCP tools:
 1. Whenever you are about to ask the user a question or for a decision, in chat or with a question tool, first call companion_run to show what the decision depends on: the diff, the file, the log, the doc. Do this even for small questions
 2. Run the app, a dev server or a test watcher in a companion split (companion_run with a pane name and split) instead of a background task, so the user can watch it start. Read its output with companion_read
 3. Before you ask the user to review something, call companion_run to set the companion up for that review: hunk diff, the running app, the rendered page

@@ -3,9 +3,9 @@ import {MAIN_WORKTREE_KEY} from './space-utils.ts';
 
 /**
  * Build env object for spawning the idow script.
- * Passes PAPPARDELLE_PROJECT_ROOT so the shell scripts resolve config
+ * Passes LASAGNA_PROJECT_ROOT so the shell scripts resolve config
  * from the user's project directory, not the pappardelle source repo, and
- * PAPPARDELLE_MAIN_REPO_ROOT so nothing downstream re-derives it — idow hands
+ * LASAGNA_MAIN_REPO_ROOT so nothing downstream re-derives it — idow hands
  * it on to the workspace's tmux sessions, where the Claude Code hooks read it
  * instead of resolving the main checkout on every tool use.
  *
@@ -20,11 +20,11 @@ export function buildSpawnEnv(
 	const {mainRepoRoot, registerSpace} = options;
 	return {
 		...process.env,
-		PAPPARDELLE_BUN: bunForChildren(),
-		PAPPARDELLE_EXECUTABLE: isStandalone ? process.execPath : undefined,
-		PAPPARDELLE_PROJECT_ROOT: repoRoot,
-		PAPPARDELLE_REGISTER_SPACE: registerSpace ? '1' : undefined,
-		...(mainRepoRoot ? {PAPPARDELLE_MAIN_REPO_ROOT: mainRepoRoot} : {}),
+		LASAGNA_BUN: bunForChildren(),
+		LASAGNA_EXECUTABLE: isStandalone ? process.execPath : undefined,
+		LASAGNA_PROJECT_ROOT: repoRoot,
+		LASAGNA_REGISTER_SPACE: registerSpace ? '1' : undefined,
+		...(mainRepoRoot ? {LASAGNA_MAIN_REPO_ROOT: mainRepoRoot} : {}),
 	};
 }
 
@@ -37,10 +37,10 @@ export function buildSpawnEnv(
  * The variables go on the session because the inner tmux server is long-lived:
  * its global environment is whatever the process that started it had.
  *
- * PAPPARDELLE_REPO qualifies the hook's status file name, since spaces of two
+ * LASAGNA_REPO qualifies the hook's status file name, since spaces of two
  * repos can share a key and all repos write to one status directory.
  *
- * The main space gets no PAPPARDELLE_SPACE. Without the database the rail
+ * The main space gets no LASAGNA_SPACE. Without the database the rail
  * keys its dot by the branch, which changes while the session lives on, and
  * the hook's cwd logic follows it. With the database the hook finds main from
  * its stored worktree.
@@ -52,13 +52,11 @@ export function buildSessionEnvArgs(
 ): string[] {
 	return [
 		'-e',
-		`PAPPARDELLE_REPO=${repoName}`,
+		`LASAGNA_REPO=${repoName}`,
 		...(spaceKey === MAIN_WORKTREE_KEY
 			? []
-			: ['-e', `PAPPARDELLE_SPACE=${spaceKey}`]),
-		...(mainRepoRoot
-			? ['-e', `PAPPARDELLE_MAIN_REPO_ROOT=${mainRepoRoot}`]
-			: []),
+			: ['-e', `LASAGNA_SPACE=${spaceKey}`]),
+		...(mainRepoRoot ? ['-e', `LASAGNA_MAIN_REPO_ROOT=${mainRepoRoot}`] : []),
 	];
 }
 

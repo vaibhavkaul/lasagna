@@ -44,7 +44,7 @@ export const FAKE_CLI_PATH = '/build/dist/cli.js';
 export const FAKE_SHA = 'abc1234';
 export const REFUSAL = "can't find pane: %9";
 
-const repoOf = (session: string) => session.replace(/^pappardelle-/, '');
+const repoOf = (session: string) => session.replace(/^lasagna-/, '');
 
 // A default tmux server holding `sessions`. Each window lists pane %<index>
 // first; `tuiPane` names a later pane for a TUI whose panes were rearranged.

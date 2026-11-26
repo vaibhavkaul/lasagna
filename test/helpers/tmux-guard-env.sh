@@ -24,7 +24,7 @@ if [[ ${1:-} == --finish ]]; then
 	exit "$status"
 fi
 
-guard_home=/tmp/pappardelle-test-tmux-$(id -u)
+guard_home=/tmp/lasagna-test-tmux-$(id -u)
 wrapper=$guard_home/bin/tmux
 private_prefix=/tmp/pt-
 
@@ -90,6 +90,6 @@ fi
 private=$(mktemp -d "${private_prefix}XXXXXX")
 echo "export PATH=$(quote "$guard_home/bin:$PATH")"
 echo "export TMUX_TMPDIR=$(quote "$private")"
-echo "export PAPPARDELLE_TEST_TMUX_GUARD=$(quote "$guard_home")"
-echo "export PAPPARDELLE_TEST_TMUX_REFUSALS=$(quote "$private/refusals.log")"
+echo "export LASAGNA_TEST_TMUX_GUARD=$(quote "$guard_home")"
+echo "export LASAGNA_TEST_TMUX_REFUSALS=$(quote "$private/refusals.log")"
 echo 'unset TMUX TMUX_PANE'

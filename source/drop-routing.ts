@@ -6,9 +6,9 @@ import type {CliRenderer, PasteEvent} from '@opentui/core';
 const run = promisify(execFile);
 
 /** Window option naming the pane the pointer last moved over, and when. */
-export const POINTER_OPTION = '@pappardelle_pointer';
+export const POINTER_OPTION = '@lasagna_pointer';
 
-const DROP_BUFFER = 'pappardelle-drop';
+const DROP_BUFFER = 'lasagna-drop';
 const RECORD_INTERVAL_MS = 250;
 // The pointer report and the drop arrive about 1ms apart but reach different
 // panes, so the pane holding the drop waits for the other pane's record.

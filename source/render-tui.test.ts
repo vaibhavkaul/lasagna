@@ -230,7 +230,7 @@ test('a render failure stays visible and Escape restores the terminal', async ()
 	expect(entry?.error).toBe(failure.message);
 	const logfile = path.join(
 		getLogDir(),
-		`pappardelle-${entry!.timestamp.split('T')[0]}.log`,
+		`lasagna-${entry!.timestamp.split('T')[0]}.log`,
 	);
 	expect(readFileSync(logfile, 'utf8').includes(failure.stack!)).toBe(true);
 	// Reaching console.error at all means OpenTUI left the log redirect in place.
@@ -264,7 +264,7 @@ test('Ctrl+C runs the quit handler instead of only destroying the renderer', asy
 test('the first of SIGINT, SIGTERM or SIGHUP quits once, and a later one cannot end teardown early', () => {
 	const loggerUrl = pathToFileURL(path.resolve('source/logger.ts')).href;
 	const moduleUrl = pathToFileURL(path.resolve('source/render-tui.ts')).href;
-	const home = mkdtempSync(path.join(tmpdir(), 'pappardelle-home-'));
+	const home = mkdtempSync(path.join(tmpdir(), 'lasagna-home-'));
 	teardown(() => {
 		rmSync(home, {recursive: true, force: true});
 	});

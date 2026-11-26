@@ -39,7 +39,7 @@ export type UpdateConfirmContent = {
 };
 
 const UPDATE_DETAIL =
-	'Downloads and runs the installer, then restarts Pappardelle.';
+	'Downloads and runs the installer, then restarts Lasagna.';
 
 function tag(version: string): string {
 	return `v${version.replace(/^[vV]/, '')}`;
@@ -55,7 +55,7 @@ export function buildUpdateConfirmContent(
 	updateInfo: UpdateInfo | null,
 	installedVersion: string | null,
 ): UpdateConfirmContent {
-	const title = 'Update Pappardelle';
+	const title = 'Update Lasagna';
 	if (updateInfo) {
 		return {
 			title,

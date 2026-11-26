@@ -9,6 +9,7 @@ import {sameFile} from './same-file.ts';
 import {MAIN_WORKTREE_KEY} from './space-utils.ts';
 import type {SpaceRegistryDao} from './space-registry.ts';
 import type {Unreadable} from './state-db.ts';
+import {STATE_DIR_NAME} from './state-dir.ts';
 
 export type SpaceIdentity = {
 	repo: string;
@@ -125,9 +126,13 @@ export function newSpaceIdentity(input: {
 	};
 }
 
-/** Where Pappardelle puts a repo's worktrees, one per space. */
+/**
+ * Where Lasagna puts a repo's worktrees, one per space. Under its own
+ * directory, not Pappardelle's ~/.worktrees, so neither tool takes the
+ * other's worktree for one of its spaces.
+ */
 export function worktreesDir(home: string, repoName: string): string {
-	return path.join(home, '.worktrees', repoName);
+	return path.join(home, STATE_DIR_NAME, 'worktrees', repoName);
 }
 
 export function worktreePathFor(

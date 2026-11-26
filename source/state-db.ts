@@ -14,11 +14,12 @@ import path from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
 import {createLogger} from './logger.ts';
 import {ringStateBell} from './state-db-watch.ts';
+import {STATE_DIR_NAME} from './state-dir.ts';
 import {readStateEnv} from './state-env.ts';
 
 const log = createLogger('state-db');
 
-export const DEFAULT_STATE_DIR = path.join(homedir(), '.pappardelle');
+export const DEFAULT_STATE_DIR = path.join(homedir(), STATE_DIR_NAME);
 
 // The TUI renders on the thread that runs these queries. A write that finds
 // another process holding the lock gives up after this long and is retried
@@ -231,7 +232,7 @@ export function setDefaultStateDbPathForTests(
 
 /**
  * Where the database lives. An explicit state directory (a test's temp
- * directory) always holds its own; PAPPARDELLE_STATE_DB moves the default one.
+ * directory) always holds its own; LASAGNA_STATE_DB moves the default one.
  */
 export function stateDbPath(
 	stateDir?: string,
@@ -251,8 +252,8 @@ const STATUS_SOCKET_NAME = 'status-1.sock';
 
 /**
  * Where the status daemon listens: beside the database, so whatever moves the
- * database (a test's temp directory, PAPPARDELLE_STATE_DB) moves the daemon
- * with it. PAPPARDELLE_STATUS_SOCKET names another place, except that an
+ * database (a test's temp directory, LASAGNA_STATE_DB) moves the daemon
+ * with it. LASAGNA_STATUS_SOCKET names another place, except that an
  * explicit state directory always holds its own socket, as it does its own
  * database.
  */

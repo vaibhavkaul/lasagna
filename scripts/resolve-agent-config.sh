@@ -5,7 +5,7 @@
 # Usage: resolve-agent-config.sh --config <path> [--local-config <path>] [--home-config <path>] [--merged <path>] [--profile <name>] [--agent-profile <name>]
 #
 # Layers (lowest → highest priority):
-#   1. Home config    (~/.pappardelle/.pappardelle.yml) — personal defaults across all repos
+#   1. Home config    (~/.lasagna/.pappardelle.yml) — personal defaults across all repos
 #   2. Project config (.pappardelle.yml)                — repo-level settings
 #   3. Local config   (.pappardelle.local.yml)          — personal overrides (gitignored)
 #

@@ -45,7 +45,7 @@ test('newly created issues launch fresh; existing keys keep conversation resume'
 // of the new issue must not resume the old one's conversation.
 test('a new issue drops the sessions recorded under its key; an existing one keeps them', async () => {
 	const fixture = setup();
-	const stateDir = path.join(fixture.home, '.pappardelle');
+	const stateDir = path.join(fixture.home, '.lasagna');
 	const sessionsPath = path.join(
 		stateDir,
 		'repos/main checkout/space-state/test-abc.agent-sessions.json',
@@ -94,9 +94,12 @@ test('resume mode launches without a prompt; agy gets its built-in prompt flag',
 		'--model gemini-4-argon-medium',
 	);
 
-	fs.mkdirSync(path.join(fixture.home, '.worktrees/main checkout/test-abc'), {
-		recursive: true,
-	});
+	fs.mkdirSync(
+		path.join(fixture.home, '.lasagna/worktrees/main checkout/test-abc'),
+		{
+			recursive: true,
+		},
+	);
 	await fixture.run({open: true});
 	args = launchArgs();
 	expect(args.includes('--no-prompt')).toBe(true);
@@ -112,7 +115,7 @@ test('a bad claude config fails before the issue is created', async () => {
 	await rejectionOf(fixture.run({input: 'Make workspace startup faster'}));
 	expect(
 		fs.existsSync(
-			path.join(fixture.home, '.pappardelle', 'repos', 'main checkout'),
+			path.join(fixture.home, '.lasagna', 'repos', 'main checkout'),
 		),
 	).toBe(false);
 });

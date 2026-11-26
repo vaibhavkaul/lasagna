@@ -5,7 +5,7 @@
 # Usage: create-worktree.sh --issue-key <STA-XXX> --project-key <project-key> --worktree <path>
 #
 # Creates a git worktree at --worktree, the path idow got from
-# `pappardelle --internal-state worktree-path`, from the repository root.
+# `lasagna --internal-state worktree-path`, from the repository root.
 #
 # Post-creation setup (file copying, env overrides, dependency installation)
 # is handled by `post_workspace_init` commands in .pappardelle.yml, executed by idow.
@@ -16,7 +16,7 @@
 set -e
 
 # Configuration (overridable via env vars for testing)
-MAIN_REPO="${MAIN_REPO:-${PAPPARDELLE_MAIN_REPO_ROOT:-${PAPPARDELLE_PROJECT_ROOT:-$(git rev-parse --show-toplevel)}}}"
+MAIN_REPO="${MAIN_REPO:-${LASAGNA_MAIN_REPO_ROOT:-${LASAGNA_PROJECT_ROOT:-$(git rev-parse --show-toplevel)}}}"
 
 # Parse arguments
 ISSUE_KEY=""

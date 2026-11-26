@@ -14,7 +14,7 @@
 #   1. Parses input (issue key, URL, or description)
 #   2. Creates/fetches issue as needed
 #   3. Selects project profile from .pappardelle.yml
-#   4. Creates the space's git worktree, at ~/.worktrees/<repo>/<issue-key> for a new space
+#   4. Creates the space's git worktree, at ~/.lasagna/worktrees/<repo>/<issue-key> for a new space
 #   5. Creates PR/MR (if new)
 #   6. Opens terminal with the agent (if --open)
 #   7. Opens profile-configured apps, links, and commands (if --open)
@@ -33,7 +33,7 @@ done
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_SOURCE")" && pwd)"
 
 # Logging setup
-LOG_DIR="$HOME/Library/Logs/stardust-workspace"
+LOG_DIR="$HOME/Library/Logs/lasagna"
 mkdir -p "$LOG_DIR"
 # Each invocation owns its file so background hooks cannot mix workspaces.
 # Rotate on launch and retain a week of completed invocations.
@@ -115,22 +115,22 @@ if [[ "$1" == "--help" || "$1" == "-h" ]]; then
 fi
 
 # Get repo root and config path
-# Prefer PAPPARDELLE_PROJECT_ROOT (set by pappardelle TUI) over git resolution.
+# Prefer LASAGNA_PROJECT_ROOT (set by pappardelle TUI) over git resolution.
 # Fallback uses cwd (not $SCRIPT_DIR) so direct invocations from a project dir work.
-if [[ -n "${PAPPARDELLE_PROJECT_ROOT:-}" ]]; then
-    REPO_ROOT="$PAPPARDELLE_PROJECT_ROOT"
+if [[ -n "${LASAGNA_PROJECT_ROOT:-}" ]]; then
+    REPO_ROOT="$LASAGNA_PROJECT_ROOT"
 else
     REPO_ROOT=$(git rev-parse --show-toplevel)
 fi
-if [[ -n "${PAPPARDELLE_MAIN_REPO_ROOT:-}" ]]; then
-    MAIN_REPO_ROOT="$PAPPARDELLE_MAIN_REPO_ROOT"
+if [[ -n "${LASAGNA_MAIN_REPO_ROOT:-}" ]]; then
+    MAIN_REPO_ROOT="$LASAGNA_MAIN_REPO_ROOT"
 else
     GIT_COMMON_DIR=$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-common-dir)
     MAIN_REPO_ROOT=$(dirname "$GIT_COMMON_DIR")
 fi
 # Handed to the workspace's tmux sessions so the hooks running inside them read
 # it instead of walking back out to the main checkout on every tool use.
-export PAPPARDELLE_MAIN_REPO_ROOT="$MAIN_REPO_ROOT"
+export LASAGNA_MAIN_REPO_ROOT="$MAIN_REPO_ROOT"
 REPO_NAME=$(basename "$MAIN_REPO_ROOT")
 
 # Untracked project config may exist only in the main checkout, while a linked
@@ -148,7 +148,7 @@ PROJECT_CONFIG_PATH=$(resolve_repo_config .pappardelle.yml)
 CONFIG_PATH="$PROJECT_CONFIG_PATH"
 # Personal defaults shared across every repo. Must stay in step with
 # getDefaultHomeConfigDir() in source/config.ts, which is what the TUI reads.
-HOME_CONFIG_PATH="$HOME/.pappardelle/.pappardelle.yml"
+HOME_CONFIG_PATH="$HOME/.lasagna/.pappardelle.yml"
 
 # Source $REPO_ROOT/.envrc if present so per-repo env vars (e.g. a non-default
 # LINCTL_API_KEY for a separate Linear workspace) reach downstream tools like
@@ -166,7 +166,7 @@ fi
 if [[ ! -f "$CONFIG_PATH" ]]; then
     echo -e "${YELLOW}Error: No .pappardelle.yml found at repository root.${NC}" >&2
     echo "" >&2
-    echo "Pappardelle requires a configuration file to operate." >&2
+    echo "Lasagna requires a configuration file to operate." >&2
     echo "Please create .pappardelle.yml at: $REPO_ROOT/.pappardelle.yml" >&2
     echo "" >&2
     echo "See _dev/scripts/pappardelle/pappardelle-config.md for the configuration schema." >&2
@@ -254,7 +254,7 @@ resolve_agent_launch_config() {
         log "Using per-profile initialization_command: $INIT_CMD"
     fi
     if [[ "$INIT_CMD" == /* ]]; then
-        error "initialization_command \"$INIT_CMD\" includes the skill prefix. Write \"${INIT_CMD#/}\": the agent profile's skill_prefix is added at launch. The Pappardelle TUI offers to rewrite it."
+        error "initialization_command \"$INIT_CMD\" includes the skill prefix. Write \"${INIT_CMD#/}\": the agent profile's skill_prefix is added at launch. The Lasagna TUI offers to rewrite it."
     fi
     if [[ -n "$INIT_CMD" ]]; then
         INIT_CMD="${AGENT_SKILL_PREFIX}${INIT_CMD}"
@@ -268,7 +268,7 @@ source "$SCRIPT_DIR/provider-helpers.sh"
 # shellcheck source=scripts/state-cli.sh
 source "$SCRIPT_DIR/state-cli.sh"
 
-# space_get <flags...>: sets SPACE_GET to what `pappardelle space get` reports
+# space_get <flags...>: sets SPACE_GET to what `lasagna space get` reports
 # for the issue's space. Returns 1 for a space Pappardelle has never recorded.
 # Any other failure stops idow: a store it cannot read (exit 3) must not be
 # taken for a space with no saved profile and launch the default agent.
@@ -290,9 +290,9 @@ pappardelle_state check-config --project-root "$REPO_ROOT" --main-root "$MAIN_RE
 # From here on, read the merged config so home and local layers apply to
 # every field (profiles, team_prefix, providers, apps, links, hooks, ...),
 # not only the Claude settings that resolve-agent-config.sh layers itself.
-MERGED_CONFIG_PATH=$(mktemp -t pappardelle-config.XXXXXX)
-CONFIG_RECORDS_PATH=$(mktemp -t pappardelle-records.XXXXXX)
-STATE_CLI_ERRORS=$(mktemp -t pappardelle-state-cli.XXXXXX)
+MERGED_CONFIG_PATH=$(mktemp -t lasagna-config.XXXXXX)
+CONFIG_RECORDS_PATH=$(mktemp -t lasagna-records.XXXXXX)
+STATE_CLI_ERRORS=$(mktemp -t lasagna-state-cli.XXXXXX)
 trap 'rm -f "$MERGED_CONFIG_PATH" "$CONFIG_RECORDS_PATH" "$STATE_CLI_ERRORS"' EXIT
 merge_config_layers "$HOME_CONFIG_PATH" "$PROJECT_CONFIG_PATH" "$LOCAL_CONFIG_PATH" > "$MERGED_CONFIG_PATH"
 CONFIG_PATH="$MERGED_CONFIG_PATH"
@@ -849,7 +849,7 @@ STATE_ARGS=(--title="$TITLE" --worktree "$WORKTREE_PATH" --main-root "$MAIN_REPO
 # A Pappardelle that will list the space started this run, so the space is
 # recorded before its sessions exist and held under this process until the
 # caller opens it.
-if [[ -n "${PAPPARDELLE_REGISTER_SPACE:-}" ]]; then
+if [[ -n "${LASAGNA_REGISTER_SPACE:-}" ]]; then
     STATE_ARGS+=(--register --owner "$$")
 fi
 # For hook tracking (plan → description vs comment).
@@ -921,17 +921,17 @@ space_get --field tmux --field agentSessions || error "Workspace $ISSUE_KEY was 
     IFS= read -r -d '' COMPANION_SESSION_NAME
     IFS= read -r -d '' LEGACY_AGENT_SESSION_NAME
     IFS= read -r -d '' AGENT_SESSION_TARGET
-    IFS= read -r -d '' PAPPARDELLE_TMUX_SOCKET
+    IFS= read -r -d '' LASAGNA_TMUX_SOCKET
     IFS= read -r -d '' TMUX_SOCKET_FLAG
     IFS= read -r -d '' RECORDED_SESSION_ID
 } < <(jq -j --arg profile "$AGENT_PROFILE" '[.tmux.agentSession, .tmux.companionSession, .tmux.legacyAgentSession, .tmux.agentTarget, .tmux.socket, .tmux.socketFlag,
     (.agentSessions[$profile] // "")][] + "\u0000"' <<< "$SPACE_GET")
 # start-agent-session.sh starts the sessions on the same socket.
-export PAPPARDELLE_TMUX_SOCKET
+export LASAGNA_TMUX_SOCKET
 # A new issue has no conversation of its own to resume. An existing issue keeps
 # its conversation even when its worktree was deleted and recreated:
 # {session_id} is the id the agent's hook recorded for this space under the
-# same agent profile (plugins/pappardelle/hooks/agent_session.py), and with none claude falls back
+# same agent profile (plugins/lasagna/hooks/agent_session.py), and with none claude falls back
 # to its directory-scoped --continue while other agents launch fresh with the
 # prompt. Resume args without {session_id} aren't tied to the space (codex's
 # `resume --last` picks the most recent session from any directory), so a
@@ -981,11 +981,11 @@ fi
 AGENT_SESSION_ARGS+=("${AGENT_FLAG_ARGS[@]}")
 # start-agent-session.sh leaves a running agent alone, so the space keeps the
 # agent profile its agent was started with.
-if tmux "$TMUX_SOCKET_FLAG" "$PAPPARDELLE_TMUX_SOCKET" has-session -t "$AGENT_SESSION_TARGET" 2>/dev/null; then
+if tmux "$TMUX_SOCKET_FLAG" "$LASAGNA_TMUX_SOCKET" has-session -t "$AGENT_SESSION_TARGET" 2>/dev/null; then
     if [[ -n "$FORCED_AGENT_PROFILE" ]]; then
         print_warning "Agent session already running, so the agent profile override was not applied"
         # Read by idowSkippedAgentOverride() in source/session-routing.ts.
-        echo "PAPPARDELLE_AGENT_PROFILE_OVERRIDE=skipped"
+        echo "LASAGNA_AGENT_PROFILE_OVERRIDE=skipped"
     fi
 else
     AGENT_LAUNCH_ARGS=(--repo "$REPO_NAME" --agent-profile "$AGENT_PROFILE")
@@ -997,7 +997,7 @@ else
         error "Could not record the agent profile of $ISSUE_KEY: $(cat "$STATE_CLI_ERRORS")"
 fi
 "$SCRIPT_DIR/start-agent-session.sh" "${AGENT_SESSION_ARGS[@]}" || print_warning "Failed to start agent tmux session"
-if tmux "$TMUX_SOCKET_FLAG" "$PAPPARDELLE_TMUX_SOCKET" has-session -t "$AGENT_SESSION_TARGET" 2>/dev/null; then
+if tmux "$TMUX_SOCKET_FLAG" "$LASAGNA_TMUX_SOCKET" has-session -t "$AGENT_SESSION_TARGET" 2>/dev/null; then
     print_success "Agent session: $AGENT_SESSION_NAME"
 else
     print_warning "Agent session not created (is tmux running?)"
@@ -1216,7 +1216,7 @@ if [[ -n "$PR_URL" ]]; then
 fi
 echo "Worktree:  $WORKTREE_PATH"
 echo ""
-if tmux "$TMUX_SOCKET_FLAG" "$PAPPARDELLE_TMUX_SOCKET" has-session -t "$AGENT_SESSION_TARGET" 2>/dev/null; then
+if tmux "$TMUX_SOCKET_FLAG" "$LASAGNA_TMUX_SOCKET" has-session -t "$AGENT_SESSION_TARGET" 2>/dev/null; then
     if [[ "$RESUME_MODE" == true ]]; then
         echo "Agent session ready (resume mode)."
     elif [[ -n "$INIT_CMD" ]]; then

@@ -15,10 +15,10 @@ GREEN='\033[0;32m'
 BOLD='\033[1m'
 RESET='\033[0m'
 
-# A run inside a space inherits that space's PAPPARDELLE_*, and the state ones
-# (PAPPARDELLE_STATE_DB, PAPPARDELLE_STATUS_SOCKET, PAPPARDELLE_STATUS_DIR)
+# A run inside a space inherits that space's LASAGNA_*, and the state ones
+# (LASAGNA_STATE_DB, LASAGNA_STATUS_SOCKET, LASAGNA_STATUS_DIR)
 # would point the hooks past the throwaway HOME below.
-for name in $(compgen -e | grep '^PAPPARDELLE_' | grep -v '^PAPPARDELLE_SQLITE_STATE$\|^PAPPARDELLE_TEST_'); do unset "$name"; done
+for name in $(compgen -e | grep '^LASAGNA_' | grep -v '^LASAGNA_SQLITE_STATE$\|^LASAGNA_TEST_'); do unset "$name"; done
 
 # Unique prefix to avoid collisions with real sessions
 TEST_PREFIX="test-$$"
@@ -27,8 +27,8 @@ TEST_REPO="testrepo-$$"
 # Sessions created by start-agent-session.sh live on the Pappardelle inner
 # tmux socket (see STA-860). Use a unique per-run socket name so parallel test
 # runs don't interfere with each other or with a developer's live session.
-PAPPARDELLE_TMUX_SOCKET="pappardelle_inner_test_$$"
-export PAPPARDELLE_TMUX_SOCKET
+LASAGNA_TMUX_SOCKET="lasagna_inner_test_$$"
+export LASAGNA_TMUX_SOCKET
 
 # The traps go in before the first mktemp so a signal at any point removes what
 # the run made. Both dirs start empty here, never inherited from the caller.
@@ -66,7 +66,7 @@ trap 'exit 143' TERM
 
 TMUX_GUARD_ENV=$("$SCRIPT_DIR/../test/helpers/tmux-guard-env.sh") || exit 1
 eval "$TMUX_GUARD_ENV"
-TMUX_REFUSALS=${PAPPARDELLE_TEST_TMUX_REFUSALS:-}
+TMUX_REFUSALS=${LASAGNA_TEST_TMUX_REFUSALS:-}
 
 # Every server the run starts, on any -L name, lands in this directory, so the
 # exit trap can find them all: a test that aborts under `set -e` skips its own
@@ -77,7 +77,7 @@ export TMUX_TMPDIR
 TMPDIR_ROOT=$(mktemp -d)
 
 # The sessions' hooks and the pre-trust step write under HOME
-# (~/.pappardelle/repos, ~/.claude.json), so the run gets a HOME of its own.
+# (~/.lasagna/repos, ~/.claude.json), so the run gets a HOME of its own.
 # An empty rc keeps zsh's first-run wizard from taking over the shells tmux
 # starts. Cases that need another HOME set it on the command.
 export HOME="$TMPDIR_ROOT/home"
@@ -160,7 +160,7 @@ CLAUDE_SESSION="agent-${TEST_REPO}-${ISSUE_KEY}"
 COMPANION_SESSION="companion-${TEST_REPO}-${ISSUE_KEY}"
 
 # Precondition: no session
-if tmux -L "$PAPPARDELLE_TMUX_SOCKET" has-session -t "$CLAUDE_SESSION" 2>/dev/null; then
+if tmux -L "$LASAGNA_TMUX_SOCKET" has-session -t "$CLAUDE_SESSION" 2>/dev/null; then
     echo -e "  ${RED}FAIL${RESET} precondition: session should not exist"
     FAIL=$((FAIL + 1))
 else
@@ -175,7 +175,7 @@ EXIT_CODE=$?
 
 assert_eq "exits 0" "0" "$EXIT_CODE"
 
-if tmux -L "$PAPPARDELLE_TMUX_SOCKET" has-session -t "$CLAUDE_SESSION" 2>/dev/null; then
+if tmux -L "$LASAGNA_TMUX_SOCKET" has-session -t "$CLAUDE_SESSION" 2>/dev/null; then
     echo -e "  ${GREEN}PASS${RESET} claude session created with repo-qualified name"
     PASS=$((PASS + 1))
 else
@@ -184,30 +184,30 @@ else
 fi
 
 # The session environment names the space, for a Claude started later in the pane
-MAIN_PANE=$(tmux -L "$PAPPARDELLE_TMUX_SOCKET" display-message -p -t "=$COMPANION_SESSION:" '#{@pappa_pane}' 2>/dev/null)
+MAIN_PANE=$(tmux -L "$LASAGNA_TMUX_SOCKET" display-message -p -t "=$COMPANION_SESSION:" '#{@pappa_pane}' 2>/dev/null)
 assert_eq "companion's first pane is named main" "main" "$MAIN_PANE"
 
-SPACE_ENV=$(tmux -L "$PAPPARDELLE_TMUX_SOCKET" show-environment -t "$CLAUDE_SESSION" PAPPARDELLE_SPACE 2>/dev/null)
-assert_eq "session env carries PAPPARDELLE_SPACE" "PAPPARDELLE_SPACE=$ISSUE_KEY" "$SPACE_ENV"
-assert_eq "session env carries PAPPARDELLE_REPO" "PAPPARDELLE_REPO=$TEST_REPO" \
-    "$(tmux -L "$PAPPARDELLE_TMUX_SOCKET" show-environment -t "$CLAUDE_SESSION" PAPPARDELLE_REPO 2>/dev/null)"
+SPACE_ENV=$(tmux -L "$LASAGNA_TMUX_SOCKET" show-environment -t "$CLAUDE_SESSION" LASAGNA_SPACE 2>/dev/null)
+assert_eq "session env carries LASAGNA_SPACE" "LASAGNA_SPACE=$ISSUE_KEY" "$SPACE_ENV"
+assert_eq "session env carries LASAGNA_REPO" "LASAGNA_REPO=$TEST_REPO" \
+    "$(tmux -L "$LASAGNA_TMUX_SOCKET" show-environment -t "$CLAUDE_SESSION" LASAGNA_REPO 2>/dev/null)"
 
 # The agent's hook finds its space and agent profile in the stores
-# (plugins/pappardelle/hooks/agent_session.py), not in the session
+# (plugins/lasagna/hooks/agent_session.py), not in the session
 assert_eq "agent session env has no session-id variables" "" \
-    "$(tmux -L "$PAPPARDELLE_TMUX_SOCKET" show-environment -t "$CLAUDE_SESSION" | grep '^PAPPARDELLE_AGENT_' || true)"
+    "$(tmux -L "$LASAGNA_TMUX_SOCKET" show-environment -t "$CLAUDE_SESSION" | grep '^LASAGNA_AGENT_' || true)"
 # The agent profile's env
 assert_eq "agent session env carries a profile var with a space" "SPACED=a b" \
-    "$(tmux -L "$PAPPARDELLE_TMUX_SOCKET" show-environment -t "$CLAUDE_SESSION" SPACED 2>/dev/null)"
+    "$(tmux -L "$LASAGNA_TMUX_SOCKET" show-environment -t "$CLAUDE_SESSION" SPACED 2>/dev/null)"
 assert_eq "agent session env carries a profile var with a quote" "QUOTED=x'y" \
-    "$(tmux -L "$PAPPARDELLE_TMUX_SOCKET" show-environment -t "$CLAUDE_SESSION" QUOTED 2>/dev/null)"
+    "$(tmux -L "$LASAGNA_TMUX_SOCKET" show-environment -t "$CLAUDE_SESSION" QUOTED 2>/dev/null)"
 assert_eq "pappardelle's own agent var wins over a profile var of the same name" "PI_PROGRAM_STATUS=1" \
-    "$(tmux -L "$PAPPARDELLE_TMUX_SOCKET" show-environment -t "$CLAUDE_SESSION" PI_PROGRAM_STATUS 2>/dev/null)"
+    "$(tmux -L "$LASAGNA_TMUX_SOCKET" show-environment -t "$CLAUDE_SESSION" PI_PROGRAM_STATUS 2>/dev/null)"
 assert_eq "companion session env has no profile var" "" \
-    "$(tmux -L "$PAPPARDELLE_TMUX_SOCKET" show-environment -t "$COMPANION_SESSION" SPACED 2>/dev/null || true)"
+    "$(tmux -L "$LASAGNA_TMUX_SOCKET" show-environment -t "$COMPANION_SESSION" SPACED 2>/dev/null || true)"
 
 # Verify session working directory (resolve symlinks for macOS /var → /private/var)
-SESSION_PATH=$(tmux -L "$PAPPARDELLE_TMUX_SOCKET" display-message -t "$CLAUDE_SESSION" -p '#{pane_current_path}' 2>/dev/null)
+SESSION_PATH=$(tmux -L "$LASAGNA_TMUX_SOCKET" display-message -t "$CLAUDE_SESSION" -p '#{pane_current_path}' 2>/dev/null)
 RESOLVED_WORKTREE=$(cd "$WORKTREE_PATH" && pwd -P)
 RESOLVED_SESSION=$(cd "$SESSION_PATH" && pwd -P)
 assert_eq "session has correct working directory" "$RESOLVED_WORKTREE" "$RESOLVED_SESSION"
@@ -221,7 +221,7 @@ EXIT_CODE=$?
 
 assert_eq "exits 0 when session already exists" "0" "$EXIT_CODE"
 
-if tmux -L "$PAPPARDELLE_TMUX_SOCKET" has-session -t "$CLAUDE_SESSION" 2>/dev/null; then
+if tmux -L "$LASAGNA_TMUX_SOCKET" has-session -t "$CLAUDE_SESSION" 2>/dev/null; then
     echo -e "  ${GREEN}PASS${RESET} session still exists (idempotent)"
     PASS=$((PASS + 1))
 else
@@ -229,8 +229,8 @@ else
     FAIL=$((FAIL + 1))
 fi
 
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "$CLAUDE_SESSION" 2>/dev/null || true
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "$COMPANION_SESSION" 2>/dev/null || true
+tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "$CLAUDE_SESSION" 2>/dev/null || true
+tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "$COMPANION_SESSION" 2>/dev/null || true
 
 # ==========================================================================
 
@@ -242,7 +242,7 @@ mkdir -p "$WORKTREE_PATH2"
 start_session --issue-key "$ISSUE_KEY2" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH2" --no-agent 2>/dev/null
 
 COMPANION_SESSION2="companion-${TEST_REPO}-${ISSUE_KEY2}"
-if tmux -L "$PAPPARDELLE_TMUX_SOCKET" has-session -t "$COMPANION_SESSION2" 2>/dev/null; then
+if tmux -L "$LASAGNA_TMUX_SOCKET" has-session -t "$COMPANION_SESSION2" 2>/dev/null; then
     echo -e "  ${GREEN}PASS${RESET} companion session created with repo-qualified name"
     PASS=$((PASS + 1))
 else
@@ -250,8 +250,8 @@ else
     FAIL=$((FAIL + 1))
 fi
 
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "agent-${TEST_REPO}-${ISSUE_KEY2}" 2>/dev/null || true
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "$COMPANION_SESSION2" 2>/dev/null || true
+tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "agent-${TEST_REPO}-${ISSUE_KEY2}" 2>/dev/null || true
+tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "$COMPANION_SESSION2" 2>/dev/null || true
 
 # ==========================================================================
 
@@ -269,7 +269,7 @@ start_session --issue-key "$ISSUE_SHORT" --repo-name "$TEST_REPO" --worktree "$W
 
 for kind in agent companion; do
     SHORT_SESSION="${kind}-${TEST_REPO}-${ISSUE_SHORT}"
-    if tmux -L "$PAPPARDELLE_TMUX_SOCKET" list-sessions -F '#{session_name}' 2>/dev/null | grep -qx "$SHORT_SESSION"; then
+    if tmux -L "$LASAGNA_TMUX_SOCKET" list-sessions -F '#{session_name}' 2>/dev/null | grep -qx "$SHORT_SESSION"; then
         echo -e "  ${GREEN}PASS${RESET} $kind session created despite a longer session sharing its prefix"
         PASS=$((PASS + 1))
     else
@@ -279,8 +279,8 @@ for kind in agent companion; do
 done
 
 for key in "$ISSUE_LONG" "$ISSUE_SHORT"; do
-    tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "=agent-${TEST_REPO}-${key}" 2>/dev/null || true
-    tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "=companion-${TEST_REPO}-${key}" 2>/dev/null || true
+    tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "=agent-${TEST_REPO}-${key}" 2>/dev/null || true
+    tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "=companion-${TEST_REPO}-${key}" 2>/dev/null || true
 done
 
 # ==========================================================================
@@ -294,20 +294,20 @@ NAMED_COMPANION="hand-named-companion-$$"
 start_session --issue-key "$NAMED_KEY" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PREFIX" \
     --agent-session "$NAMED_AGENT" --companion-session "$NAMED_COMPANION" \
     --legacy-agent-session "hand_named-legacy-$$" --no-agent 2>/dev/null
-NAMED_SESSIONS=$(tmux -L "$PAPPARDELLE_TMUX_SOCKET" list-sessions -F '#{session_name}' 2>/dev/null |
+NAMED_SESSIONS=$(tmux -L "$LASAGNA_TMUX_SOCKET" list-sessions -F '#{session_name}' 2>/dev/null |
     grep -- "^hand\|${NAMED_KEY}$" | sort | tr '\n' ' ')
 EXPECTED_SESSIONS=$(printf '%s\n' "$NAMED_AGENT" "$NAMED_COMPANION" | sort | tr '\n' ' ')
 assert_eq "only the passed agent and companion names exist" "$EXPECTED_SESSIONS" "$NAMED_SESSIONS"
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "=$NAMED_AGENT:" 2>/dev/null || true
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "=$NAMED_COMPANION:" 2>/dev/null || true
+tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "=$NAMED_AGENT:" 2>/dev/null || true
+tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "=$NAMED_COMPANION:" 2>/dev/null || true
 
 # ==========================================================================
 
 echo -e "\n${BOLD}Test: the socket is required${RESET}"
-OUTPUT=$(env -u PAPPARDELLE_TMUX_SOCKET "$SCRIPT_DIR/start-agent-session.sh" --issue-key "X-1" --repo-name "$TEST_REPO" \
+OUTPUT=$(env -u LASAGNA_TMUX_SOCKET "$SCRIPT_DIR/start-agent-session.sh" --issue-key "X-1" --repo-name "$TEST_REPO" \
     --worktree "/tmp" --agent-session agent-x --companion-session companion-x --legacy-agent-session claude-x 2>&1 || true)
-assert_eq "errors without PAPPARDELLE_TMUX_SOCKET" \
-    "Error: PAPPARDELLE_TMUX_SOCKET is required: idow exports the space's socket from pappardelle space get" "$OUTPUT"
+assert_eq "errors without LASAGNA_TMUX_SOCKET" \
+    "Error: LASAGNA_TMUX_SOCKET is required: idow exports the space's socket from lasagna space get" "$OUTPUT"
 
 # ==========================================================================
 
@@ -347,7 +347,7 @@ start_session --issue-key "$ISSUE_KEY3" --repo-name "$TEST_REPO" --worktree "$WO
 
 sleep 0.3
 
-PANE_CONTENT=$(tmux -L "$PAPPARDELLE_TMUX_SOCKET" display-message -p -t "agent-${TEST_REPO}-${ISSUE_KEY3}" '#{pane_start_command}' 2>/dev/null || echo "")
+PANE_CONTENT=$(tmux -L "$LASAGNA_TMUX_SOCKET" display-message -p -t "agent-${TEST_REPO}-${ISSUE_KEY3}" '#{pane_start_command}' 2>/dev/null || echo "")
 if echo "$PANE_CONTENT" | grep -qF "$ISSUE_KEY3"; then
     echo -e "  ${GREEN}PASS${RESET} issue key included in claude command"
     PASS=$((PASS + 1))
@@ -358,8 +358,8 @@ else
     FAIL=$((FAIL + 1))
 fi
 
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "agent-${TEST_REPO}-${ISSUE_KEY3}" 2>/dev/null || true
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "companion-${TEST_REPO}-${ISSUE_KEY3}" 2>/dev/null || true
+tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "agent-${TEST_REPO}-${ISSUE_KEY3}" 2>/dev/null || true
+tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "companion-${TEST_REPO}-${ISSUE_KEY3}" 2>/dev/null || true
 
 # ==========================================================================
 
@@ -372,7 +372,7 @@ start_session --issue-key "$ISSUE_KEY4" --repo-name "$TEST_REPO" --worktree "$WO
 
 sleep 0.3
 
-PANE_CONTENT=$(tmux -L "$PAPPARDELLE_TMUX_SOCKET" display-message -p -t "agent-${TEST_REPO}-${ISSUE_KEY4}" '#{pane_start_command}' 2>/dev/null || echo "")
+PANE_CONTENT=$(tmux -L "$LASAGNA_TMUX_SOCKET" display-message -p -t "agent-${TEST_REPO}-${ISSUE_KEY4}" '#{pane_start_command}' 2>/dev/null || echo "")
 if echo "$PANE_CONTENT" | grep -qF "/test-skill" && echo "$PANE_CONTENT" | grep -qF "$ISSUE_KEY4"; then
     echo -e "  ${GREEN}PASS${RESET} init cmd + issue key in claude command"
     PASS=$((PASS + 1))
@@ -383,8 +383,8 @@ else
     FAIL=$((FAIL + 1))
 fi
 
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "agent-${TEST_REPO}-${ISSUE_KEY4}" 2>/dev/null || true
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "companion-${TEST_REPO}-${ISSUE_KEY4}" 2>/dev/null || true
+tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "agent-${TEST_REPO}-${ISSUE_KEY4}" 2>/dev/null || true
+tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "companion-${TEST_REPO}-${ISSUE_KEY4}" 2>/dev/null || true
 
 # ==========================================================================
 
@@ -416,7 +416,7 @@ else
     FAIL=$((FAIL + 1))
 fi
 
-PANE_CONTENT=$(tmux -L "$PAPPARDELLE_TMUX_SOCKET" capture-pane -t "agent-${TEST_REPO}-${ISSUE_KEY5}" -p -S - 2>/dev/null || echo "")
+PANE_CONTENT=$(tmux -L "$LASAGNA_TMUX_SOCKET" capture-pane -t "agent-${TEST_REPO}-${ISSUE_KEY5}" -p -S - 2>/dev/null || echo "")
 if echo "$PANE_CONTENT" | grep -qF "No conversation found to continue"; then
     echo -e "  ${RED}FAIL${RESET} error message should be suppressed"
     echo "    Pane contains: $(echo "$PANE_CONTENT" | grep 'No conversation')"
@@ -426,8 +426,8 @@ else
     PASS=$((PASS + 1))
 fi
 
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "agent-${TEST_REPO}-${ISSUE_KEY5}" 2>/dev/null || true
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "companion-${TEST_REPO}-${ISSUE_KEY5}" 2>/dev/null || true
+tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "agent-${TEST_REPO}-${ISSUE_KEY5}" 2>/dev/null || true
+tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "companion-${TEST_REPO}-${ISSUE_KEY5}" 2>/dev/null || true
 
 # ==========================================================================
 
@@ -439,7 +439,7 @@ mkdir -p "$WORKTREE_PATH6"
 start_session --issue-key "$ISSUE_KEY6" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH6" --no-agent 2>/dev/null
 
 # Must exist on the inner socket
-if tmux -L "$PAPPARDELLE_TMUX_SOCKET" has-session -t "agent-${TEST_REPO}-${ISSUE_KEY6}" 2>/dev/null; then
+if tmux -L "$LASAGNA_TMUX_SOCKET" has-session -t "agent-${TEST_REPO}-${ISSUE_KEY6}" 2>/dev/null; then
     echo -e "  ${GREEN}PASS${RESET} claude session is on the inner socket"
     PASS=$((PASS + 1))
 else
@@ -458,8 +458,8 @@ else
     PASS=$((PASS + 1))
 fi
 
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "agent-${TEST_REPO}-${ISSUE_KEY6}" 2>/dev/null || true
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "companion-${TEST_REPO}-${ISSUE_KEY6}" 2>/dev/null || true
+tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "agent-${TEST_REPO}-${ISSUE_KEY6}" 2>/dev/null || true
+tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "companion-${TEST_REPO}-${ISSUE_KEY6}" 2>/dev/null || true
 
 # ==========================================================================
 
@@ -490,8 +490,8 @@ chmod +x "$SHIM_DIR/claude"
 
 # The sessions below need a server whose environment already has the shim on
 # PATH, so they get their own socket (the shared one may already be running).
-SHIM_SOCKET="pappardelle_inner_shim_$$"
-PATH="$SHIM_DIR:$PATH" HOME="$SHIM_HOME" PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET" \
+SHIM_SOCKET="lasagna_inner_shim_$$"
+PATH="$SHIM_DIR:$PATH" HOME="$SHIM_HOME" LASAGNA_TMUX_SOCKET="$SHIM_SOCKET" \
     start_session \
     --issue-key "$ISSUE_KEY7" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH7" \
     --agent-launch-flags "--model sonnet --effort high" 2>/dev/null
@@ -545,8 +545,8 @@ exit 0
 SHIM
 chmod +x "$SHIM_DIR/claude"
 
-SHIM_SOCKET8="pappardelle_inner_shim8_$$"
-PATH="$SHIM_DIR:$PATH" HOME="$SHIM_HOME" PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET8" \
+SHIM_SOCKET8="lasagna_inner_shim8_$$"
+PATH="$SHIM_DIR:$PATH" HOME="$SHIM_HOME" LASAGNA_TMUX_SOCKET="$SHIM_SOCKET8" \
     start_session \
     --issue-key "$ISSUE_KEY8" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH8" \
     2>/dev/null
@@ -576,8 +576,8 @@ exit 0
 SHIM
 chmod +x "$SHIM_DIR/claude"
 
-SHIM_SOCKET9="pappardelle_inner_shim9_$$"
-PATH="$SHIM_DIR:$PATH" HOME="$SHIM_HOME" PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET9" \
+SHIM_SOCKET9="lasagna_inner_shim9_$$"
+PATH="$SHIM_DIR:$PATH" HOME="$SHIM_HOME" LASAGNA_TMUX_SOCKET="$SHIM_SOCKET9" \
     start_session \
     --issue-key "$ISSUE_KEY9" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH9" \
     --agent-launch-flags "--effort high --strict-mcp-config --tools 'Bash,Read' '{\"mcpServers\": {}}'" 2>/dev/null
@@ -605,8 +605,8 @@ exit 0
 SHIM
 chmod +x "$SHIM_DIR/claude"
 
-SHIM_SOCKET10="pappardelle_inner_shim10_$$"
-PATH="$SHIM_DIR:$PATH" HOME="$SHIM_HOME" PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET10" \
+SHIM_SOCKET10="lasagna_inner_shim10_$$"
+PATH="$SHIM_DIR:$PATH" HOME="$SHIM_HOME" LASAGNA_TMUX_SOCKET="$SHIM_SOCKET10" \
     start_session \
     --issue-key "$ISSUE_KEY10" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH10" \
     --init-cmd '/test-skill --mode "strict"' --companion-command "" 2>/dev/null
@@ -649,14 +649,14 @@ ZSHRC
     start_hist_session() {
         local socket="$1" key="$2" companion="$3"
         mkdir -p "$TMPDIR_ROOT/wt-$key"
-        SHELL="$ZSH_BIN" ZDOTDIR="$HIST_ZDOTDIR" HOME="$SHIM_HOME" PAPPARDELLE_TMUX_SOCKET="$socket" \
+        SHELL="$ZSH_BIN" ZDOTDIR="$HIST_ZDOTDIR" HOME="$SHIM_HOME" LASAGNA_TMUX_SOCKET="$socket" \
             start_session \
             --issue-key "$key" --repo-name "$TEST_REPO" --worktree "$TMPDIR_ROOT/wt-$key" \
             --companion-command "$companion" 2>/dev/null
         sleep 2
     }
 
-    HIST_SOCKET="pappardelle_inner_hist_$$"
+    HIST_SOCKET="lasagna_inner_hist_$$"
     KEY9="${TEST_PREFIX}-900"
     start_hist_session "$HIST_SOCKET" "$KEY9" "GIT_OPTIONAL_LOCKS=0 gitui"
 
@@ -683,7 +683,7 @@ ZSHRC
     # A user-authored companion command that ends in a comment or exits the
     # shell itself must still leave a shell behind.
     for companion in 'true # trailing comment' 'exit 3'; do
-        SOCK="pappardelle_inner_hist_${RANDOM}_$$"
+        SOCK="lasagna_inner_hist_${RANDOM}_$$"
         KEY="${TEST_PREFIX}-9${RANDOM}"
         start_hist_session "$SOCK" "$KEY" "$companion"
         assert_eq "companion '$companion' leaves a shell" "zsh" \
@@ -727,8 +727,8 @@ exit 0
 SHIM
 chmod +x "$SHIM_DIR/codex"
 
-SHIM_SOCKET9="pappardelle_inner_shim9_$$"
-PATH="$SHIM_DIR:$PATH" HOME="$CODEX_HOME" PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET9" \
+SHIM_SOCKET9="lasagna_inner_shim9_$$"
+PATH="$SHIM_DIR:$PATH" HOME="$CODEX_HOME" LASAGNA_TMUX_SOCKET="$SHIM_SOCKET9" \
     start_session \
     --issue-key "$ISSUE_KEY9" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH9" \
     --skip-permissions \
@@ -767,8 +767,8 @@ exit 0
 SHIM
 chmod +x "$SHIM_DIR/codex"
 
-SHIM_SOCKET10="pappardelle_inner_shim10_$$"
-PATH="$SHIM_DIR:$PATH" HOME="$CODEX_HOME" PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET10" \
+SHIM_SOCKET10="lasagna_inner_shim10_$$"
+PATH="$SHIM_DIR:$PATH" HOME="$CODEX_HOME" LASAGNA_TMUX_SOCKET="$SHIM_SOCKET10" \
     start_session \
     --issue-key "$ISSUE_KEY10" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH10" \
     --init-cmd "/idow" \
@@ -799,8 +799,8 @@ exit 0
 SHIM
 chmod +x "$SHIM_DIR/codex"
 
-SHIM_SOCKET_LF="pappardelle_inner_shim_lf_$$"
-PATH="$SHIM_DIR:$PATH" HOME="$CODEX_HOME" PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET_LF" \
+SHIM_SOCKET_LF="lasagna_inner_shim_lf_$$"
+PATH="$SHIM_DIR:$PATH" HOME="$CODEX_HOME" LASAGNA_TMUX_SOCKET="$SHIM_SOCKET_LF" \
     start_session \
     --issue-key "$ISSUE_KEY_LF" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH_LF" \
     --agent-command codex --agent-args "--yolo" --agent-resume-args "resume abc" --agent-is-claude false \
@@ -830,8 +830,8 @@ exit 0
 SHIM
 chmod +x "$SHIM_DIR/claude-local"
 
-SHIM_SOCKET11="pappardelle_inner_shim11_$$"
-PATH="$SHIM_DIR:$PATH" HOME="$SHIM_HOME" PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET11" \
+SHIM_SOCKET11="lasagna_inner_shim11_$$"
+PATH="$SHIM_DIR:$PATH" HOME="$SHIM_HOME" LASAGNA_TMUX_SOCKET="$SHIM_SOCKET11" \
     start_session \
     --issue-key "$ISSUE_KEY11" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH11" \
     --agent-launch-flags "--model sonnet" \
@@ -855,11 +855,11 @@ mkdir -p "$WORKTREE_PATH12"
 LEGACY_SESSION="claude-${TEST_REPO}-${ISSUE_KEY12}"
 RENAMED_SESSION="agent-${TEST_REPO}-${ISSUE_KEY12}"
 
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" new-session -d -s "$LEGACY_SESSION" -c "$WORKTREE_PATH12"
+tmux -L "$LASAGNA_TMUX_SOCKET" new-session -d -s "$LEGACY_SESSION" -c "$WORKTREE_PATH12"
 
 start_session --issue-key "$ISSUE_KEY12" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH12" --no-agent 2>/dev/null
 
-if tmux -L "$PAPPARDELLE_TMUX_SOCKET" has-session -t "$RENAMED_SESSION" 2>/dev/null; then
+if tmux -L "$LASAGNA_TMUX_SOCKET" has-session -t "$RENAMED_SESSION" 2>/dev/null; then
     echo -e "  ${GREEN}PASS${RESET} legacy session renamed to agent-*"
     PASS=$((PASS + 1))
 else
@@ -867,7 +867,7 @@ else
     FAIL=$((FAIL + 1))
 fi
 
-if tmux -L "$PAPPARDELLE_TMUX_SOCKET" has-session -t "$LEGACY_SESSION" 2>/dev/null; then
+if tmux -L "$LASAGNA_TMUX_SOCKET" has-session -t "$LEGACY_SESSION" 2>/dev/null; then
     echo -e "  ${RED}FAIL${RESET} legacy claude-* name should be gone after rename"
     FAIL=$((FAIL + 1))
 else
@@ -875,29 +875,29 @@ else
     PASS=$((PASS + 1))
 fi
 
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "$RENAMED_SESSION" 2>/dev/null || true
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "companion-${TEST_REPO}-${ISSUE_KEY12}" 2>/dev/null || true
+tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "$RENAMED_SESSION" 2>/dev/null || true
+tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "companion-${TEST_REPO}-${ISSUE_KEY12}" 2>/dev/null || true
 
 echo -e "\n${BOLD}Test: the legacy name renamed is the one passed${RESET}"
 HAND_LEGACY="hand-legacy-${ISSUE_KEY12}"
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" new-session -d -s "$HAND_LEGACY" -c "$WORKTREE_PATH12"
+tmux -L "$LASAGNA_TMUX_SOCKET" new-session -d -s "$HAND_LEGACY" -c "$WORKTREE_PATH12"
 start_session --issue-key "$ISSUE_KEY12" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH12" \
     --agent-session "$RENAMED_SESSION" --companion-session "companion-${TEST_REPO}-${ISSUE_KEY12}" \
     --legacy-agent-session "$HAND_LEGACY" --no-agent 2>/dev/null
 assert_eq "the passed legacy session is renamed to the agent name" "$RENAMED_SESSION" \
-    "$(tmux -L "$PAPPARDELLE_TMUX_SOCKET" list-sessions -F '#{session_name}' 2>/dev/null | grep -x -- "$RENAMED_SESSION\|$HAND_LEGACY")"
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "=$RENAMED_SESSION:" 2>/dev/null || true
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "=companion-${TEST_REPO}-${ISSUE_KEY12}:" 2>/dev/null || true
+    "$(tmux -L "$LASAGNA_TMUX_SOCKET" list-sessions -F '#{session_name}' 2>/dev/null | grep -x -- "$RENAMED_SESSION\|$HAND_LEGACY")"
+tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "=$RENAMED_SESSION:" 2>/dev/null || true
+tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "=companion-${TEST_REPO}-${ISSUE_KEY12}:" 2>/dev/null || true
 
 # With both names live, the agent- session is the one pappardelle attaches, so
 # the legacy one would run unseen.
 echo -e "\n${BOLD}Test: a legacy session beside its agent- session is killed${RESET}"
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" new-session -d -s "$LEGACY_SESSION" -c "$WORKTREE_PATH12"
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" new-session -d -s "$RENAMED_SESSION" -c "$WORKTREE_PATH12"
+tmux -L "$LASAGNA_TMUX_SOCKET" new-session -d -s "$LEGACY_SESSION" -c "$WORKTREE_PATH12"
+tmux -L "$LASAGNA_TMUX_SOCKET" new-session -d -s "$RENAMED_SESSION" -c "$WORKTREE_PATH12"
 
 start_session --issue-key "$ISSUE_KEY12" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH12" --no-agent 2>/dev/null
 
-if tmux -L "$PAPPARDELLE_TMUX_SOCKET" has-session -t "=$LEGACY_SESSION:" 2>/dev/null; then
+if tmux -L "$LASAGNA_TMUX_SOCKET" has-session -t "=$LEGACY_SESSION:" 2>/dev/null; then
     echo -e "  ${RED}FAIL${RESET} legacy session killed"
     FAIL=$((FAIL + 1))
 else
@@ -905,8 +905,8 @@ else
     PASS=$((PASS + 1))
 fi
 
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "=$RENAMED_SESSION:" 2>/dev/null || true
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "=companion-${TEST_REPO}-${ISSUE_KEY12}:" 2>/dev/null || true
+tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "=$RENAMED_SESSION:" 2>/dev/null || true
+tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "=companion-${TEST_REPO}-${ISSUE_KEY12}:" 2>/dev/null || true
 
 # ==========================================================================
 
@@ -921,12 +921,12 @@ WORKTREE_PATH13="$TMPDIR_ROOT/worktree13"
 mkdir -p "$WORKTREE_PATH13"
 OTHER_LEGACY13="claude-${TEST_REPO}-${OTHER_KEY13}"
 
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" new-session -d -s "$OTHER_LEGACY13" -c "$WORKTREE_PATH13"
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" new-session -d -s "companion-${TEST_REPO}-${OTHER_KEY13}" -c "$WORKTREE_PATH13"
+tmux -L "$LASAGNA_TMUX_SOCKET" new-session -d -s "$OTHER_LEGACY13" -c "$WORKTREE_PATH13"
+tmux -L "$LASAGNA_TMUX_SOCKET" new-session -d -s "companion-${TEST_REPO}-${OTHER_KEY13}" -c "$WORKTREE_PATH13"
 
 start_session --issue-key "$ISSUE_KEY13" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH13" --no-agent 2>/dev/null
 
-if tmux -L "$PAPPARDELLE_TMUX_SOCKET" has-session -t "=$OTHER_LEGACY13:" 2>/dev/null; then
+if tmux -L "$LASAGNA_TMUX_SOCKET" has-session -t "=$OTHER_LEGACY13:" 2>/dev/null; then
     echo -e "  ${GREEN}PASS${RESET} other space's legacy session kept its name"
     PASS=$((PASS + 1))
 else
@@ -934,7 +934,7 @@ else
     FAIL=$((FAIL + 1))
 fi
 
-if tmux -L "$PAPPARDELLE_TMUX_SOCKET" has-session -t "=agent-${TEST_REPO}-${ISSUE_KEY13}:" 2>/dev/null; then
+if tmux -L "$LASAGNA_TMUX_SOCKET" has-session -t "=agent-${TEST_REPO}-${ISSUE_KEY13}:" 2>/dev/null; then
     echo -e "  ${GREEN}PASS${RESET} a fresh agent session was created for the new space"
     PASS=$((PASS + 1))
 else
@@ -942,7 +942,7 @@ else
     FAIL=$((FAIL + 1))
 fi
 
-if tmux -L "$PAPPARDELLE_TMUX_SOCKET" has-session -t "=companion-${TEST_REPO}-${ISSUE_KEY13}:" 2>/dev/null; then
+if tmux -L "$LASAGNA_TMUX_SOCKET" has-session -t "=companion-${TEST_REPO}-${ISSUE_KEY13}:" 2>/dev/null; then
     echo -e "  ${GREEN}PASS${RESET} a companion session was created despite another space's companion"
     PASS=$((PASS + 1))
 else
@@ -950,10 +950,10 @@ else
     FAIL=$((FAIL + 1))
 fi
 
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "=$OTHER_LEGACY13:" 2>/dev/null || true
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "=companion-${TEST_REPO}-${OTHER_KEY13}:" 2>/dev/null || true
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "=agent-${TEST_REPO}-${ISSUE_KEY13}:" 2>/dev/null || true
-tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "=companion-${TEST_REPO}-${ISSUE_KEY13}:" 2>/dev/null || true
+tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "=$OTHER_LEGACY13:" 2>/dev/null || true
+tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "=companion-${TEST_REPO}-${OTHER_KEY13}:" 2>/dev/null || true
+tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "=agent-${TEST_REPO}-${ISSUE_KEY13}:" 2>/dev/null || true
+tmux -L "$LASAGNA_TMUX_SOCKET" kill-session -t "=companion-${TEST_REPO}-${ISSUE_KEY13}:" 2>/dev/null || true
 
 # ==========================================================================
 
@@ -961,8 +961,8 @@ tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "=companion-${TEST_REPO}-${IS
 # longer guesses it from the command.
 echo -e "\n${BOLD}Test: --agent-command without --agent-is-claude is an error${RESET}"
 ISSUE_KEY14="${TEST_PREFIX}-1400"
-SHIM_SOCKET14="pappardelle_inner_shim14_$$"
-if PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET14" start_session \
+SHIM_SOCKET14="lasagna_inner_shim14_$$"
+if LASAGNA_TMUX_SOCKET="$SHIM_SOCKET14" start_session \
     --issue-key "$ISSUE_KEY14" --repo-name "$TEST_REPO" --worktree "$TMPDIR_ROOT" \
     --agent-command codex 2>/dev/null; then
     echo -e "  ${RED}FAIL${RESET} script should exit non-zero"
@@ -998,8 +998,8 @@ exit 0
 SHIM
 chmod +x "$SHIM_DIR/codex"
 
-SHIM_SOCKET15="pappardelle_inner_shim15_$$"
-SHELL=/bin/bash PATH="$SHIM_DIR:$PATH" HOME="$CODEX_HOME" PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET15" \
+SHIM_SOCKET15="lasagna_inner_shim15_$$"
+SHELL=/bin/bash PATH="$SHIM_DIR:$PATH" HOME="$CODEX_HOME" LASAGNA_TMUX_SOCKET="$SHIM_SOCKET15" \
     start_session \
     --issue-key "$ISSUE_KEY15" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH15" \
     --companion-command "/usr/bin/true" \
@@ -1024,9 +1024,9 @@ echo -e "\n${BOLD}Test: the inner server outlives the worktree it was started fr
 WORKTREE_PATH16="$TMPDIR_ROOT/worktree16"
 WORKTREE_PATH17="$TMPDIR_ROOT/worktree17"
 mkdir -p "$WORKTREE_PATH16" "$WORKTREE_PATH17"
-SHIM_SOCKET16="pappardelle_inner_shim16_$$"
+SHIM_SOCKET16="lasagna_inner_shim16_$$"
 start_space() {
-    (cd "$2" && PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET16" \
+    (cd "$2" && LASAGNA_TMUX_SOCKET="$SHIM_SOCKET16" \
         start_session \
         --issue-key "$1" --repo-name "$TEST_REPO" --worktree "$2" \
         --no-agent 2>/dev/null)
@@ -1074,8 +1074,8 @@ WORKTREE_PATH_PA="$TMPDIR_ROOT/worktree-prompt-args"
 ARGV_LOG_PA="$TMPDIR_ROOT/agy-argv-prompt-args.log"
 mkdir -p "$WORKTREE_PATH_PA"
 make_argv_shim agy "$ARGV_LOG_PA"
-SHIM_SOCKET_PA="pappardelle_inner_shim_pa_$$"
-PATH="$SHIM_DIR:$PATH" HOME="$SHIM_HOME" PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET_PA" \
+SHIM_SOCKET_PA="lasagna_inner_shim_pa_$$"
+PATH="$SHIM_DIR:$PATH" HOME="$SHIM_HOME" LASAGNA_TMUX_SOCKET="$SHIM_SOCKET_PA" \
     start_session \
     --issue-key "$ISSUE_KEY_PA" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH_PA" \
     --init-cmd "/it's & \$HOME" \
@@ -1097,8 +1097,8 @@ WORKTREE_PATH_PK="$TMPDIR_ROOT/worktree-prompt-key"
 ARGV_LOG_PK="$TMPDIR_ROOT/agy-argv-prompt-key.log"
 mkdir -p "$WORKTREE_PATH_PK"
 make_argv_shim agy "$ARGV_LOG_PK"
-SHIM_SOCKET_PK="pappardelle_inner_shim_pk_$$"
-PATH="$SHIM_DIR:$PATH" HOME="$SHIM_HOME" PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET_PK" \
+SHIM_SOCKET_PK="lasagna_inner_shim_pk_$$"
+PATH="$SHIM_DIR:$PATH" HOME="$SHIM_HOME" LASAGNA_TMUX_SOCKET="$SHIM_SOCKET_PK" \
     start_session \
     --issue-key "$ISSUE_KEY_PK" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH_PK" \
     --agent-command agy --agent-is-claude false --agent-prompt-args "-i {prompt}" \
@@ -1117,14 +1117,14 @@ for np_case in "claude|true|--resume RESUME_FAIL|" "codex|false|resume RESUME_FA
     np_key="${TEST_PREFIX}-19${NP_INDEX}0"
     np_worktree="$TMPDIR_ROOT/worktree-no-prompt-$np_agent"
     np_log="$TMPDIR_ROOT/$np_agent-argv-no-prompt.log"
-    np_socket="pappardelle_inner_shim_np${NP_INDEX}_$$"
+    np_socket="lasagna_inner_shim_np${NP_INDEX}_$$"
     mkdir -p "$np_worktree"
     make_argv_shim "$np_agent" "$np_log"
     np_args=(--issue-key "$np_key" --repo-name "$TEST_REPO" --worktree "$np_worktree" --no-prompt
         --agent-command "$np_agent" --agent-is-claude "$np_is_claude" --agent-resume-args "$np_resume")
     [[ -n "$np_prompt_args" ]] && np_args+=(--agent-prompt-args "$np_prompt_args")
-    PATH="$SHIM_DIR:$PATH" HOME="$SHIM_HOME" PAPPARDELLE_CLAUDE_CONFIG_PATH="$TMPDIR_ROOT/claude-np.json" \
-        PAPPARDELLE_TMUX_SOCKET="$np_socket" start_session "${np_args[@]}" 2>/dev/null
+    PATH="$SHIM_DIR:$PATH" HOME="$SHIM_HOME" LASAGNA_CLAUDE_CONFIG_PATH="$TMPDIR_ROOT/claude-np.json" \
+        LASAGNA_TMUX_SOCKET="$np_socket" start_session "${np_args[@]}" 2>/dev/null
     wait_for_lines "$np_log" 2 || true
     np_name=""
     [[ "$np_is_claude" == true ]] && np_name="<--name><$np_key>"
@@ -1140,11 +1140,11 @@ done
 echo -e "\n${BOLD}Test: sessions survive a tmux.conf that drops unattached sessions${RESET}"
 KEEP_KEY="${TEST_PREFIX}-keep"
 KEEP_HOME="$TMPDIR_ROOT/keep-home"
-KEEP_SOCKET="pappardelle_inner_keep_$$"
+KEEP_SOCKET="lasagna_inner_keep_$$"
 mkdir -p "$KEEP_HOME" "$TMPDIR_ROOT/keep-worktree"
 touch "$KEEP_HOME/.zshrc"
 printf 'set -g destroy-unattached on\nset -g exit-unattached on\n' > "$KEEP_HOME/.tmux.conf"
-env -u XDG_CONFIG_HOME HOME="$KEEP_HOME" PAPPARDELLE_TMUX_SOCKET="$KEEP_SOCKET" \
+env -u XDG_CONFIG_HOME HOME="$KEEP_HOME" LASAGNA_TMUX_SOCKET="$KEEP_SOCKET" \
     "$SCRIPT_DIR/start-agent-session.sh" --issue-key "$KEEP_KEY" --repo-name "$TEST_REPO" \
     --agent-session "agent-$TEST_REPO-$KEEP_KEY" --companion-session "companion-$TEST_REPO-$KEEP_KEY" \
     --legacy-agent-session "claude-$TEST_REPO-$KEEP_KEY" \
@@ -1158,10 +1158,10 @@ tmux -L "$KEEP_SOCKET" kill-server 2>/dev/null || true
 
 echo -e "\n${BOLD}Test: the inner server outlives its last space, so the next one starts${RESET}"
 EMPTY_KEY="${TEST_PREFIX}-empty"
-EMPTY_SOCKET="pappardelle_inner_empty_$$"
+EMPTY_SOCKET="lasagna_inner_empty_$$"
 mkdir -p "$TMPDIR_ROOT/empty-worktree"
 start_empty_space() {
-    PAPPARDELLE_TMUX_SOCKET="$EMPTY_SOCKET" start_session --issue-key "$EMPTY_KEY" \
+    LASAGNA_TMUX_SOCKET="$EMPTY_SOCKET" start_session --issue-key "$EMPTY_KEY" \
         --repo-name "$TEST_REPO" --worktree "$TMPDIR_ROOT/empty-worktree" \
         --no-agent --companion-command '' 2>/dev/null
 }
@@ -1182,9 +1182,9 @@ mkdir -p "$HASH_WORKTREE"
 start_session --issue-key "$HASH_KEY" --repo-name "$TEST_REPO" --worktree "$HASH_WORKTREE" \
     --no-agent --companion-command '' 2>/dev/null || true
 assert_eq "agent session starts in the worktree" "$HASH_WORKTREE" \
-    "$(tmux -L "$PAPPARDELLE_TMUX_SOCKET" display-message -p -t "=agent-$TEST_REPO-$HASH_KEY:" '#{session_path}' 2>/dev/null)"
+    "$(tmux -L "$LASAGNA_TMUX_SOCKET" display-message -p -t "=agent-$TEST_REPO-$HASH_KEY:" '#{session_path}' 2>/dev/null)"
 assert_eq "companion session starts in the worktree" "$HASH_WORKTREE" \
-    "$(tmux -L "$PAPPARDELLE_TMUX_SOCKET" display-message -p -t "=companion-$TEST_REPO-$HASH_KEY:" '#{session_path}' 2>/dev/null)"
+    "$(tmux -L "$LASAGNA_TMUX_SOCKET" display-message -p -t "=companion-$TEST_REPO-$HASH_KEY:" '#{session_path}' 2>/dev/null)"
 
 # ==========================================================================
 

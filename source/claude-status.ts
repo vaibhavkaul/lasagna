@@ -86,7 +86,7 @@ export type StoredClaudeStatus =
 
 /**
  * The status each Claude session last reported through its hook, one record
- * per status key. The hook (plugins/pappardelle/hooks/update-status.py) is
+ * per status key. The hook (plugins/lasagna/hooks/update-status.py) is
  * the only writer.
  */
 export interface ClaudeStatusDao {

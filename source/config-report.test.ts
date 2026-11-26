@@ -92,7 +92,7 @@ test('a TUI started on an invalid config asks for a restart once the file loads'
 	readReportedConfig(paths);
 	readReportedConfig(paths);
 	expect(messages()).toStrictEqual([
-		'.pappardelle.yml loads now: restart Pappardelle to turn keybindings, watchlists, auto-remove and rail settings back on',
+		'.pappardelle.yml loads now: restart Lasagna to turn keybindings, watchlists, auto-remove and rail settings back on',
 	]);
 });
 

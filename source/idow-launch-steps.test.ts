@@ -97,7 +97,7 @@ touch "$IDOW_TEST_WORKSPACE/background-finished"`,
 	expect(
 		fs.existsSync(path.join(fixture.workspace, 'background-finished')),
 	).toBe(true);
-	const logDir = path.join(fixture.home, 'Library/Logs/stardust-workspace');
+	const logDir = path.join(fixture.home, 'Library/Logs/lasagna');
 	const files = fs
 		.readdirSync(logDir)
 		.filter(name => name.startsWith('idow-test-abc-'));
@@ -110,7 +110,7 @@ touch "$IDOW_TEST_WORKSPACE/background-finished"`,
 
 test('idow rotates per invocation and prunes only old invocation logs', async () => {
 	const fixture = setup();
-	const dir = path.join(fixture.home, 'Library/Logs/stardust-workspace');
+	const dir = path.join(fixture.home, 'Library/Logs/lasagna');
 	fs.mkdirSync(dir, {recursive: true});
 	const stale = path.join(dir, 'idow-old-workspace-20200101-test.log');
 	const unrelated = path.join(dir, 'unrelated.log');
@@ -220,7 +220,7 @@ test('an explicit profile pick on an existing space is persisted and reused', as
 	);
 	const statePath = path.join(
 		fixture.home,
-		'.pappardelle/repos/main checkout/space-state/test-abc.json',
+		'.lasagna/repos/main checkout/space-state/test-abc.json',
 	);
 	const persisted = () =>
 		(JSON.parse(fs.readFileSync(statePath, 'utf8')) as {profile: string})
@@ -234,9 +234,12 @@ test('an explicit profile pick on an existing space is persisted and reused', as
 	expect(persisted()).toBe('dev');
 	// create-worktree.sh is stubbed to build the workspace elsewhere, so idow
 	// only sees an existing worktree once its own path exists.
-	fs.mkdirSync(path.join(fixture.home, '.worktrees/main checkout/test-abc'), {
-		recursive: true,
-	});
+	fs.mkdirSync(
+		path.join(fixture.home, '.lasagna/worktrees/main checkout/test-abc'),
+		{
+			recursive: true,
+		},
+	);
 
 	// Reopening with a different pick: the worktree already exists.
 	await fixture.run({profile: 'other'});

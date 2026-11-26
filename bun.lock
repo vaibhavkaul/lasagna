@@ -3,7 +3,7 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "pappardelle",
+      "name": "lasagna",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.32.2",
         "@opentui/core": "0.9.9",

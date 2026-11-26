@@ -39,12 +39,12 @@ import {QaSimulatorCleanup} from ${JSON.stringify(simulatorUrl)};
 const daos = createStateDaos({
   repo: 'fixture',
   stateDir: process.env.CLOSE_STATE_DIR,
-  sqlite: process.env.PAPPARDELLE_SQLITE_STATE === '1',
+  sqlite: process.env.LASAGNA_SQLITE_STATE === '1',
 });
 const {registry} = daos;
 initTmuxState(daos);
 for (const key of ['A', 'B'])
-  await daos.spaceIdentities.record(newSpaceIdentity({repo: 'fixture', key, worktreePath: '/w/' + key, socket: 'pappardelle_inner'}));
+  await daos.spaceIdentities.record(newSpaceIdentity({repo: 'fixture', key, worktreePath: '/w/' + key, socket: 'lasagna_inner'}));
 await registry.add('A');
 await registry.add('B');
 let ticks = 0;

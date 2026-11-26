@@ -353,7 +353,7 @@ const context = (
 ) => ({
 	repo: 'my repo',
 	cwd: '/src/repo',
-	launch: ['/opt/pappardelle/dist/pappardelle'],
+	launch: ['/opt/pappardelle/dist/lasagna'],
 	env: {PATH: '/usr/bin'},
 	run,
 });
@@ -378,23 +378,21 @@ test('a systemd one-shot fires at local time and unloads once it has', () => {
 	expect(calls[0]).toStrictEqual([
 		'systemd-run',
 		'--user',
-		'--unit=pappardelle-my_repo-ab12',
-		'--description=Pappardelle wake-up for STA-1',
+		'--unit=lasagna-my_repo-ab12',
+		'--description=Lasagna wake-up for STA-1',
 		'--timer-property=RemainAfterElapse=no',
 		'--timer-property=AccuracySec=1s',
 		'--working-directory=/src/repo',
 		'--setenv=PATH=/usr/bin',
 		'--on-calendar=2026-11-09 23:59:05',
 		'--',
-		'/opt/pappardelle/dist/pappardelle',
+		'/opt/pappardelle/dist/lasagna',
 		'schedule',
 		'fire',
 		'ab12',
 	]);
-	expect(systemdUnitName('a.b', job)).toBe('pappardelle-a.b-ab12');
-	expect(systemdUnitName('a.b', {...job, arm: 2})).toBe(
-		'pappardelle-a.b-ab12-2',
-	);
+	expect(systemdUnitName('a.b', job)).toBe('lasagna-a.b-ab12');
+	expect(systemdUnitName('a.b', {...job, arm: 2})).toBe('lasagna-a.b-ab12-2');
 	expect(onCalendar(new Date(2026, 0, 2, 3, 4, 5))).toBe('2026-01-02 03:04:05');
 });
 
@@ -405,10 +403,10 @@ test('a launchd agent runs the same command on the calendar date', () => {
 		{at: new Date(2026, 10, 14, 7, 51)},
 	);
 	expect(plist).toMatch(
-		/<key>Label<\/key>\n\t<string>dev\.pappardelle\.my_repo\.ab12<\/string>/,
+		/<key>Label<\/key>\n\t<string>dev\.lasagna\.my_repo\.ab12<\/string>/,
 	);
 	expect(plist).toMatch(
-		/<key>ProgramArguments<\/key>\n\t<array>\n\t\t<string>\/opt\/pappardelle\/dist\/pappardelle<\/string>\n\t\t<string>schedule<\/string>\n\t\t<string>fire<\/string>\n\t\t<string>ab12<\/string>/,
+		/<key>ProgramArguments<\/key>\n\t<array>\n\t\t<string>\/opt\/pappardelle\/dist\/lasagna<\/string>\n\t\t<string>schedule<\/string>\n\t\t<string>fire<\/string>\n\t\t<string>ab12<\/string>/,
 	);
 	expect(plist).toMatch(
 		/<key>Month<\/key>\n\t\t<integer>11<\/integer>\n\t\t<key>Day<\/key>\n\t\t<integer>14<\/integer>\n\t\t<key>Hour<\/key>\n\t\t<integer>7<\/integer>\n\t\t<key>Minute<\/key>\n\t\t<integer>51<\/integer>/,

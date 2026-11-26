@@ -50,7 +50,7 @@ try {
 	const daos = createStateDaos({
 		repo,
 		stateDir,
-		sqlite: process.env['PAPPARDELLE_SQLITE_STATE'] === '1',
+		sqlite: process.env['LASAGNA_SQLITE_STATE'] === '1',
 	});
 	initTmuxState(daos);
 	const issue: TrackerIssue = {
@@ -127,7 +127,7 @@ try {
 	process.chdir(originalDirectory);
 	await harness.cleanup(repo, key);
 	if (repo)
-		rmSync(path.join(homedir(), '.pappardelle', 'repos', repo), {
+		rmSync(path.join(homedir(), '.lasagna', 'repos', repo), {
 			recursive: true,
 			force: true,
 		});

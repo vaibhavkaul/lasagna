@@ -20,7 +20,7 @@ const projectRoot = path.resolve(import.meta.dirname, '..');
 // Long enough for a CLI that has begun to wait for its agent to have tried
 // the status socket once and found nothing there.
 const FIRST_CONNECT_ATTEMPT_MS = 500;
-const useStandalone = process.env['PAPPARDELLE_TEST_STANDALONE'] === '1';
+const useStandalone = process.env['LASAGNA_TEST_STANDALONE'] === '1';
 
 function fixture(provider = 'jira') {
 	const root = tempDir('papp-cli-space-');
@@ -40,7 +40,7 @@ function fixture(provider = 'jira') {
 		filter: file => !file.endsWith('.test.ts') && !file.endsWith('.test.tsx'),
 	});
 	const cli = useStandalone
-		? [path.join(install, 'dist/pappardelle')]
+		? [path.join(install, 'dist/lasagna')]
 		: [process.execPath, path.join(install, 'source/cli.tsx')];
 	fs.symlinkSync(
 		path.join(projectRoot, 'node_modules'),
@@ -71,8 +71,8 @@ import fs from 'node:fs';
 fs.writeFileSync(process.env.IDOW_TEST_RECORD, JSON.stringify({
   args: process.argv.slice(2),
   cwd: process.cwd(),
-  projectRoot: process.env.PAPPARDELLE_PROJECT_ROOT,
-  mainRepoRoot: process.env.PAPPARDELLE_MAIN_REPO_ROOT,
+  projectRoot: process.env.LASAGNA_PROJECT_ROOT,
+  mainRepoRoot: process.env.LASAGNA_MAIN_REPO_ROOT,
   stdin: fs.readFileSync(0, 'utf8'),
   stdinIsTTY: process.stdin.isTTY ?? false,
 }));
@@ -84,7 +84,7 @@ if (process.env.IDOW_TEST_STATUS_DIR) {
     workspaceName: 'project-' + key,
     status: 'waiting_for_input',
     event: 'SessionStart',
-    cwd: process.env.HOME + '/.worktrees/project/' + key,
+    cwd: process.env.HOME + '/.lasagna/worktrees/project/' + key,
     lastUpdate: Date.now(),
   }));
 }
@@ -106,7 +106,7 @@ setTimeout(() => {
 	);
 	const registry = path.join(
 		home,
-		'.pappardelle',
+		'.lasagna',
 		'repos',
 		'project',
 		'open-spaces.json',
@@ -117,8 +117,8 @@ setTimeout(() => {
 		// The standalone executable unpacks its native libraries here and never
 		// removes them.
 		TMPDIR: root,
-		PAPPARDELLE_PROJECT_ROOT: repo,
-		PAPPARDELLE_MAIN_REPO_ROOT: repo,
+		LASAGNA_PROJECT_ROOT: repo,
+		LASAGNA_MAIN_REPO_ROOT: repo,
 		IDOW_TEST_RECORD: record,
 	};
 	const start = (args: string[], overrides: NodeJS.ProcessEnv = {}) => {
@@ -164,15 +164,21 @@ setTimeout(() => {
 	 * identities were stored has it.
 	 */
 	const worktreeOnly = (key: string) => {
-		fs.mkdirSync(path.join(home, '.worktrees', 'project', key), {
+		fs.mkdirSync(path.join(home, '.lasagna', 'worktrees', 'project', key), {
 			recursive: true,
 		});
 	};
 	/** A worktree an earlier idow run created and recorded. */
 	const existingWorktree = async (key: string) => {
-		const worktreePath = path.join(home, '.worktrees', 'project', key);
+		const worktreePath = path.join(
+			home,
+			'.lasagna',
+			'worktrees',
+			'project',
+			key,
+		);
 		fs.mkdirSync(worktreePath, {recursive: true});
-		const stateDir = path.join(home, '.pappardelle');
+		const stateDir = path.join(home, '.lasagna');
 		const daos = createStateDaos({
 			repo: 'project',
 			stateDir,
@@ -185,7 +191,7 @@ setTimeout(() => {
 				repo: 'project',
 				key,
 				worktreePath,
-				socket: 'pappardelle_inner',
+				socket: 'lasagna_inner',
 			}),
 		);
 		daos.disconnectStatusDaemon();
@@ -226,7 +232,7 @@ test('CLI saves a normalized issue from a non-TTY sous-chef invocation', async (
 	});
 	expect(result.stdout.includes('Workspace STE-20 is ready!')).toBe(true);
 	expect(result.stderr.includes('idow diagnostic')).toBe(true);
-	const stateDir = path.join(f.home, '.pappardelle');
+	const stateDir = path.join(f.home, '.lasagna');
 	const daos = createStateDaos({
 		repo: 'project',
 		stateDir,
@@ -257,7 +263,7 @@ test('CLI saves a normalized issue from a non-TTY sous-chef invocation', async (
 		await f.existingWorktree('STE-20');
 		const statusDir = path.join(f.root, 'status');
 		const result = await f.run(['--resume', '--wait', 'STE-20'], {
-			PAPPARDELLE_STATUS_DIR: statusDir,
+			LASAGNA_STATUS_DIR: statusDir,
 			IDOW_TEST_STATUS_DIR: statusDir,
 		});
 		expect(result.code, result.stderr).toBe(0);
@@ -273,7 +279,7 @@ test('CLI saves a normalized issue from a non-TTY sous-chef invocation', async (
 	async () => {
 		const f = fixture();
 		await f.existingWorktree('STE-20');
-		const socketPath = statusSocketPath(path.join(f.home, '.pappardelle'));
+		const socketPath = statusSocketPath(path.join(f.home, '.lasagna'));
 		const child = f.start(['--resume', '--wait', 'STE-20']);
 		let stdout = '';
 		let stderr = '';
@@ -300,7 +306,7 @@ test('CLI saves a normalized issue from a non-TTY sous-chef invocation', async (
 			workspaceName: 'project-STE-20',
 			status: 'waiting_for_input',
 			event: 'SessionStart',
-			cwd: path.join(f.home, '.worktrees', 'project', 'STE-20'),
+			cwd: path.join(f.home, '.lasagna', 'worktrees', 'project', 'STE-20'),
 			lastUpdate: Date.now(),
 		});
 
@@ -316,7 +322,7 @@ test("space_open over MCP keeps idow's output off the protocol channel", async (
 	const env = Object.fromEntries(
 		Object.entries(f.env).filter(
 			(entry): entry is [string, string] =>
-				entry[1] !== undefined && entry[0] !== 'PAPPARDELLE_SPACE',
+				entry[1] !== undefined && entry[0] !== 'LASAGNA_SPACE',
 		),
 	);
 	await client.connect(
@@ -437,7 +443,7 @@ test('CLI rejects an unknown agent profile with the valid names before running i
 test('CLI rejects an agent profile with no workspace input instead of starting the TUI', async () => {
 	const f = fixture();
 	for (const [args, message] of [
-		[['--agent-profile', 'claude'], /Usage: pappardelle --agent-profile/],
+		[['--agent-profile', 'claude'], /Usage: lasagna --agent-profile/],
 		[
 			['--agent-profile=', 'STE-20'],
 			/--agent-profile needs an agent profile name/,
@@ -454,15 +460,13 @@ test('CLI warns, and still succeeds, when idow leaves a running agent on its old
 	const f = fixture();
 	const result = await f.run(['--agent-profile', 'claude', 'STE-20'], {
 		IDOW_TEST_OUTPUT:
-			'PAPPARDELLE_AGENT_PROFILE_OVERRIDE=skipped\nWorkspace STE-20 is ready!\n',
+			'LASAGNA_AGENT_PROFILE_OVERRIDE=skipped\nWorkspace STE-20 is ready!\n',
 	});
 	expect(result.code, result.stderr).toBe(0);
 	expect(result.stderr).toMatch(
 		/STE-20: agent already running, claude not applied/,
 	);
-	expect(result.stdout.includes('PAPPARDELLE_AGENT_PROFILE_OVERRIDE')).toBe(
-		false,
-	);
+	expect(result.stdout.includes('LASAGNA_AGENT_PROFILE_OVERRIDE')).toBe(false);
 	expect(result.stdout).toMatch(/Workspace STE-20 is ready!/);
 	expect(f.readRegistry()).toStrictEqual(['STE-20']);
 });
@@ -488,7 +492,7 @@ test('CLI rejects missing profile names and missing workspace input before runni
 	]) {
 		const result = await f.run([...args, '--no-layout']);
 		expect(result.code).toBe(1);
-		expect(result.stderr).toMatch(/Usage: pappardelle --profile/);
+		expect(result.stderr).toMatch(/Usage: lasagna --profile/);
 		expect(fs.existsSync(f.record)).toBe(false);
 		expect(fs.existsSync(f.registry)).toBe(false);
 	}
@@ -804,7 +808,7 @@ test('CLI --resume without input fails with usage before running idow or the TUI
 	const f = fixture();
 	const result = await f.run(['--resume', '--no-layout']);
 	expect(result.code).toBe(1);
-	expect(result.stderr).toMatch(/Usage: pappardelle --resume/);
+	expect(result.stderr).toMatch(/Usage: lasagna --resume/);
 	expect(fs.existsSync(f.record)).toBe(false);
 	expect(fs.existsSync(f.registry)).toBe(false);
 });
@@ -819,7 +823,7 @@ test('CLI help documents --resume', async () => {
 
 test('CLI highlight asks a running Pappardelle to select the space', async () => {
 	const f = fixture();
-	const stateDir = path.join(f.home, '.pappardelle');
+	const stateDir = path.join(f.home, '.lasagna');
 	teardown(() => {
 		closeStateDb(stateDbPath(stateDir));
 	});

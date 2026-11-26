@@ -6,6 +6,12 @@
 // only costs the chef a look.
 
 import path from 'node:path';
+import {STATE_DIR_NAME} from './state-dir.ts';
+
+/** The state directory as a path segment: followed by /, the end, or what ends a word in a shell. */
+const STATE_DIR_REACHED = new RegExp(
+	`${STATE_DIR_NAME.replace('.', String.raw`\.`)}(?:\\/|$|[\\s;&|)])`,
+);
 
 export type ApprovalVerdict =
 	{kind: 'approve'; reason?: string} | {kind: 'hold'; reason: string};
@@ -253,12 +259,12 @@ function hardStop(args: string[]): string | null {
 		return `gh release ${words[1]} changes a release`;
 	const subcommand = words.find(word => !word.startsWith('-')) ?? '';
 	if (
-		program === 'pappardelle' &&
+		program === 'lasagna' &&
 		(['holds', 'answer'].includes(subcommand) ||
 			(subcommand === 'send' &&
 				words.some(word => word === '--keys' || word.startsWith('--keys='))))
 	)
-		return `pappardelle ${subcommand} answers for agents, which only the chef does`;
+		return `lasagna ${subcommand} answers for agents, which only the chef does`;
 	// yarn wrangler deploy, pnpm npm publish: a package manager runs the
 	// program named after it.
 	if (PACKAGE_MANAGERS.has(program)) {
@@ -673,6 +679,45 @@ function resolveReal(
 function below(target: string, directory: string): string | null {
 	const base = directory.replace(/\/+$/, '');
 	return target.startsWith(`${base}/`) ? target.slice(base.length + 1) : null;
+}
+
+/** The rest of a path inside a command: up to white space or a shell operator. */
+const PATH_REST = /^[^\s;&|()<>`]*/;
+
+/**
+ * `spelled` with the space's own worktree taken out wherever a path names it
+ * in full. Worktrees live under the state directory (~/.lasagna/worktrees),
+ * so a command naming its own worktree would otherwise read as reaching
+ * Lasagna's state. A path that may climb back out of the worktree is left as
+ * written, and so is every other space's worktree.
+ */
+function withoutOwnWorktree(spelled: string, policy: ApprovalPolicy): string {
+	if (!policy.worktree) return spelled;
+	let result = spelled;
+	for (const worktree of new Set([
+		policy.worktree,
+		resolveReal(policy.worktree, policy),
+	])) {
+		const base = worktree.replace(/\/+$/, '');
+		let from = 0;
+		for (;;) {
+			const at = result.indexOf(base, from);
+			if (at === -1) break;
+			const rest = PATH_REST.exec(result.slice(at + base.length))![0];
+			// /x/home/u/… and STA-12 only contain the worktree's path.
+			const named =
+				!/[\w./~$}-]/.test(result[at - 1] ?? '') &&
+				(rest === '' || rest.startsWith('/'));
+			if (named && !mayClimb(rest)) {
+				result = result.slice(0, at) + result.slice(at + base.length);
+				from = at;
+			} else {
+				from = at + base.length;
+			}
+		}
+	}
+
+	return result;
 }
 
 /**
@@ -1093,16 +1138,17 @@ export function checkApproval(
 		if (verdict.kind === 'hold') return verdict;
 	}
 
-	// Any spelling of ~/.pappardelle: "$HOME"/.pappardelle, ~/./.pappardelle,
-	// .papp"ardelle", .pappar{delle,}, and a glob such as ~/.pap* or .[p]a*.
-	const spelled = bare(text);
+	// Any spelling of ~/.lasagna: "$HOME"/.lasagna, ~/./.lasagna,
+	// .lasa"gna", .lasa{gna,}, and a glob such as ~/.las* or .[l]a*. The
+	// space's own worktree is under it and is not state.
+	const spelled = withoutOwnWorktree(bare(text), policy);
 	if (
-		/\.pappardelle(?:\/|$|[\s;&|)])/.test(spelled) ||
+		STATE_DIR_REACHED.test(spelled) ||
 		[...spelled.matchAll(/(?:^|[\s/='"])(\.[\w.-]*)[*?[{]/g)].some(match =>
-			'.pappardelle'.startsWith(match[1]!),
+			STATE_DIR_NAME.startsWith(match[1]!),
 		)
 	)
-		return hold("it reaches Pappardelle's own state, where holds are approved");
+		return hold("it reaches Lasagna's own state, where holds are approved");
 	if (AGENT_CONFIG_WRITE.test(bare(text)))
 		return hold(
 			'it writes agent configuration, which decides what agents may do',

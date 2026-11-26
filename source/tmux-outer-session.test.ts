@@ -18,7 +18,7 @@ import {reviveTui} from './tui-sessions.ts';
 const tmuxTest = spawnSync('tmux', ['-V']).status === 0 ? test : test.skip;
 
 function privateDefaultServer(): void {
-	const dir = tempDir('pappardelle-tmux-');
+	const dir = tempDir('lasagna-tmux-');
 	const saved = process.env['TMUX_TMPDIR'];
 	process.env['TMUX_TMPDIR'] = dir;
 	teardown(() => {
@@ -33,16 +33,16 @@ function tmuxOn(socket: string, conf = '/dev/null') {
 		spawnSync('tmux', ['-S', socket, '-f', conf, ...args], {encoding: 'utf8'});
 }
 
-// The TUI's pappardelle-<repo> session shares the default socket with the
-// default-terminal launcher's pappardelle-view-<repo>-<key> viewers, so for a
+// The TUI's lasagna-<repo> session shares the default socket with the
+// default-terminal launcher's lasagna-view-<repo>-<key> viewers, so for a
 // repo named `view` a viewer name extends the TUI's.
 tmuxTest('outer session lookups ignore a longer session name', () => {
 	privateDefaultServer();
-	const viewer = 'pappardelle-view-view-KEY-1';
+	const viewer = 'lasagna-view-view-KEY-1';
 	execFileSync('tmux', ['new-session', '-d', '-s', viewer]);
 
-	expect(sessionExists('pappardelle-view')).toBe(false);
-	killSession('pappardelle-view');
+	expect(sessionExists('lasagna-view')).toBe(false);
+	killSession('lasagna-view');
 	expect(sessionExists(viewer)).toBe(true);
 });
 
@@ -50,7 +50,7 @@ tmuxTest(
 	'outer session lookups and kills take a name the shell would expand',
 	() => {
 		privateDefaultServer();
-		const name = 'pappardelle-it\'s "$HOME" `id`';
+		const name = 'lasagna-it\'s "$HOME" `id`';
 		execFileSync('tmux', ['new-session', '-d', '-s', name]);
 
 		expect(sessionExists(name)).toBe(true);
@@ -62,7 +62,7 @@ tmuxTest(
 tmuxTest(
 	'a repo whose name reads as a tmux format still gets its own outer session, titled 🍝 <repo> even when the user turned titles off',
 	() => {
-		const dir = tempDir('pappardelle-tmux-');
+		const dir = tempDir('lasagna-tmux-');
 		const conf = join(dir, 'tmux.conf');
 		writeFileSync(
 			conf,
@@ -84,14 +84,14 @@ tmuxTest(
 			exactSessionTarget(outerSessionName(repo)),
 			'#{session_name}|#{set-titles}|#{T:set-titles-string}',
 		);
-		expect(shown.stdout.trim()).toBe('pappardelle-pasta_S|1|🍝 pasta#S');
+		expect(shown.stdout.trim()).toBe('lasagna-pasta_S|1|🍝 pasta#S');
 	},
 );
 
 tmuxTest(
 	'a space of a repo whose name reads as a tmux format is found under the names it was given',
 	() => {
-		const dir = tempDir('pappardelle-tmux-');
+		const dir = tempDir('lasagna-tmux-');
 		const tmux = tmuxOn(join(dir, 's'));
 		teardown(() => tmux('kill-server'));
 
@@ -113,8 +113,8 @@ tmuxTest(
 	'a dead TUI is rerun in its own session, which never goes away',
 	() => {
 		privateDefaultServer();
-		const session = 'pappardelle-revive';
-		const repo = join(tempDir('pappardelle-revive-'), 'pasta#S');
+		const session = 'lasagna-revive';
+		const repo = join(tempDir('lasagna-revive-'), 'pasta#S');
 		mkdirSync(repo);
 		execFileSync('tmux', [
 			'new-session',
@@ -169,7 +169,7 @@ tmuxTest(
 			session,
 			command: 'sleep 30',
 			cwd: repo,
-			envArgs: ['-e', 'PAPPARDELLE_REVIVE_TEST=1'],
+			envArgs: ['-e', 'LASAGNA_REVIVE_TEST=1'],
 			markerPaneId: viewer,
 		});
 

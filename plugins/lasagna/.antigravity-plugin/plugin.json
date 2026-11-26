@@ -1,0 +1,11 @@
+{
+	"name": "lasagna",
+	"version": "1.1.0",
+	"description": "Install, update, configure, and monitor Lasagna workspaces. Lasagna is a fork of Pappardelle (github.com/chardigio/pappardelle). Provides the init-lasagna, update-lasagna, configure-lasagna, sous-chef and link-pr skills, plus the hook that records the agy conversation id so a relaunched space resumes its own conversation.",
+	"author": {
+		"name": "chardigio",
+		"url": "https://github.com/chardigio"
+	},
+	"homepage": "https://github.com/vaibhavkaul/lasagna",
+	"repository": "https://github.com/vaibhavkaul/lasagna"
+}

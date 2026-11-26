@@ -4,6 +4,7 @@ import {typedText} from '../key-press.ts';
 import {textAttributes, terminalColor, dimText} from '../tui-style.ts';
 
 import type {LogEntry} from '../logger.ts';
+import {STATE_DIR_NAME} from '../state-dir.ts';
 import Gap from './Gap.tsx';
 
 interface Props {
@@ -85,7 +86,7 @@ export default function ErrorDialog({
 				<>
 					<Gap />
 					<box flexDirection="row" flexShrink={0}>
-						<text {...dimText()}>Logs: ~/.pappardelle/logs/</text>
+						<text {...dimText()}>{`Logs: ~/${STATE_DIR_NAME}/logs/`}</text>
 					</box>
 				</>
 			)}

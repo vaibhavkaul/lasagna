@@ -1,7 +1,7 @@
 // Cross-terminal highlight IPC
-// Allows `pappardelle highlight STA-XXX` to select a row in a running TUI.
+// Allows `lasagna highlight STA-XXX` to select a row in a running TUI.
 // Uses a file-based IPC mechanism: the CLI writes an issue key to
-// ~/.pappardelle/repos/{repoName}/highlight-target, and the running app
+// ~/.lasagna/repos/{repoName}/highlight-target, and the running app
 // watches for changes via fs.watch(). With `--focus` the line also carries
 // FOCUS_MARKER, and the rail moves focus to the space's agent pane.
 
@@ -59,7 +59,7 @@ export function highlightWriteCommand(
 export interface HighlightDao {
 	/**
 	 * Ask the running TUI to select a space, and with `focus` to move focus to
-	 * its agent pane. Called by `pappardelle highlight STA-XXX` from another
+	 * its agent pane. Called by `lasagna highlight STA-XXX` from another
 	 * terminal.
 	 */
 	request(request: HighlightRequest): Promise<void>;

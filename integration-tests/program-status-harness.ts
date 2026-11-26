@@ -79,7 +79,7 @@ export class StatusHarness {
 	readonly root = mkdtempSync(path.join(tmpdir(), 'pappa-program-status-'));
 	readonly socket = `pappa_status_${process.pid}`;
 	readonly stateDir = path.join(this.root, 'state');
-	readonly sqlite = process.env['PAPPARDELLE_SQLITE_STATE'] === '1';
+	readonly sqlite = process.env['LASAGNA_SQLITE_STATE'] === '1';
 	/**
 	 * Under the harness's own short root: a run may be given a database path
 	 * too long for a Unix socket beside it.
@@ -105,18 +105,15 @@ export class StatusHarness {
 	private spaces: SpaceData[] = [];
 	constructor() {
 		for (const [name, value] of Object.entries({
-			PAPPARDELLE_TMUX_SOCKET: this.socket,
-			PAPPARDELLE_STATUS_DIR: path.join(this.root, 'hooks'),
+			LASAGNA_TMUX_SOCKET: this.socket,
+			LASAGNA_STATUS_DIR: path.join(this.root, 'hooks'),
 			// Hooks run in the harness's panes write to its database, never to
 			// the developer's own.
-			PAPPARDELLE_STATE_DB: path.join(this.stateDir, 'state.db'),
-			PAPPARDELLE_STATUS_SOCKET: this.statusSocket,
-			PAPPARDELLE_PROGRAM_STATUS_DIR: path.join(this.root, 'status'),
-			PAPPARDELLE_PROGRAM_STATUS_TRACE_DIR: path.join(this.root, 'trace'),
-			PAPPARDELLE_CLAUDE_CONFIG_PATH: path.join(
-				this.root,
-				'claude-config.json',
-			),
+			LASAGNA_STATE_DB: path.join(this.stateDir, 'state.db'),
+			LASAGNA_STATUS_SOCKET: this.statusSocket,
+			LASAGNA_PROGRAM_STATUS_DIR: path.join(this.root, 'status'),
+			LASAGNA_PROGRAM_STATUS_TRACE_DIR: path.join(this.root, 'trace'),
+			LASAGNA_CLAUDE_CONFIG_PATH: path.join(this.root, 'claude-config.json'),
 			SHELL: '/bin/bash',
 		})) {
 			this.previous.set(name, process.env[name]);

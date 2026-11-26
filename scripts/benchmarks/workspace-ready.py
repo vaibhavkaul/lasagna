@@ -175,7 +175,7 @@ def run_sample(binary, shell_delay_ms, traced, timeout, width=100, existing=Fals
     with fixture_directory() as tmp:
         root = Path(tmp)
         home, repo, bin_dir = (root / name for name in ('home', 'repo', 'bin'))
-        for directory in (home, repo, bin_dir, home / '.pappardelle'):
+        for directory in (home, repo, bin_dir, home / '.lasagna'):
             directory.mkdir(parents=True, exist_ok=True)
         real_tools = {name: shutil.which(name) for name in ('tmux', 'git')}
         provider_log = root / 'providers.jsonl'
@@ -253,7 +253,7 @@ signal.pause()
             **({'default_emoji': profile_emoji} if profile_emoji is not None else {}),
         }))
         (home / '.bashrc').write_text(f'sleep {shell_delay_ms / 1000}\n' if shell_delay_ms else '')
-        (home / '.pappardelle/update-check.json').write_text(json.dumps({
+        (home / '.lasagna/update-check.json').write_text(json.dumps({
             'checkedAt': int(time.time() * 1000), 'latestVersion': 'v0.0.0',
         }))
         for index in range(skill_count):
@@ -267,21 +267,21 @@ signal.pause()
                    PATH=str(bin_dir) + os.pathsep + os.environ['PATH'],
                    XDG_CONFIG_HOME=str(home / '.config'), XDG_STATE_HOME=str(home / '.local/state'),
                    XDG_CACHE_HOME=str(home / '.cache'),
-                   TMUX_TMPDIR=str(root), PAPPARDELLE_TMUX_SOCKET='bench-inner')
+                   TMUX_TMPDIR=str(root), LASAGNA_TMUX_SOCKET='bench-inner')
         if startup_trace:
-            env['PAPPARDELLE_STARTUP_TRACE'] = '1'
+            env['LASAGNA_STARTUP_TRACE'] = '1'
         # The fixture's HOME has no config, so the state mode comes from the override.
-        env['PAPPARDELLE_SQLITE_STATE'] = '1' if sqlite_state else '0'
+        env['LASAGNA_SQLITE_STATE'] = '1' if sqlite_state else '0'
         subprocess.run([real_tools['git'], 'init', '-q', '-b', 'main'], cwd=repo, env=env, check=True)
         subprocess.run([real_tools['git'], '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test',
                         'commit', '--allow-empty', '-qm', 'Fixture'], cwd=repo, env=env, check=True)
         keys = [f'bench-{i+1}' for i in range(workspaces)]
         for key in keys:
-            worktree = home / '.worktrees/repo' / key
+            worktree = home / '.lasagna/worktrees/repo' / key
             worktree.parent.mkdir(parents=True, exist_ok=True)
             subprocess.run([real_tools['git'], 'worktree', 'add', '-qb', key, str(worktree)],
                            cwd=repo, env=env, check=True)
-        registry = home / '.pappardelle/repos/repo/open-spaces.json'
+        registry = home / '.lasagna/repos/repo/open-spaces.json'
         registry.parent.mkdir(parents=True, exist_ok=True)
         registry.write_text(json.dumps(keys))
 
@@ -289,7 +289,7 @@ signal.pause()
             # Observer calls bypass wrappers and are excluded from command traces.
             if outside_tmux and socket == 'bench-outer':
                 socket = 'default'
-                args = tuple('pappardelle-repo' + arg[5:] if arg == 'bench' or arg.startswith('bench:') else arg for arg in args)
+                args = tuple('lasagna-repo' + arg[5:] if arg == 'bench' or arg.startswith('bench:') else arg for arg in args)
             return subprocess.run([real_tools['tmux'], '-L', socket, *args],
                                   cwd=repo, env=env, capture_output=True, text=True, timeout=5)
 
@@ -540,7 +540,7 @@ signal.pause()
                 deadline = time.monotonic() + timeout
                 while True:
                     records = [json.loads(line.partition('[startup] ')[2])
-                               for p in (home / '.pappardelle/logs').glob('*.log')
+                               for p in (home / '.lasagna/logs').glob('*.log')
                                for line in p.read_text().splitlines() if '[startup] {' in line]
                     finished = [r for r in records if r['pid'] == pid and r['stage'] == 'finished']
                     if finished:
@@ -553,7 +553,7 @@ signal.pause()
         except Exception as exc:
             error = str(exc).replace(tmp, '<fixture>')
         finally:
-            log = '\n'.join(p.read_text() for p in sorted((home / '.pappardelle/logs').glob('*.log')))
+            log = '\n'.join(p.read_text() for p in sorted((home / '.lasagna/logs').glob('*.log')))
             # Read traces before teardown so killed viewer wrappers stay incomplete.
             command_lines = trace_file.read_text().splitlines() if trace_file.exists() else []
             providers = [json.loads(line) for line in provider_log.read_text().splitlines()] if provider_log.exists() else []
@@ -607,7 +607,7 @@ signal.pause()
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--binary', type=Path, default=Path('dist/pappardelle'))
+    parser.add_argument('--binary', type=Path, default=Path('dist/lasagna'))
     parser.add_argument('--candidate', type=Path, help='Alternate baseline/candidate order within each case')
     parser.add_argument('--widths', type=int, nargs='+', default=[80, 100, 160])
     parser.add_argument('--workspaces', type=int, nargs='+', default=[0, 3])

@@ -91,7 +91,7 @@ function runInstallFunction(
 		{
 			encoding: 'utf8',
 			env: {
-				PAPPARDELLE_INSTALL_SOURCE_ONLY: '1',
+				LASAGNA_INSTALL_SOURCE_ONLY: '1',
 				PATH: env['PATH'] ?? toolsDir(),
 				...env,
 			},
@@ -145,7 +145,7 @@ test('find_bun prefers the bun the TUI passes over a stale PATH bun', () => {
 	const result = runInstallFunction('find_bun', {
 		HOME: home,
 		PATH: tools,
-		PAPPARDELLE_BUN: tuiBun,
+		LASAGNA_BUN: tuiBun,
 	});
 
 	expect(result.status, `stderr: ${result.stderr}`).toBe(0);
@@ -180,10 +180,10 @@ test('find_bun ignores the bunfig.toml preload of the directory it runs from', (
 			cwd: workspace,
 			encoding: 'utf8',
 			env: {
-				PAPPARDELLE_INSTALL_SOURCE_ONLY: '1',
+				LASAGNA_INSTALL_SOURCE_ONLY: '1',
 				HOME: testDir(),
 				PATH: toolsDir(),
-				PAPPARDELLE_BUN: process.execPath,
+				LASAGNA_BUN: process.execPath,
 			},
 		},
 	);
@@ -214,19 +214,19 @@ test('install_private_bun installs a verified bun that find_bun then uses', () =
 	const env = {
 		HOME: home,
 		PATH: tools,
-		PAPPARDELLE_BUN_DIST_URL: fakeBunDist(),
+		LASAGNA_BUN_DIST_URL: fakeBunDist(),
 	};
 
 	const installed = runInstallFunction('install_private_bun', env);
 	expect(installed.status, `stderr: ${installed.stderr}`).toBe(0);
-	const privateBun = path.join(home, '.pappardelle', 'bun', 'current', 'bun');
+	const privateBun = path.join(home, '.lasagna', 'bun', 'current', 'bun');
 	expect(installed.stdout.trim()).toBe(privateBun);
 	expect(installed.stderr.includes('your own Bun is not changed')).toBe(true);
 
 	const found = runInstallFunction('find_bun', env);
 	expect(found.status, `stderr: ${found.stderr}`).toBe(0);
 	expect(found.stdout.trim().endsWith('/bun')).toBe(true);
-	expect(found.stdout.trim().startsWith(path.join(home, '.pappardelle'))).toBe(
+	expect(found.stdout.trim().startsWith(path.join(home, '.lasagna'))).toBe(
 		true,
 	);
 });
@@ -237,16 +237,16 @@ test('install_private_bun refuses a checksum mismatch and keeps an earlier priva
 	const good = runInstallFunction('install_private_bun', {
 		HOME: home,
 		PATH: tools,
-		PAPPARDELLE_BUN_DIST_URL: fakeBunDist(),
+		LASAGNA_BUN_DIST_URL: fakeBunDist(),
 	});
 	expect(good.status, `stderr: ${good.stderr}`).toBe(0);
-	const current = path.join(home, '.pappardelle', 'bun', 'current');
+	const current = path.join(home, '.lasagna', 'bun', 'current');
 	const before = fs.readlinkSync(current);
 
 	const bad = runInstallFunction('install_private_bun', {
 		HOME: home,
 		PATH: tools,
-		PAPPARDELLE_BUN_DIST_URL: fakeBunDist({corruptChecksum: true}),
+		LASAGNA_BUN_DIST_URL: fakeBunDist({corruptChecksum: true}),
 	});
 
 	expect(bad.status).not.toBe(0);
@@ -259,14 +259,14 @@ test('install_private_bun removes the private bun it replaces', () => {
 	const env = {
 		HOME: home,
 		PATH: toolsDir(),
-		PAPPARDELLE_BUN_DIST_URL: fakeBunDist(),
+		LASAGNA_BUN_DIST_URL: fakeBunDist(),
 	};
 	for (let run = 0; run < 2; run++) {
 		const result = runInstallFunction('install_private_bun', env);
 		expect(result.status, `stderr: ${result.stderr}`).toBe(0);
 	}
 
-	const bunDir = path.join(home, '.pappardelle', 'bun');
+	const bunDir = path.join(home, '.lasagna', 'bun');
 	const releases = fs
 		.readdirSync(bunDir)
 		.filter(entry => entry.startsWith('release.'));
@@ -281,7 +281,7 @@ test('install_private_bun names the archive URL when its download fails', () => 
 	const result = runInstallFunction('install_private_bun', {
 		HOME: testDir(),
 		PATH: toolsDir(),
-		PAPPARDELLE_BUN_DIST_URL: dist,
+		LASAGNA_BUN_DIST_URL: dist,
 	});
 
 	expect(result.status).not.toBe(0);
@@ -328,9 +328,9 @@ function toolsWithFakeBun(): string {
 }
 
 function existingInstall(home: string): string {
-	const repoDir = path.join(home, '.pappardelle', 'repo');
+	const repoDir = path.join(home, '.lasagna', 'repo');
 	fs.mkdirSync(path.join(repoDir, 'dist'), {recursive: true});
-	fs.writeFileSync(path.join(repoDir, 'dist', 'pappardelle'), 'old build');
+	fs.writeFileSync(path.join(repoDir, 'dist', 'lasagna'), 'old build');
 	return repoDir;
 }
 
@@ -341,15 +341,15 @@ test('a failed build leaves the current install in place', () => {
 	const result = runInstallFunction('install_repo_atomically', {
 		HOME: home,
 		PATH: toolsWithFakeBun(),
-		PAPPARDELLE_REPO_URL: sourceRepo('exit 1\n'),
+		LASAGNA_REPO_URL: sourceRepo('exit 1\n'),
 	});
 
 	expect(result.status).not.toBe(0);
-	expect(
-		fs.readFileSync(path.join(repoDir, 'dist', 'pappardelle'), 'utf8'),
-	).toBe('old build');
+	expect(fs.readFileSync(path.join(repoDir, 'dist', 'lasagna'), 'utf8')).toBe(
+		'old build',
+	);
 	const leftovers = fs
-		.readdirSync(path.join(home, '.pappardelle'))
+		.readdirSync(path.join(home, '.lasagna'))
 		.filter(name => name.startsWith('repo.staging'));
 	expect(leftovers).toStrictEqual([]);
 });
@@ -361,16 +361,16 @@ test('a clone that does not typecheck is never built and leaves the current inst
 	const result = runInstallFunction('install_repo_atomically', {
 		HOME: home,
 		PATH: toolsWithFakeBun(),
-		PAPPARDELLE_REPO_URL: sourceRepo(
-			'mkdir -p dist && echo new build > dist/pappardelle\n',
+		LASAGNA_REPO_URL: sourceRepo(
+			'mkdir -p dist && echo new build > dist/lasagna\n',
 			'exit 2\n',
 		),
 	});
 
 	expect(result.status).not.toBe(0);
-	expect(
-		fs.readFileSync(path.join(repoDir, 'dist', 'pappardelle'), 'utf8'),
-	).toBe('old build');
+	expect(fs.readFileSync(path.join(repoDir, 'dist', 'lasagna'), 'utf8')).toBe(
+		'old build',
+	);
 });
 
 test('a clone failure leaves the current install in place', () => {
@@ -380,13 +380,13 @@ test('a clone failure leaves the current install in place', () => {
 	const result = runInstallFunction('install_repo_atomically', {
 		HOME: home,
 		PATH: toolsWithFakeBun(),
-		PAPPARDELLE_REPO_URL: path.join(testDir(), 'missing'),
+		LASAGNA_REPO_URL: path.join(testDir(), 'missing'),
 	});
 
 	expect(result.status).not.toBe(0);
-	expect(
-		fs.readFileSync(path.join(repoDir, 'dist', 'pappardelle'), 'utf8'),
-	).toBe('old build');
+	expect(fs.readFileSync(path.join(repoDir, 'dist', 'lasagna'), 'utf8')).toBe(
+		'old build',
+	);
 });
 
 test('a successful build replaces the install and keeps the old one as a rollback', () => {
@@ -396,18 +396,18 @@ test('a successful build replaces the install and keeps the old one as a rollbac
 	const result = runInstallFunction('install_repo_atomically', {
 		HOME: home,
 		PATH: toolsWithFakeBun(),
-		PAPPARDELLE_REPO_URL: sourceRepo(
-			'mkdir -p dist && echo new build > dist/pappardelle\n',
+		LASAGNA_REPO_URL: sourceRepo(
+			'mkdir -p dist && echo new build > dist/lasagna\n',
 		),
 	});
 
 	expect(result.status, `stderr: ${result.stderr}`).toBe(0);
 	expect(
-		fs.readFileSync(path.join(repoDir, 'dist', 'pappardelle'), 'utf8').trim(),
+		fs.readFileSync(path.join(repoDir, 'dist', 'lasagna'), 'utf8').trim(),
 	).toBe('new build');
 	expect(
 		fs.readFileSync(
-			path.join(`${repoDir}.previous`, 'dist', 'pappardelle'),
+			path.join(`${repoDir}.previous`, 'dist', 'lasagna'),
 			'utf8',
 		),
 	).toBe('old build');
@@ -418,7 +418,7 @@ test('a successful build replaces the install and keeps the old one as a rollbac
 // ============================================================================
 
 const buildCheckout = (marker: string) =>
-	`mkdir -p dist && printf '#!/bin/bash\\necho ${marker}\\n' > dist/pappardelle && chmod +x dist/pappardelle\n`;
+	`mkdir -p dist && printf '#!/bin/bash\\necho ${marker}\\n' > dist/lasagna && chmod +x dist/lasagna\n`;
 
 // A built pappardelle checkout, committed, with what install.sh copies and a
 // node_modules it must leave behind.
@@ -427,7 +427,7 @@ function builtCheckout(marker = 'first build'): string {
 	for (const file of [
 		'package.json',
 		'scripts/idow',
-		'plugins/pappardelle/hooks/update-status.py',
+		'plugins/lasagna/hooks/update-status.py',
 		'.claude-plugin/marketplace.json',
 		'node_modules/dep/index.js',
 	]) {
@@ -473,7 +473,7 @@ function runWithRepo(
 
 const installedBinary = (home: string) =>
 	fs.readFileSync(
-		path.join(home, '.pappardelle', 'local', 'dist', 'pappardelle'),
+		path.join(home, '.lasagna', 'local', 'dist', 'lasagna'),
 		'utf8',
 	);
 
@@ -485,7 +485,7 @@ test('install_local_snapshot installs a copy, so a later build in the checkout d
 	expect(result.status, `stderr: ${result.stderr}`).toBe(0);
 	spawnSync('bash', ['-c', buildCheckout('second build')], {cwd: repo});
 
-	const local = path.join(home, '.pappardelle', 'local');
+	const local = path.join(home, '.lasagna', 'local');
 	expect(installedBinary(home).includes('first build')).toBe(true);
 	expect(fs.readdirSync(local).sort()).toStrictEqual([
 		'.claude-plugin',
@@ -513,14 +513,11 @@ test('install_local_snapshot keeps the replaced snapshot and marks a build with 
 		expect(result.status, `stderr: ${result.stderr}`).toBe(0);
 	}
 
-	const local = path.join(home, '.pappardelle', 'local');
+	const local = path.join(home, '.lasagna', 'local');
 	expect(installedBinary(home).includes('second build')).toBe(true);
 	expect(
 		fs
-			.readFileSync(
-				path.join(`${local}.previous`, 'dist', 'pappardelle'),
-				'utf8',
-			)
+			.readFileSync(path.join(`${local}.previous`, 'dist', 'lasagna'), 'utf8')
 			.includes('first build'),
 	).toBe(true);
 	expect(fs.readFileSync(path.join(local, 'commit-sha'), 'utf8').trim()).toBe(
@@ -540,15 +537,13 @@ test('install_local_clone links the snapshot of a checkout', () => {
 
 	expect(result.status, `stderr: ${result.stderr}`).toBe(0);
 	expect(
-		result.stdout.includes(
-			`linking ${path.join(home, '.pappardelle', 'local')}`,
-		),
+		result.stdout.includes(`linking ${path.join(home, '.lasagna', 'local')}`),
 	).toBe(true);
 });
 
 test('install_local_clone runs the release clone in place', () => {
 	const home = testDir();
-	const repo = path.join(home, '.pappardelle', 'repo');
+	const repo = path.join(home, '.lasagna', 'repo');
 	fs.mkdirSync(path.dirname(repo), {recursive: true});
 	fs.renameSync(builtCheckout(), repo);
 
@@ -563,7 +558,7 @@ test('install_local_clone runs the release clone in place', () => {
 		result.stdout.includes(`linking ${repo}
 `),
 	).toBe(true);
-	expect(fs.existsSync(path.join(home, '.pappardelle', 'local'))).toBe(false);
+	expect(fs.existsSync(path.join(home, '.lasagna', 'local'))).toBe(false);
 });
 
 test('install_local_clone stops before installing a checkout that does not typecheck', () => {
@@ -577,7 +572,7 @@ test('install_local_clone stops before installing a checkout that does not typec
 	});
 
 	expect(result.status).not.toBe(0);
-	expect(fs.existsSync(path.join(home, '.pappardelle', 'local'))).toBe(false);
+	expect(fs.existsSync(path.join(home, '.lasagna', 'local'))).toBe(false);
 });
 
 // ============================================================================
@@ -591,7 +586,7 @@ function runUpdateScript(installCommand: string, waitOnFailure?: boolean) {
 		['-c', updateShellScript({installCommand, waitOnFailure})],
 		{encoding: 'utf8', env: {...process.env, HOME: home}, stdio: 'pipe'},
 	);
-	const log = path.join(home, '.pappardelle', 'logs', 'update.log');
+	const log = path.join(home, '.lasagna', 'logs', 'update.log');
 	return {result, log: fs.existsSync(log) ? fs.readFileSync(log, 'utf8') : ''};
 }
 
@@ -599,7 +594,7 @@ test('a failed update keeps its exit status, explains it, and writes a log', () 
 	const {result, log} = runUpdateScript('echo installer ran; exit 3');
 
 	expect(result.status).toBe(3);
-	expect(result.stdout.includes('The Pappardelle update failed (exit 3)')).toBe(
+	expect(result.stdout.includes('The Lasagna update failed (exit 3)')).toBe(
 		true,
 	);
 	expect(result.stdout.includes('Press any key to close')).toBe(true);
@@ -610,7 +605,7 @@ test('a failed update run from the shell reports the log without waiting for a k
 	const {result, log} = runUpdateScript('echo installer ran; exit 3', false);
 
 	expect(result.status).toBe(3);
-	expect(result.stdout.includes('The Pappardelle update failed (exit 3)')).toBe(
+	expect(result.stdout.includes('The Lasagna update failed (exit 3)')).toBe(
 		true,
 	);
 	expect(result.stdout.includes('Press any key')).toBe(false);
@@ -628,7 +623,7 @@ test('a successful update exits 0 without a failure message', () => {
 test('the default update script runs the published installer', () => {
 	expect(
 		updateShellScript().includes(
-			'https://raw.githubusercontent.com/chardigio/pappardelle/main/install.sh',
+			'https://raw.githubusercontent.com/vaibhavkaul/lasagna/main/install.sh',
 		),
 	).toBe(true);
 });
@@ -641,7 +636,7 @@ function pappardelleCheckout(): string {
 	const dir = testDir();
 	fs.writeFileSync(
 		path.join(dir, 'package.json'),
-		JSON.stringify({name: 'pappardelle'}),
+		JSON.stringify({name: 'lasagna'}),
 	);
 	fs.writeFileSync(path.join(dir, 'install.sh'), '');
 	return dir;
@@ -677,16 +672,16 @@ test('install_skill_scripts replaces the installed scripts with the checkout one
 	const repo = testDir();
 	const shipped = path.join(
 		repo,
-		'plugins/pappardelle/skills/init-pappardelle/scripts',
+		'plugins/lasagna/skills/init-lasagna/scripts',
 	);
 	fs.mkdirSync(shipped, {recursive: true});
 	fs.writeFileSync(path.join(shipped, 'detect.sh'), 'echo new\n');
-	fs.mkdirSync(path.join(repo, 'plugins/pappardelle/skills/sous-chef'));
-	const installed = path.join(home, '.pappardelle', 'scripts');
+	fs.mkdirSync(path.join(repo, 'plugins/lasagna/skills/sous-chef'));
+	const installed = path.join(home, '.lasagna', 'scripts');
 	for (const file of [
 		'sous-chef/gather-spaces.sh',
-		'init-pappardelle/detect.sh',
-		'init-pappardelle/retired.sh',
+		'init-lasagna/detect.sh',
+		'init-lasagna/retired.sh',
 	]) {
 		fs.mkdirSync(path.dirname(path.join(installed, file)), {recursive: true});
 		fs.writeFileSync(path.join(installed, file), 'echo old\n');
@@ -698,11 +693,11 @@ test('install_skill_scripts replaces the installed scripts with the checkout one
 	);
 
 	expect(result.status, `stderr: ${result.stderr}`).toBe(0);
-	expect(fs.readdirSync(installed)).toStrictEqual(['init-pappardelle']);
-	expect(
-		fs.readdirSync(path.join(installed, 'init-pappardelle')),
-	).toStrictEqual(['detect.sh']);
-	const script = path.join(installed, 'init-pappardelle', 'detect.sh');
+	expect(fs.readdirSync(installed)).toStrictEqual(['init-lasagna']);
+	expect(fs.readdirSync(path.join(installed, 'init-lasagna'))).toStrictEqual([
+		'detect.sh',
+	]);
+	const script = path.join(installed, 'init-lasagna', 'detect.sh');
 	expect(fs.readFileSync(script, 'utf8')).toBe('echo new\n');
 	expect(() => {
 		fs.accessSync(script, fs.constants.X_OK);

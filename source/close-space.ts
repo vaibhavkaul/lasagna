@@ -1,5 +1,5 @@
 // The hook half of closing a space, shared by the TUI's `x`/`K`/auto-remove
-// path and `pappardelle close`, so both run the same pre_workspace_deinit
+// path and `lasagna close`, so both run the same pre_workspace_deinit
 // hooks for the same space.
 
 import {
@@ -45,7 +45,7 @@ export function resolveDeinitCommands(
 }
 
 /**
- * `pappardelle close` unregisters a space from outside the TUI, whose row stays
+ * `lasagna close` unregisters a space from outside the TUI, whose row stays
  * up until the next refresh. Attaching to that row would recreate the sessions
  * the close just ended. An unreadable registry (null) attaches anyway, so a
  * read failure can't blank the viewer panes.

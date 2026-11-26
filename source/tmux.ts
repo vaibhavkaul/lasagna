@@ -55,7 +55,7 @@ function controlClient(server: string[]): TmuxControlClient | undefined {
 		} else {
 			// The rail's own session is there to join on its server. Any other
 			// server gets a session that lasts exactly as long as this client.
-			const session = `pappardelle-control-${process.pid}`;
+			const session = `lasagna-control-${process.pid}`;
 			client = new TmuxControlClient(
 				server.length === 0
 					? ['-C', 'attach-session', '-f', CONTROL_FLAGS, '-t', pane!]
@@ -322,13 +322,13 @@ export function spaceSessionNames(issueKey: string): SpaceSessionNames | null {
 }
 
 // Dedicated tmux socket for per-issue claude/companion sessions. The root
-// `pappardelle-{repo}` session and its layout panes stay on the default
+// `lasagna-{repo}` session and its layout panes stay on the default
 // socket; everything the viewer panes attach to lives here. Routing inner
 // sessions onto a distinct socket lets the nested attach succeed without
 // `TMUX=`, which in turn lets `$TMUX` propagate correctly to subprocesses
-// like Claude Code's Agent Teams feature. Must match PAPPARDELLE_TMUX_SOCKET
+// like Claude Code's Agent Teams feature. Must match LASAGNA_TMUX_SOCKET
 // in _dev/scripts/dow/*.sh — the two sides have to agree.
-export const INNER_SOCKET = 'pappardelle_inner';
+export const INNER_SOCKET = 'lasagna_inner';
 
 /**
  * Prefix `['-L', INNER_SOCKET, ...]` onto a tmux argv. Every inner-session
@@ -364,7 +364,7 @@ let railWidthOverride: number | null = null;
 let companionWidthOverride: number | null = null;
 
 /**
- * The selected space's own companion width, set by `pappardelle companion
+ * The selected space's own companion width, set by `lasagna companion
  * width`, or null when the space has none. It beats the drag override and the
  * config. A hand-drag while it applies changes this width, and is handed to
  * `onSpaceCompanionDrag` to store, instead of becoming the session-wide drag
@@ -453,7 +453,7 @@ export function exactSessionTarget(sessionName: string): string {
 
 /**
  * Check if a tmux session exists on the default socket. Used for the outer
- * `pappardelle-{repo}` session. Do not call for per-issue claude/companion
+ * `lasagna-{repo}` session. Do not call for per-issue claude/companion
  * sessions — those live on the inner socket; use `innerSessionExists` instead.
  *
  * The name is matched exactly: tmux otherwise falls back to a prefix match,
@@ -470,7 +470,7 @@ export function sessionExists(sessionName: string): boolean {
 
 /**
  * Check if a per-issue tmux session exists on the inner socket
- * (`tmux -L pappardelle_inner`).
+ * (`tmux -L lasagna_inner`).
  */
 export function innerSessionExists(sessionName: string): boolean {
 	try {
@@ -785,6 +785,13 @@ function windowOptionArgs(
 // window shares, so it only acts where Pappardelle's window says it may: the
 // window must name this exact key, and it carries the command for its own repo.
 // Anywhere else, the key goes on to the pane's program.
+//
+// These two options keep Pappardelle's names on purpose. A root-table key has
+// one binding per server, so Lasagna and an installed Pappardelle with the same
+// key overwrite each other's. Reading the same window options, the two bindings
+// are the same line, and whichever was bound last still runs each window's own
+// command. Under Lasagna's own names the last one bound would turn the key off
+// in the other tool's window.
 const SOUS_CHEF_KEY_OPTION = '@pappardelle-sous-chef-key';
 const SOUS_CHEF_COMMAND_OPTION = '@pappardelle-sous-chef';
 
@@ -993,7 +1000,7 @@ async function innerClientTtys(run: AsyncTmuxRunner): Promise<Set<string>> {
 /**
  * Switch a tmux client to a different session.
  * The client lives on the inner socket (it was created by our `tmux -L
- * pappardelle_inner attach …`), and switch-client can only move a client
+ * lasagna_inner attach …`), and switch-client can only move a client
  * between sessions on the *same* socket — which is fine because every
  * per-issue session also lives on the inner socket.
  */
@@ -1032,7 +1039,7 @@ export async function panePid(paneId: string): Promise<string | undefined> {
 
 /**
  * Kill a tmux session by name on the default socket.
- * Used for the outer `pappardelle-{repo}` session on Pappardelle quit.
+ * Used for the outer `lasagna-{repo}` session on Pappardelle quit.
  */
 export function killSession(sessionName: string): boolean {
 	if (!sessionExists(sessionName)) {
@@ -1141,8 +1148,8 @@ function spawnTmuxRunner(
 
 export const defaultOuterTmuxRunner = spawnTmuxRunner(args => [...args]);
 
-// Outer TUI sessions are named `pappardelle-<repo>`.
-export const OUTER_SESSION_PREFIX = 'pappardelle-';
+// Outer TUI sessions are named `lasagna-<repo>`.
+export const OUTER_SESSION_PREFIX = 'lasagna-';
 
 export function outerSessionName(repoName: string): string {
 	return `${OUTER_SESSION_PREFIX}${tmuxSessionRepo(repoName)}`;
@@ -1187,7 +1194,7 @@ export function newOuterSessionArgs(
 }
 
 // Bare tmux talks to whichever server $TMUX names. From a claude pane that is
-// the inner `pappardelle_inner` server, which holds no TUI sessions, so calls
+// the inner `lasagna_inner` server, which holds no TUI sessions, so calls
 // that must reach the default server drop TMUX (TMUX_TMPDIR still applies).
 export function defaultServerTmuxEnv(
 	env: NodeJS.ProcessEnv,
@@ -1262,7 +1269,7 @@ function currentSession(
  * sessions between servers), so we drop them and let idow/Pappardelle
  * recreate them on the inner socket.
  *
- * Intentionally targets the default socket (no `-L pappardelle_inner`) and
+ * Intentionally targets the default socket (no `-L lasagna_inner`) and
  * uses bare `kill-session` — this is the one inner-session-name operation
  * that must not route through `innerKillSession`. See STA-860.
  *
@@ -1316,7 +1323,7 @@ export function cleanupOrphanedOuterSessions(
 
 /**
  * Inner-socket runner: routes through `innerTmuxArgs` so calls hit
- * `tmux -L pappardelle_inner`. Same shape as `OuterTmuxRunner` so
+ * `tmux -L lasagna_inner`. Same shape as `OuterTmuxRunner` so
  * `cleanupOrphanedInnerSessions` can share the injectable-runner test
  * harness without duplicating the fake-runner plumbing.
  */
@@ -1359,7 +1366,7 @@ export const SYNC_TERMINAL_FEATURE = '*:Sync';
  * terminal supports Sync, and it decides that from the client's TERM. Our panes
  * routinely run clients whose TERM is `tmux-256color`, which advertises no
  * Sync. That is the normal shape here: the claude and companion panes each host
- * a nested `tmux -L pappardelle_inner attach`, so the client is attached from
+ * a nested `tmux -L lasagna_inner attach`, so the client is attached from
  * inside another tmux. tmux then streams every repaint out unbatched,
  * so the outer terminal can present a half-drawn frame. That is the flicker seen
  * while typing, worst when the zoomed list pane repaints full-screen per
@@ -1546,7 +1553,7 @@ export function cleanupOrphanedInnerSessions(
 }
 
 /**
- * The space a session was started for, from the PAPPARDELLE_SPACE its
+ * The space a session was started for, from the LASAGNA_SPACE its
  * creator set on it, or null when it has none. An orphan's space may have no
  * stored identity left to name it.
  */
@@ -1555,10 +1562,10 @@ function sessionSpace(name: string, runner: OuterTmuxRunner): string | null {
 		'show-environment',
 		'-t',
 		exactSessionTarget(name),
-		'PAPPARDELLE_SPACE',
+		'LASAGNA_SPACE',
 	]);
 	if (result.error || result.status !== 0) return null;
-	const match = /^PAPPARDELLE_SPACE=(.+)$/m.exec(result.stdout);
+	const match = /^LASAGNA_SPACE=(.+)$/m.exec(result.stdout);
 	return match?.[1]?.trim() || null;
 }
 
@@ -1686,7 +1693,7 @@ export function sharedSessionListingRunner(
 /**
  * Rename live legacy `claude-{repo}-{key}` sessions on the inner socket to
  * their `agent-{repo}-{key}` names. cli.tsx runs it when the TUI starts,
- * before the orphan reap, and before `pappardelle send`, which can run before
+ * before the orphan reap, and before `lasagna send`, which can run before
  * the TUI restarts. start-agent-session.sh does the same for the one space
  * idow opens.
  *
@@ -1724,7 +1731,7 @@ export function migrateLegacyAgentSessions(
 			if (existing.has(target)) {
 				runner(['kill-session', '-t', exactSessionTarget(name)]);
 				log.warn(
-					`Killed legacy session ${name}: ${target} already exists and is the one pappardelle attaches`,
+					`Killed legacy session ${name}: ${target} already exists and is the one lasagna attaches`,
 				);
 				continue;
 			}
@@ -1855,7 +1862,7 @@ async function prepareComposer(
  */
 async function pasteText(pane: AgentPane, text: string): Promise<boolean> {
 	const {runner, target} = pane;
-	const buffer = `pappardelle-send-${process.pid}`;
+	const buffer = `lasagna-send-${process.pid}`;
 	if (
 		!(await runSteps(pane, [
 			{args: ['load-buffer', '-b', buffer, '-'], input: text},
@@ -2016,7 +2023,7 @@ export type SendToSpaceAgentResult =
 
 /**
  * Why the agent's screen stops a send. A permission prompt or question takes
- * the keys as an answer, which must go through `pappardelle answer` and its
+ * the keys as an answer, which must go through `lasagna answer` and its
  * policy. Text typed into the agent's input box would be cleared by the send.
  */
 function sendBlocker(
@@ -2030,7 +2037,7 @@ function sendBlocker(
 
 /**
  * Submit `text` as a prompt to the agent session of a space.
- * Backs `pappardelle send`, which the sous-chef skill relays through.
+ * Backs `lasagna send`, which the sous-chef skill relays through.
  */
 export async function sendToSpaceAgent(
 	issueKey: string,
@@ -2082,7 +2089,7 @@ export function sendKeysToSpaceAgent(
 	keys: readonly string[],
 	options: {
 		runner?: OuterTmuxRunner;
-		/** Set by `pappardelle answer`, which has already checked the prompt. */
+		/** Set by `lasagna answer`, which has already checked the prompt. */
 		answering?: boolean;
 		/** Type each entry as text rather than as a key name such as Enter. */
 		literal?: boolean;
@@ -2399,7 +2406,7 @@ export async function setupPappardellLayout(): Promise<PaneLayout | null> {
 				: `Horizontal layout: list=${layout.listWidth}, agent=${layout.agentWidth}, companion=${layout.companionWidth}`,
 		);
 		log.info(
-			`Set up pappardelle layout: list=${listPaneId}, agent=${agentViewerPaneId}, companion=${
+			`Set up lasagna layout: list=${listPaneId}, agent=${agentViewerPaneId}, companion=${
 				companionViewerPaneId || '(none)'
 			}`,
 		);
@@ -2424,7 +2431,7 @@ export async function setupPappardellLayout(): Promise<PaneLayout | null> {
 		return {listPaneId, agentViewerPaneId, companionViewerPaneId};
 	} catch (err) {
 		log.error(
-			'Failed to set up pappardelle layout',
+			'Failed to set up lasagna layout',
 			err instanceof Error ? err : undefined,
 		);
 		done?.('failed');
@@ -3990,7 +3997,7 @@ export function pretrustDirectoryForClaude(
 ): void {
 	const resolvedConfigPath =
 		configPath ??
-		process.env['PAPPARDELLE_CLAUDE_CONFIG_PATH'] ??
+		process.env['LASAGNA_CLAUDE_CONFIG_PATH'] ??
 		join(homedir(), '.claude.json');
 	try {
 		let config: Record<string, unknown> = {};
@@ -4043,7 +4050,7 @@ function spaceSessionEnvArgs(
 	return buildSessionEnvArgs(issueKey, repoName, mainRepoRoot);
 }
 
-const STARTUP_GATE_OPTION = '@pappardelle_startup_gate';
+const STARTUP_GATE_OPTION = '@lasagna_startup_gate';
 
 // The inner server loads the user's tmux.conf. With destroy-unattached on,
 // tmux destroys every session no client is viewing, which is every background
@@ -4240,7 +4247,7 @@ export async function ensureAgentSession(
 	}
 
 	// Native agents report at startup, before an ungated monitor could attach.
-	const gate = `pappardelle-status-${randomUUID()}`;
+	const gate = `lasagna-status-${randomUUID()}`;
 	const launchArgs = [
 		'/bin/sh',
 		'-c',
@@ -4452,7 +4459,7 @@ export async function ensureCompanionSession(
 			),
 		);
 
-		// `pappardelle companion` addresses panes by name; the first one is main.
+		// `lasagna companion` addresses panes by name; the first one is main.
 		// It names main itself when this fails, so the failure doesn't matter.
 		await run(
 			innerTmuxArgs([

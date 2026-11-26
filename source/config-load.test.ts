@@ -125,7 +125,7 @@ test('a YAML error fits on one line without its code excerpt', () => {
 });
 
 const layerFiles = {
-	'~/.pappardelle/.pappardelle.yml': 'home/.pappardelle.yml',
+	'~/.lasagna/.pappardelle.yml': 'home/.pappardelle.yml',
 	'.pappardelle.yml': 'project/.pappardelle.yml',
 	'.pappardelle.local.yml': 'project/.pappardelle.local.yml',
 };

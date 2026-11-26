@@ -13,7 +13,7 @@ import {openStateDb, stateDbPath} from './state-db.ts';
 
 const run = promisify(execFile);
 const HOOK_MODULE = fileURLToPath(
-	new URL('../plugins/pappardelle/hooks/agent_session.py', import.meta.url),
+	new URL('../plugins/lasagna/hooks/agent_session.py', import.meta.url),
 );
 
 const STARTED = 'Mon Nov  2 10:00:00 2026';
@@ -231,7 +231,7 @@ test('sqlite: a session recorded by the hook and a profile renamed by another pr
 	});
 	const state = testState({
 		sqlite: true,
-		stateDir: path.join(home, '.pappardelle'),
+		stateDir: path.join(home, '.lasagna'),
 	});
 	const f = fixture(state);
 	const dbPath = stateDbPath(state.stateDir);
@@ -245,7 +245,7 @@ test('sqlite: a session recorded by the hook and a profile renamed by another pr
 				repo: 'repo',
 				key,
 				worktreePath: path.join(home, key),
-				socket: 'pappardelle_inner',
+				socket: 'lasagna_inner',
 			}),
 		);
 		await state.daos.spaceState.write(key, {
@@ -273,16 +273,16 @@ def patient_state_db():
     return state_db
 agent_session._load_state_db = patient_state_db
 table = {
-    100: (99, "python3 record-agent-session.py"),
-    99: (98, "sh -c python3 record-agent-session.py"),
+    100: (99, "python3 record-lasagna-session.py"),
+    99: (98, "sh -c python3 record-lasagna-session.py"),
     98: (97, "codex --yolo"),
     97: (96, "zsh -ic codex --yolo"),
-    96: (1, "tmux -L pappardelle_inner new-session"),
+    96: (1, "tmux -L lasagna_inner new-session"),
 }
 for key in sys.argv[2:]:
     assert agent_session.record_agent_session(
         {"session_id": key + "-codex", "hook_event_name": "SessionStart"},
-        False, {"PAPPARDELLE_REPO": "repo", "PAPPARDELLE_SPACE": key}, 100, lambda: table,
+        False, {"LASAGNA_REPO": "repo", "LASAGNA_SPACE": key}, 100, lambda: table,
         pane_session=lambda _env: agent_session.PaneSession("agent-repo-" + key, True),
         started=lambda _pid: ${JSON.stringify(STARTED)},
     )
@@ -299,8 +299,8 @@ for key in sys.argv[2:]:
 				// to /tmp instead of the run tmpdir.
 				TMPDIR: os.tmpdir(),
 				HOME: home,
-				PAPPARDELLE_SQLITE_STATE: '1',
-				PAPPARDELLE_STATE_DB: dbPath,
+				LASAGNA_SQLITE_STATE: '1',
+				LASAGNA_STATE_DB: dbPath,
 			},
 		},
 	);

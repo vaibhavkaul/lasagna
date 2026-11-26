@@ -290,7 +290,7 @@ IDOW_CALLS=$(grep -c 'resolve-agent-config\.sh"' "$SCRIPT_DIR/idow" || true)
 IDOW_HOME_CALLS=$(grep 'resolve-agent-config\.sh"' "$SCRIPT_DIR/idow" | grep -c -- '--home-config' || true)
 assert_eq "every idow resolver call passes --home-config" "$IDOW_CALLS" "$IDOW_HOME_CALLS"
 assert_eq "idow's home path matches getDefaultHomeConfigDir()" \
-    'HOME_CONFIG_PATH="$HOME/.pappardelle/.pappardelle.yml"' \
+    'HOME_CONFIG_PATH="$HOME/.lasagna/.pappardelle.yml"' \
     "$(grep -o 'HOME_CONFIG_PATH="\$HOME/[^"]*"' "$SCRIPT_DIR/idow" | head -1)"
 
 # ==========================================================================
@@ -454,7 +454,7 @@ cleanup; unset TMPDIR_ROOT
 
 echo -e "\n${BOLD}Test: open-iterm-agent.sh launch flags${RESET}"
 iterm_flags() {
-    PAPPARDELLE_TMUX_SOCKET=pappardelle_inner "$SCRIPT_DIR/open-iterm-agent.sh" --worktree /tmp --issue-key STA-1 \
+    LASAGNA_TMUX_SOCKET=lasagna_inner "$SCRIPT_DIR/open-iterm-agent.sh" --worktree /tmp --issue-key STA-1 \
         --repo-name testrepo --agent-session agent-testrepo-STA-1 --companion-session companion-testrepo-STA-1 \
         --prompt "" "$@" --print-launch-flags 2>/dev/null
 }
@@ -480,7 +480,7 @@ assert_eq "flag order: dsp → args → launch flags" \
 
 echo -e "\n${BOLD}Test: open-iterm-agent.sh assembled command line${RESET}"
 iterm_command() {
-    PAPPARDELLE_TMUX_SOCKET=pappardelle_inner "$SCRIPT_DIR/open-iterm-agent.sh" --worktree /tmp/wt --issue-key QA-1 \
+    LASAGNA_TMUX_SOCKET=lasagna_inner "$SCRIPT_DIR/open-iterm-agent.sh" --worktree /tmp/wt --issue-key QA-1 \
         --repo-name testrepo --agent-session agent-testrepo-QA-1 --companion-session companion-testrepo-QA-1 \
         --prompt "" "$@" --print-command 2>/dev/null | head -1
 }

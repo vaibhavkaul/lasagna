@@ -260,8 +260,8 @@ test('a connection that checkpoints outside its writes never checkpoints in a co
 });
 
 test('the status socket is beside the database, unless the variable or a state directory names another place', () => {
-	const moved = {PAPPARDELLE_STATE_DB: '/moved/state.db'};
-	const named = {...moved, PAPPARDELLE_STATUS_SOCKET: '/named/daemon.sock'};
+	const moved = {LASAGNA_STATE_DB: '/moved/state.db'};
+	const named = {...moved, LASAGNA_STATUS_SOCKET: '/named/daemon.sock'};
 
 	expect(statusSocketPath(undefined, moved)).toBe('/moved/status-1.sock');
 	expect(statusSocketPath(undefined, named)).toBe('/named/daemon.sock');

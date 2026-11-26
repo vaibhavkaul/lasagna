@@ -1,4 +1,4 @@
-// Tests for `pappardelle send` (pappardelle-tqq): resolving a space's agent
+// Tests for `lasagna send` (pappardelle-tqq): resolving a space's agent
 // session on the inner socket and submitting a prompt to it.
 import {mkdtempSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -125,7 +125,7 @@ test('sendToSpaceAgent targets the encoded session of a dotted key, leaves copy-
 		sessions: ['agent-r-agc_17'],
 	});
 
-	const buffer = `pappardelle-send-${process.pid}`;
+	const buffer = `lasagna-send-${process.pid}`;
 
 	expect(await sendToSpaceAgent('agc.17', text, {runner, lockDir})).toBe(
 		'sent',
@@ -475,11 +475,11 @@ test('sendToSpaceAgent deletes the loaded buffer and never presses Enter when pa
 			'-d',
 			'-r',
 			'-b',
-			`pappardelle-send-${process.pid}`,
+			`lasagna-send-${process.pid}`,
 			'-t',
 			'=agent-r-STA-1:',
 		],
-		['delete-buffer', '-b', `pappardelle-send-${process.pid}`],
+		['delete-buffer', '-b', `lasagna-send-${process.pid}`],
 	]);
 });
 
@@ -645,7 +645,7 @@ if (sqliteRun) {
 			key: 'HAND-1',
 			worktreePath: '/w/HAND-1',
 			tmux: {
-				socket: 'pappardelle_inner',
+				socket: 'lasagna_inner',
 				agentSession: 'hand-named-agent',
 				companionSession: 'hand-named-companion',
 			},

@@ -3,8 +3,10 @@
 # Test: install.sh installs a snapshot whose shim runs the compiled executable
 #
 # What this exercises, against the REAL install.sh (sandboxed HOME):
+# - only `lasagna` is linked into ~/.local/bin, and nothing lands in
+#   ~/.pappardelle: an installed Pappardelle keeps its command, idow and state
 # - the shim, idow and the installed skill scripts run from a snapshot in
-#   ~/.pappardelle/local, so a later build in this checkout doesn't go live
+#   ~/.lasagna/local, so a later build in this checkout doesn't go live
 #   (pappardelle-c3k5)
 # - the snapshot's dist holds the executable and its source map, nothing else
 # - the shim runs the executable with no Bun, nor anything else, on PATH
@@ -66,18 +68,24 @@ if ! HOME="$SANDBOX_HOME" bash "$REPO_DIR/install.sh" > "$INSTALL_LOG" 2>&1; the
     exit 1
 fi
 
-SHIM="$SANDBOX_HOME/.local/bin/pappardelle"
-SNAPSHOT="$SANDBOX_HOME/.pappardelle/local"
+SHIM="$SANDBOX_HOME/.local/bin/lasagna"
+SNAPSHOT="$SANDBOX_HOME/.lasagna/local"
 
 echo ""
 echo -e "${BOLD}Snapshot install${RESET}"
 
 assert_eq "shim was created" "yes" "$([[ -f "$SHIM" && -x "$SHIM" ]] && echo yes || echo no)"
-assert_eq "shim runs the snapshot's executable" "EXECUTABLE=\"$SNAPSHOT/dist/pappardelle\"" \
+assert_eq "shim runs the snapshot's executable" "EXECUTABLE=\"$SNAPSHOT/dist/lasagna\"" \
     "$(grep '^EXECUTABLE=' "$SHIM")"
-assert_eq "idow links into the snapshot" "$SNAPSHOT/scripts/idow" \
-    "$(readlink "$SANDBOX_HOME/.local/bin/idow")"
-assert_eq "snapshot's dist holds the executable and its source map" "pappardelle pappardelle.map" \
+assert_eq "idow stays inside the snapshot" "yes" \
+    "$([[ -x "$SNAPSHOT/scripts/idow" ]] && echo yes || echo no)"
+# ~/.local/bin/pappardelle and ~/.local/bin/idow belong to a Pappardelle
+# install, which Lasagna runs beside.
+assert_eq "only lasagna is linked into ~/.local/bin" "lasagna" \
+    "$(cd "$SANDBOX_HOME/.local/bin" && echo *)"
+assert_eq "nothing is installed under ~/.pappardelle" "no" \
+    "$([[ -e "$SANDBOX_HOME/.pappardelle" ]] && echo yes || echo no)"
+assert_eq "snapshot's dist holds the executable and its source map" "lasagna lasagna.map" \
     "$(cd "$SNAPSHOT/dist" && echo *)"
 assert_eq "install links nothing to this checkout" "" \
     "$(grep -rlF "$REPO_DIR" "$SANDBOX_HOME" --exclude-dir=logs --exclude=commit-sha 2>/dev/null || true)"

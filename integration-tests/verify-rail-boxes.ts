@@ -4,7 +4,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
-// The App merges ~/.pappardelle/.pappardelle.yml, so a developer's global
+// The App merges ~/.lasagna/.pappardelle.yml, so a developer's global
 // config can open dialogs over the rail. Bun fixes homedir() at startup, so the
 // check runs in its own process under a throwaway HOME.
 const home = mkdtempSync(path.join(tmpdir(), 'pappa-app-home-'));

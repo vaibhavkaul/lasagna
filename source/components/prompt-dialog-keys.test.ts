@@ -24,7 +24,7 @@ const sandbox = realpathSync(
 );
 const repository = path.join(sandbox, 'repo');
 const cwd = process.cwd();
-const {HOME: home, PAPPARDELLE_MAIN_REPO_ROOT: mainRepoRoot} = process.env;
+const {HOME: home, LASAGNA_MAIN_REPO_ROOT: mainRepoRoot} = process.env;
 
 beforeAll(async () => {
 	spawnSync('git', ['init', '-q', repository]);
@@ -41,7 +41,7 @@ beforeAll(async () => {
 	mkdirSync(path.join(sandbox, 'home'));
 	process.chdir(repository);
 	process.env['HOME'] = path.join(sandbox, 'home');
-	delete process.env['PAPPARDELLE_MAIN_REPO_ROOT'];
+	delete process.env['LASAGNA_MAIN_REPO_ROOT'];
 	// Loaded ahead so the dialog's first frame already offers the skills.
 	await skillSnapshot.refresh(skillRoots()!);
 });
@@ -50,7 +50,7 @@ afterAll(() => {
 	process.chdir(cwd);
 	process.env['HOME'] = home;
 	if (mainRepoRoot !== undefined)
-		process.env['PAPPARDELLE_MAIN_REPO_ROOT'] = mainRepoRoot;
+		process.env['LASAGNA_MAIN_REPO_ROOT'] = mainRepoRoot;
 	rmSync(sandbox, {recursive: true, force: true});
 });
 

@@ -25,7 +25,7 @@ test("--help on close, restart or update prints that command's help and runs not
 		const gate = subcommandGate(argv);
 		expect(gate.action).toBe('help');
 		if (gate.action === 'help') {
-			expect(gate.text.includes(`$ pappardelle ${argv[0]}`)).toBe(true);
+			expect(gate.text.includes(`$ lasagna ${argv[0]}`)).toBe(true);
 		}
 	}
 });
@@ -34,21 +34,21 @@ test('plugin install answers --help and rejects flags instead of installing', ()
 	const help = subcommandGate(['plugin', 'install', '--help']);
 	expect(help.action).toBe('help');
 	if (help.action === 'help') {
-		expect(help.text.includes('$ pappardelle plugin install')).toBe(true);
+		expect(help.text.includes('$ lasagna plugin install')).toBe(true);
 	}
 
 	expect(subcommandGate(['plugin', 'install', '--yes'])).toStrictEqual({
 		action: 'reject',
 		message:
-			'Unknown flag --yes for pappardelle plugin install\nUsage: pappardelle plugin install\nRun pappardelle plugin install --help for details',
+			'Unknown flag --yes for lasagna plugin install\nUsage: lasagna plugin install\nRun lasagna plugin install --help for details',
 	});
 });
 
 test('close, restart and update reject flags that are not theirs', () => {
 	const usages: Record<string, string> = {
-		close: 'Usage: pappardelle close <issue-key> [--yes]',
-		restart: 'Usage: pappardelle restart [--hard [--yes]]',
-		update: 'Usage: pappardelle update [--restart-tuis | --no-restart-tuis]',
+		close: 'Usage: lasagna close <issue-key> [--yes]',
+		restart: 'Usage: lasagna restart [--hard [--yes]]',
+		update: 'Usage: lasagna update [--restart-tuis | --no-restart-tuis]',
 	};
 	for (const [argv, flag] of [
 		[['close', 'STA-1', '--bogus'], '--bogus'],
@@ -62,9 +62,9 @@ test('close, restart and update reject flags that are not theirs', () => {
 		expect(gate.action).toBe('reject');
 		if (gate.action === 'reject') {
 			expect(gate.message.split('\n')).toStrictEqual([
-				`Unknown flag ${flag} for pappardelle ${argv[0]}`,
+				`Unknown flag ${flag} for lasagna ${argv[0]}`,
 				usages[argv[0]],
-				`Run pappardelle ${argv[0]} --help for details`,
+				`Run lasagna ${argv[0]} --help for details`,
 			]);
 		}
 	}
@@ -88,7 +88,7 @@ test('plugin commands other than install are rejected, not run as a prompt', () 
 	]) {
 		expect(subcommandGate(argv)).toStrictEqual({
 			action: 'reject',
-			message: `Unknown command pappardelle ${argv.join(' ')}\nUsage: pappardelle plugin install`,
+			message: `Unknown command lasagna ${argv.join(' ')}\nUsage: lasagna plugin install`,
 		});
 	}
 

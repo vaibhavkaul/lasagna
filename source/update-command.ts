@@ -17,7 +17,7 @@ import {stateDaosByRepo} from './state-daos.ts';
 import {DEFAULT_REPO_STATE_ROOT, type TuiMarkerDao} from './tui-marker.ts';
 import {resolveDisplayVersion, runUpdateScript} from './update-check.ts';
 
-// `pappardelle update`: the CLI twin of pressing U in the TUI. U runs the
+// `lasagna update`: the CLI twin of pressing U in the TUI. U runs the
 // installer and then restarts its own TUI on the new build; from a shell there
 // may be several TUIs (one per repo) still on the old build, so the user
 // decides whether to restart them.
@@ -43,8 +43,8 @@ export async function runUpdateCommand(
 ): Promise<number> {
 	deps.print(
 		deps.installedVersion
-			? `Updating Pappardelle (currently on ${deps.installedVersion})...`
-			: 'Updating Pappardelle...',
+			? `Updating Lasagna (currently on ${deps.installedVersion})...`
+			: 'Updating Lasagna...',
 	);
 
 	const status = deps.runInstaller();
@@ -57,7 +57,7 @@ export async function runUpdateCommand(
 		options.restartTuis ??
 		(deps.isTTY &&
 			(await deps.confirm(
-				`Restart ${running.length} running Pappardelle ${plural(
+				`Restart ${running.length} running Lasagna ${plural(
 					running.length,
 					'TUI',
 				)} on the new build? [y/N] `,
@@ -65,11 +65,9 @@ export async function runUpdateCommand(
 
 	if (!shouldRestart) {
 		deps.print(
-			`Running Pappardelle TUIs are still on the old build: ${running
+			`Running Lasagna TUIs are still on the old build: ${running
 				.map(tui => tui.session)
-				.join(
-					', ',
-				)}. Run pappardelle restart in each repo to pick up the update.`,
+				.join(', ')}. Run lasagna restart in each repo to pick up the update.`,
 		);
 		return 0;
 	}
@@ -77,7 +75,7 @@ export async function runUpdateCommand(
 	const failed = await restartTuis(running, deps.launchCommand(), deps);
 	if (failed.length === 0) return 0;
 	deps.print(
-		`Pappardelle is updated, but ${failed.join(', ')} ${
+		`Lasagna is updated, but ${failed.join(', ')} ${
 			failed.length === 1 ? 'is' : 'are'
 		} not confirmed on the new build. Quit with q and relaunch.`,
 	);

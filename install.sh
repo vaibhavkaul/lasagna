@@ -1,27 +1,29 @@
 #!/bin/bash
 
-# install.sh - Install Pappardelle workspace manager
+# install.sh - Install Lasagna workspace manager (a fork of Pappardelle that
+# runs beside it: its own command, its own ~/.lasagna, nothing shared)
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/chardigio/pappardelle/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/vaibhavkaul/lasagna/main/install.sh | bash
 #
 # Or from a local clone:
 #   ./install.sh
 #
 # This script:
 # 1. Checks prerequisites (Bun >= 1.4.4, tmux, jq)
-# 2. Clones chardigio/pappardelle to ~/.pappardelle/repo/, or, run from a
+# 2. Clones vaibhavkaul/lasagna to ~/.lasagna/repo/, or, run from a
 #    local clone, uses that clone
 # 3. Typechecks and builds it. A local clone's build is copied to
-#    ~/.pappardelle/local/, so later builds in the clone don't go live until
+#    ~/.lasagna/local/, so later builds in the clone don't go live until
 #    the next install
-# 4. Links `pappardelle` and `idow` in ~/.local/bin/ to the installed build
-# 5. Creates required directories (~/.worktrees/, ~/.pappardelle/claude-status/)
-# 6. Installs skill helper scripts to ~/.pappardelle/scripts/
-# 7. Installs the Pappardelle plugin (skills and hooks) from the installed
-#    build into Claude Code, Codex and agy (`pappardelle plugin install`), and adds
+# 4. Links `lasagna` in ~/.local/bin/ to the installed build. idow stays
+#    inside the install: ~/.local/bin/idow belongs to Pappardelle
+# 5. Creates required directories (~/.lasagna/worktrees/, ~/.lasagna/claude-status/)
+# 6. Installs skill helper scripts to ~/.lasagna/scripts/
+# 7. Installs the Lasagna plugin (skills and hooks) from the installed
+#    build into Claude Code, Codex and agy (`lasagna plugin install`), and adds
 #    the MCP server to the agents that don't get it from the plugin
-#    (`pappardelle mcp install`)
+#    (`lasagna mcp install`)
 
 set -e
 
@@ -38,18 +40,19 @@ print_warning() { echo -e "${YELLOW}!${NC} $1"; }
 print_error() { echo -e "${RED}✗${NC} $1"; }
 print_info() { echo -e "${BLUE}→${NC} $1"; }
 
-PAPPARDELLE_DIR="$HOME/.pappardelle"
-REPO_DIR="$PAPPARDELLE_DIR/repo"
-LOCAL_INSTALL_DIR="$PAPPARDELLE_DIR/local"
+LASAGNA_DIR="$HOME/.lasagna"
+REPO_DIR="$LASAGNA_DIR/repo"
+LOCAL_INSTALL_DIR="$LASAGNA_DIR/local"
 LOCAL_BIN="$HOME/.local/bin"
-WORKTREES_DIR="$HOME/.worktrees"
-REPO_URL="https://github.com/chardigio/pappardelle.git"
+# Under Lasagna's own directory: ~/.worktrees is where Pappardelle keeps its.
+WORKTREES_DIR="$LASAGNA_DIR/worktrees"
+REPO_URL="https://github.com/vaibhavkaul/lasagna.git"
 # Keep the build floor aligned with package.json.
 MIN_BUN_VERSION=1.4.4
 BUN_VERSION=1.4.4
-PRIVATE_BUN_DIR="$PAPPARDELLE_DIR/bun"
-BUN_DIST_URL="${PAPPARDELLE_BUN_DIST_URL:-https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}}"
-REPO_URL="${PAPPARDELLE_REPO_URL:-$REPO_URL}"
+PRIVATE_BUN_DIR="$LASAGNA_DIR/bun"
+BUN_DIST_URL="${LASAGNA_BUN_DIST_URL:-https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}}"
+REPO_URL="${LASAGNA_REPO_URL:-$REPO_URL}"
 
 bun_supported() {
     local version major minor patch min_major min_minor min_patch
@@ -65,7 +68,7 @@ bun_supported() {
 # private runtime. This works from tmux's non-interactive environment too.
 find_bun() {
     local candidate
-    for candidate in "${PAPPARDELLE_BUN:-}" "$(command -v bun 2>/dev/null || true)" \
+    for candidate in "${LASAGNA_BUN:-}" "$(command -v bun 2>/dev/null || true)" \
         "$HOME/.bun/bin/bun" "$PRIVATE_BUN_DIR/current/bun"; do
         [[ -x "$candidate" ]] || continue
         if bun_supported "$candidate"; then
@@ -93,7 +96,7 @@ install_private_bun() {
         *) print_error "No supported Bun build for $(uname -m)" >&2; return 1 ;;
     esac
     if ! command -v unzip &>/dev/null; then
-        print_error "Install unzip to download Pappardelle's private Bun runtime" >&2
+        print_error "Install unzip to download Lasagna's private Bun runtime" >&2
         return 1
     fi
     local tmp sums expected actual archive name destination
@@ -109,7 +112,7 @@ install_private_bun() {
         print_error "No checksum for $archive at $BUN_DIST_URL" >&2
         rm -rf "$tmp"; return 1
     fi
-    print_info "Downloading $archive for Pappardelle (your own Bun is not changed)" >&2
+    print_info "Downloading $archive for Lasagna (your own Bun is not changed)" >&2
     if ! curl -fsSL "$BUN_DIST_URL/$archive" -o "$tmp/$archive"; then
         print_error "Could not download $BUN_DIST_URL/$archive" >&2
         rm -rf "$tmp"; return 1
@@ -163,14 +166,14 @@ swap_into_place() {
 # Clones and builds into a staging folder next to $REPO_DIR, and moves it into
 # place only after the build succeeds. The shim runs from $REPO_DIR/dist, so
 # deleting $REPO_DIR first (as the installer used to) left no working
-# Pappardelle when the clone or `bun install` failed. The replaced install is
+# Lasagna when the clone or `bun install` failed. The replaced install is
 # kept at $REPO_DIR.previous as a rollback.
 install_repo_atomically() {
     local stage
-    mkdir -p "$PAPPARDELLE_DIR"
-    stage="$(mktemp -d "$PAPPARDELLE_DIR/repo.staging.XXXXXX")"
+    mkdir -p "$LASAGNA_DIR"
+    stage="$(mktemp -d "$LASAGNA_DIR/repo.staging.XXXXXX")"
 
-    print_info "Cloning pappardelle..."
+    print_info "Cloning lasagna..."
     if ! git clone --quiet "$REPO_URL" "$stage/repo"; then
         print_error "Failed to clone $REPO_URL; your current install is unchanged"
         rm -rf "$stage"; return 1
@@ -188,15 +191,15 @@ install_repo_atomically() {
     print_status "Built successfully and installed to $REPO_DIR"
 }
 
-# Prints the pappardelle clone that holds the install script at $1. Under
+# Prints the lasagna clone that holds the install script at $1. Under
 # `curl | bash` there is no script file, and dirname "" is ".", which used to
-# make any pappardelle checkout in the current directory (such as the repo a
+# make any lasagna checkout in the current directory (such as the repo a
 # TUI's `U` update runs from) count as the install and get rebuilt in place.
 local_clone_dir() {
     local script="$1" dir
     [[ -n "$script" && -f "$script" ]] || return 1
     dir="$(cd "$(dirname "$script")" && pwd)" || return 1
-    grep -q '"name".*"pappardelle"' "$dir/package.json" 2>/dev/null || return 1
+    grep -q '"name".*"lasagna"' "$dir/package.json" 2>/dev/null || return 1
     printf '%s\n' "$dir"
 }
 
@@ -205,8 +208,8 @@ local_clone_dir() {
 # binary embeds Bun and the dependencies, so node_modules stays behind.
 install_local_snapshot() {
     local stage sha
-    mkdir -p "$PAPPARDELLE_DIR"
-    stage="$(mktemp -d "$PAPPARDELLE_DIR/local.staging.XXXXXX")"
+    mkdir -p "$LASAGNA_DIR"
+    stage="$(mktemp -d "$LASAGNA_DIR/local.staging.XXXXXX")"
     mkdir "$stage/local"
     if ! (cd "$REPO_DIR" && cp -R dist scripts plugins .claude-plugin package.json "$stage/local/"); then
         print_error "Could not copy the build from $REPO_DIR; your current install is unchanged"
@@ -238,20 +241,20 @@ install_local_clone() {
     fi
     print_status "Built successfully"
     INSTALL_DIR="$REPO_DIR"
-    if [[ ! "$REPO_DIR" -ef "$PAPPARDELLE_DIR/repo" ]]; then
+    if [[ ! "$REPO_DIR" -ef "$LASAGNA_DIR/repo" ]]; then
         install_local_snapshot || return 1
         INSTALL_DIR="$LOCAL_INSTALL_DIR"
     fi
 }
 
-# Copies each skill's scripts/ to $PAPPARDELLE_DIR/scripts/<skill>/, where the
+# Copies each skill's scripts/ to $LASAGNA_DIR/scripts/<skill>/, where the
 # skills run them from, replacing what an earlier install left there. Scripts
 # a skill stopped shipping, such as sous-chef's after it moved onto the
-# pappardelle CLI, would otherwise stay behind and keep getting run.
+# lasagna CLI, would otherwise stay behind and keep getting run.
 install_skill_scripts() {
-    local dest="$PAPPARDELLE_DIR/scripts" src skill script
+    local dest="$LASAGNA_DIR/scripts" src skill script
     rm -rf "$dest"
-    for src in "$INSTALL_DIR"/plugins/pappardelle/skills/*/scripts; do
+    for src in "$INSTALL_DIR"/plugins/lasagna/skills/*/scripts; do
         [[ -d "$src" ]] || continue
         skill="$(basename "$(dirname "$src")")"
         mkdir -p "$dest/$skill"
@@ -264,10 +267,10 @@ install_skill_scripts() {
     done
 }
 
-# Writes the `pappardelle` shim, which runs $INSTALL_DIR's executable.
+# Writes the `lasagna` shim, which runs $INSTALL_DIR's executable.
 # Rendered from a template so install-shim.test.ts runs the shim this writes.
 install_shim() {
-    local template="$INSTALL_DIR/scripts/pappardelle-shim-template.sh" content
+    local template="$INSTALL_DIR/scripts/lasagna-shim-template.sh" content
     if [[ ! -f "$template" ]]; then
         print_error "Shim template not found at $template"
         return 1
@@ -277,13 +280,13 @@ install_shim() {
     # Split around the placeholder rather than substitute it: bash 5.2 turns an
     # unquoted & in the replacement into the match, and bash 3.2 (macOS's
     # /bin/bash) keeps quotes around the replacement literally.
-    printf '%s%s%s\n' "${content%%__EXECUTABLE__*}" "$INSTALL_DIR/dist/pappardelle" "${content#*__EXECUTABLE__}" > "$LOCAL_BIN/pappardelle"
-    chmod +x "$LOCAL_BIN/pappardelle"
+    printf '%s%s%s\n' "${content%%__EXECUTABLE__*}" "$INSTALL_DIR/dist/lasagna" "${content#*__EXECUTABLE__}" > "$LOCAL_BIN/lasagna"
+    chmod +x "$LOCAL_BIN/lasagna"
 }
 
 # Tests source this file to call the functions above without running the
 # installer.
-if [[ "${PAPPARDELLE_INSTALL_SOURCE_ONLY:-}" == 1 ]]; then
+if [[ "${LASAGNA_INSTALL_SOURCE_ONLY:-}" == 1 ]]; then
     # shellcheck disable=SC2317 # exit is reached only when not sourced
     return 0 2>/dev/null || exit 0
 fi
@@ -295,8 +298,8 @@ if LOCAL_CLONE="$(local_clone_dir "${BASH_SOURCE[0]:-}")"; then
 fi
 
 echo ""
-echo -e "${BOLD}Pappardelle Installer${NC}"
-echo "====================="
+echo -e "${BOLD}Lasagna Installer${NC}"
+echo "================="
 echo ""
 echo "Interactive workspace manager for Claude Code + git worktrees"
 echo ""
@@ -312,7 +315,7 @@ BUN_BIN=""
 if BUN_BIN="$(find_bun)"; then
     print_status "Bun $("$BUN_BIN" --version) at $BUN_BIN"
 elif BUN_BIN="$(install_private_bun)"; then
-    print_status "Bun installed for Pappardelle at $BUN_BIN"
+    print_status "Bun installed for Lasagna at $BUN_BIN"
 else
     BUN_BIN=""
     print_error "No Bun >= $MIN_BUN_VERSION found, and the download failed"
@@ -333,7 +336,7 @@ if command -v tmux &>/dev/null; then
         print_info "Upgrade and restart instructions: https://github.com/chardigio/pappardelle#tmux-version"
     fi
 else
-    print_warning "tmux not found (needed for pappardelle TUI layout)"
+    print_warning "tmux not found (needed for lasagna TUI layout)"
     print_info "Install with: brew install tmux"
 fi
 
@@ -433,31 +436,21 @@ fi
 # Link
 # ============================================================================
 
-# Link pappardelle and idow to ~/.local/bin/
+# Link lasagna to ~/.local/bin/. Only that: `pappardelle` and `idow` there
+# belong to a Pappardelle install, which this one runs beside. Lasagna runs its
+# own idow by path, from $INSTALL_DIR/scripts.
 install_shim || exit 1
-print_status "Linked 'pappardelle' command globally"
-
-# idow
-IDOW_SRC="$INSTALL_DIR/scripts/idow"
-if [[ -f "$IDOW_SRC" ]]; then
-    if [[ -L "$LOCAL_BIN/idow" || -f "$LOCAL_BIN/idow" ]]; then
-        rm "$LOCAL_BIN/idow"
-    fi
-    ln -s "$IDOW_SRC" "$LOCAL_BIN/idow"
-    print_status "Linked idow → $LOCAL_BIN/idow"
-else
-    print_warning "idow script not found at $IDOW_SRC"
-fi
+print_status "Linked 'lasagna' command globally"
 
 # ============================================================================
 # Create Required Directories
 # ============================================================================
 
-mkdir -p "$PAPPARDELLE_DIR/claude-status"
-mkdir -p "$PAPPARDELLE_DIR/repos"
-mkdir -p "$PAPPARDELLE_DIR/logs"
+mkdir -p "$LASAGNA_DIR/claude-status"
+mkdir -p "$LASAGNA_DIR/repos"
+mkdir -p "$LASAGNA_DIR/logs"
 mkdir -p "$WORKTREES_DIR"
-print_status "Created directories (~/.pappardelle/, ~/.worktrees/)"
+print_status "Created directories (~/.lasagna/, ~/.lasagna/worktrees/)"
 
 # ============================================================================
 # Install Skill Scripts
@@ -471,14 +464,14 @@ install_skill_scripts
 
 # Through the shim, so the cwd's .env and bunfig.toml (the TUI runs these
 # from a workspace) cannot redirect which agent configs they edit.
-if ! "$LOCAL_BIN/pappardelle" plugin install; then
-    print_warning "Could not install the Pappardelle plugin (skills, hooks and MCP tools) for every agent"
-    print_info "Retry with: pappardelle plugin install"
+if ! "$LOCAL_BIN/lasagna" plugin install; then
+    print_warning "Could not install the Lasagna plugin (skills, hooks and MCP tools) for every agent"
+    print_info "Retry with: lasagna plugin install"
 fi
 
-if ! "$LOCAL_BIN/pappardelle" mcp install; then
-    print_warning "Could not add the Pappardelle MCP server to every agent"
-    print_info "Retry with: pappardelle mcp install"
+if ! "$LOCAL_BIN/lasagna" mcp install; then
+    print_warning "Could not add the Lasagna MCP server to every agent"
+    print_info "Retry with: lasagna mcp install"
 fi
 
 # ============================================================================
@@ -506,11 +499,11 @@ print_status "Installation complete!"
 echo ""
 echo "Commands available:"
 echo ""
-echo -e "  ${BOLD}pappardelle${NC}           Launch the workspace TUI"
+echo -e "  ${BOLD}lasagna${NC}               Launch the workspace TUI"
 echo ""
 echo "Example:"
 echo ""
-echo "  pappardelle"
+echo "  lasagna"
 echo ""
 echo "Configuration:"
 echo "  Add a .pappardelle.yml to your repo root."

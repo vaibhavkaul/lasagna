@@ -1,4 +1,4 @@
-// `pappardelle space get` and `space list`: what a space is, answered from
+// `lasagna space get` and `space list`: what a space is, answered from
 // the stores, so agents, hooks and scripts stop deriving session names,
 // worktree paths and state file locations from the issue key themselves.
 
@@ -451,7 +451,7 @@ function target(raw: string | undefined, deps: SpaceCommandDeps): Target {
 	// A session started in a nested repo has a git dir that names that repo,
 	// so its own space's repo comes from its environment.
 	const repo =
-		deps.env['PAPPARDELLE_REPO']?.trim() ||
+		deps.env['LASAGNA_REPO']?.trim() ||
 		(checkout.kind === 'checkout' ? checkout.checkout.repoName : undefined);
 	return repo === undefined
 		? {kind: 'not-in-a-repo'}
@@ -491,7 +491,7 @@ async function runGet(args: string[], deps: SpaceCommandDeps): Promise<number> {
 	}
 
 	if (space.kind === 'not-in-a-space') {
-		deps.err('Not in a Pappardelle space; pass a KEY');
+		deps.err('Not in a Lasagna space; pass a KEY');
 		return 1;
 	}
 

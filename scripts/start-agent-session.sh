@@ -4,7 +4,7 @@
 #
 # Usage: start-agent-session.sh --issue-key <KEY> --repo-name <NAME> --worktree <PATH> --agent-session <NAME> --companion-session <NAME> --legacy-agent-session <NAME> [--init-cmd <CMD>] [--no-prompt] [--companion-command <CMD>] [--no-agent] [--skip-permissions] [--agent-command <CMD>] [--agent-args <ARGS>] [--agent-resume-args <ARGS>] [--agent-prompt-args <TEMPLATE>] [--agent-is-claude <true|false>] [--agent-launch-flags <FLAGS>] [--agent-env <NAME=VALUE>]...
 #
-# Creates detached tmux sessions with the names `pappardelle space get` reports
+# Creates detached tmux sessions with the names `lasagna space get` reports
 # for the space:
 #   --agent-session      — runs the configured agent (default: Claude Code)
 #   --companion-session  — runs the companion command (default: gitui; see --companion-command)
@@ -46,12 +46,12 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STATUS_MONITOR=()
 STATUS_GATE=""
-if [[ -x "${PAPPARDELLE_EXECUTABLE:-}" ]]; then
-    STATUS_MONITOR=("$PAPPARDELLE_EXECUTABLE" --internal-status-monitor)
-elif [[ -x "$SCRIPT_DIR/../dist/pappardelle" ]]; then
+if [[ -x "${LASAGNA_EXECUTABLE:-}" ]]; then
+    STATUS_MONITOR=("$LASAGNA_EXECUTABLE" --internal-status-monitor)
+elif [[ -x "$SCRIPT_DIR/../dist/lasagna" ]]; then
     # Direct idow launches use the compiled monitor, which never loads the
     # workspace's .env or bunfig.toml and needs no Bun on PATH.
-    STATUS_MONITOR=("$SCRIPT_DIR/../dist/pappardelle" --internal-status-monitor)
+    STATUS_MONITOR=("$SCRIPT_DIR/../dist/lasagna" --internal-status-monitor)
 fi
 
 ISSUE_KEY=""
@@ -196,29 +196,29 @@ fi
 # nested viewer pane in Pappardelle can attach without `TMUX=` (which would
 # otherwise defeat $TMUX propagation to subprocesses like Claude Code's
 # Agent Teams feature). See STA-860. idow exports the space's socket from
-# `pappardelle space get`.
-if [[ -z "${PAPPARDELLE_TMUX_SOCKET:-}" ]]; then
-    echo "Error: PAPPARDELLE_TMUX_SOCKET is required: idow exports the space's socket from pappardelle space get" >&2
+# `lasagna space get`.
+if [[ -z "${LASAGNA_TMUX_SOCKET:-}" ]]; then
+    echo "Error: LASAGNA_TMUX_SOCKET is required: idow exports the space's socket from lasagna space get" >&2
     exit 1
 fi
-TMUX_SOCKET_ARGS=(-L "$PAPPARDELLE_TMUX_SOCKET")
-if [[ "$PAPPARDELLE_TMUX_SOCKET" == /* ]]; then
-    TMUX_SOCKET_ARGS=(-S "$PAPPARDELLE_TMUX_SOCKET")
+TMUX_SOCKET_ARGS=(-L "$LASAGNA_TMUX_SOCKET")
+if [[ "$LASAGNA_TMUX_SOCKET" == /* ]]; then
+    TMUX_SOCKET_ARGS=(-S "$LASAGNA_TMUX_SOCKET")
 fi
-STARTUP_GATE_OPTION="@pappardelle_startup_gate"
+STARTUP_GATE_OPTION="@lasagna_startup_gate"
 
 # Set on the tmux session rather than exported here: these sessions are created
 # on a long-lived server that inherited its environment from whatever started
 # it, so a plain export would never reach the panes. Claude Code's hooks read
 # it to find the main checkout without walking back out of the worktree.
-# PAPPARDELLE_SPACE names the space the pane belongs to, so a Claude started
+# LASAGNA_SPACE names the space the pane belongs to, so a Claude started
 # later in the pane by hand (a restart, `claude --resume` from another
 # directory) still reports its status under this space, not under its cwd.
-# PAPPARDELLE_REPO qualifies the status file name: spaces of two repos can
+# LASAGNA_REPO qualifies the status file name: spaces of two repos can
 # share a key, and every repo writes to the same status directory.
-SESSION_ENV=(-e "PAPPARDELLE_REPO=$REPO_NAME" -e "PAPPARDELLE_SPACE=$ISSUE_KEY")
-if [[ -n "${PAPPARDELLE_MAIN_REPO_ROOT:-}" ]]; then
-    SESSION_ENV+=(-e "PAPPARDELLE_MAIN_REPO_ROOT=$PAPPARDELLE_MAIN_REPO_ROOT")
+SESSION_ENV=(-e "LASAGNA_REPO=$REPO_NAME" -e "LASAGNA_SPACE=$ISSUE_KEY")
+if [[ -n "${LASAGNA_MAIN_REPO_ROOT:-}" ]]; then
+    SESSION_ENV+=(-e "LASAGNA_MAIN_REPO_ROOT=$LASAGNA_MAIN_REPO_ROOT")
 fi
 # Only the agent session gets these, mirroring buildAgentSessionEnvArgs() in
 # source/spawn-env.ts: Pi and agy report their status to the pane monitor only
@@ -238,7 +238,7 @@ AGENT_SESSION_ENV=(
 if [[ "$AGENT_IS_CLAUDE" == "true" ]]; then
     python3 -c "
 import json, os, sys
-config_path = os.environ.get('PAPPARDELLE_CLAUDE_CONFIG_PATH', os.path.expanduser('~/.claude.json'))
+config_path = os.environ.get('LASAGNA_CLAUDE_CONFIG_PATH', os.path.expanduser('~/.claude.json'))
 try:
     with open(config_path) as f:
         config = json.load(f)
@@ -271,7 +271,7 @@ new_launch_session() {
         shell_handoff='"$1" -ic "$2$(printf "\n:")"; printf "\033]133;A\007"; exec "$1" -l'
     fi
     if [[ "$session" == "$AGENT_SESSION" && ${#STATUS_MONITOR[@]} -gt 0 ]]; then
-        STATUS_GATE="pappardelle-status-$$"
+        STATUS_GATE="lasagna-status-$$"
         # shellcheck disable=SC2016 # expanded by the inner sh, not here
         new_inner_session "$session" "$@" \
             /bin/sh -c 'tmux "$1" "$2" wait-for "$3"; shift 3; exec "$@"' sh "${TMUX_SOCKET_ARGS[@]}" "$STATUS_GATE" \
@@ -373,7 +373,7 @@ if ! tmux "${TMUX_SOCKET_ARGS[@]}" has-session -t "=$AGENT_SESSION:" 2>/dev/null
 fi
 
 if [[ ${#STATUS_MONITOR[@]} -gt 0 ]]; then
-    "${STATUS_MONITOR[@]}" attach "$REPO_NAME" "$ISSUE_KEY" "$AGENT_SESSION" "$PAPPARDELLE_TMUX_SOCKET" || true
+    "${STATUS_MONITOR[@]}" attach "$REPO_NAME" "$ISSUE_KEY" "$AGENT_SESSION" "$LASAGNA_TMUX_SOCKET" || true
 fi
 STATUS_GATE="$(tmux "${TMUX_SOCKET_ARGS[@]}" show-option -qv -t "=$AGENT_SESSION:" "$STARTUP_GATE_OPTION")"
 if [[ -n "$STATUS_GATE" ]]; then
@@ -390,6 +390,6 @@ if ! tmux "${TMUX_SOCKET_ARGS[@]}" has-session -t "=$COMPANION_SESSION:" 2>/dev/
     else
         new_inner_session "$COMPANION_SESSION"
     fi
-    # `pappardelle companion` addresses panes by name; the first one is main.
+    # `lasagna companion` addresses panes by name; the first one is main.
     tmux "${TMUX_SOCKET_ARGS[@]}" set-option -p -t "=$COMPANION_SESSION:" @pappa_pane main 2>/dev/null || true
 fi

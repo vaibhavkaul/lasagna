@@ -2285,6 +2285,7 @@ test('validateConfig rejects agent profile env that is not a map of strings', ()
 							env: {
 								'1BAD': 'x',
 								'A-B': 'x',
+								LASAGNA_SPACE: 'x',
 								PAPPARDELLE_SPACE: 'x',
 								NUMBER: 1,
 							},
@@ -2304,6 +2305,11 @@ test('validateConfig rejects agent profile env that is not a map of strings', ()
 	expect(
 		message.includes(
 			'agent_profiles.typed.env.A-B: must be an environment variable name',
+		),
+	).toBe(true);
+	expect(
+		message.includes(
+			'agent_profiles.typed.env.LASAGNA_SPACE: LASAGNA_ variables are set by lasagna',
 		),
 	).toBe(true);
 	expect(

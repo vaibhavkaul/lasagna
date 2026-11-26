@@ -46,11 +46,11 @@ runtimeTest(
 			'-s',
 			'keepalive',
 		]);
-		const previous = process.env['PAPPARDELLE_TMUX_SOCKET'];
-		process.env['PAPPARDELLE_TMUX_SOCKET'] = socket;
+		const previous = process.env['LASAGNA_TMUX_SOCKET'];
+		process.env['LASAGNA_TMUX_SOCKET'] = socket;
 		teardown(() => {
-			if (previous === undefined) delete process.env['PAPPARDELLE_TMUX_SOCKET'];
-			else process.env['PAPPARDELLE_TMUX_SOCKET'] = previous;
+			if (previous === undefined) delete process.env['LASAGNA_TMUX_SOCKET'];
+			else process.env['LASAGNA_TMUX_SOCKET'] = previous;
 			spawnSync('tmux', ['-S', socket, 'kill-server']);
 			rmSync(root, {recursive: true, force: true});
 		});

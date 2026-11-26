@@ -14,7 +14,7 @@
 #   prefixes survive, underscores, hierarchical .N children)
 #
 # The prefix set must agree with getBeadsPrefixes in source/config.ts and
-# get_beads_prefixes in plugins/pappardelle/hooks/tracker_config.py.
+# get_beads_prefixes in plugins/lasagna/hooks/tracker_config.py.
 #
 # Usage: ./test-beads-id-prefixes.sh
 
@@ -155,7 +155,7 @@ cat > "$TMPDIR_ROOT/fakebin/bd" <<'SH'
 SH
 chmod +x "$TMPDIR_ROOT/fakebin/bd"
 assert_eq "the bd database prefix when config.yaml has none" \
-    "qa" "$(PATH="$TMPDIR_ROOT/fakebin:$PATH" PAPPARDELLE_MAIN_REPO_ROOT="$TMPDIR_ROOT/db-only" \
+    "qa" "$(PATH="$TMPDIR_ROOT/fakebin:$PATH" LASAGNA_MAIN_REPO_ROOT="$TMPDIR_ROOT/db-only" \
         beads_id_prefixes "$BARE" "$DB_ONLY_CONFIG")"
 
 echo ""

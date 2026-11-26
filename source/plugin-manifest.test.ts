@@ -35,12 +35,12 @@ function readJson<T>(relativePath: string): T {
 
 const marketplace = readJson<Marketplace>('.claude-plugin/marketplace.json');
 const plugin = readJson<PluginManifest>(
-	'plugins/pappardelle/.claude-plugin/plugin.json',
+	'plugins/lasagna/.claude-plugin/plugin.json',
 );
 
 const marketplaceEntry = marketplace.plugins.find(p => p.name === plugin.name);
 
-test('marketplace lists the pappardelle plugin', () => {
+test('marketplace lists the lasagna plugin', () => {
 	expect(marketplaceEntry).toBeTruthy();
 });
 
@@ -48,7 +48,7 @@ test('plugin manifest version matches its marketplace entry', () => {
 	if (
 		!expect(
 			marketplaceEntry,
-			'pappardelle must be listed in marketplace',
+			'lasagna must be listed in marketplace',
 		).toBeTruthy()
 	)
 		return;
@@ -59,7 +59,7 @@ test('plugin manifest description matches its marketplace entry', () => {
 	if (
 		!expect(
 			marketplaceEntry,
-			'pappardelle must be listed in marketplace',
+			'lasagna must be listed in marketplace',
 		).toBeTruthy()
 	)
 		return;
@@ -69,7 +69,7 @@ test('plugin manifest description matches its marketplace entry', () => {
 test('the Codex and agy manifests ship the same version as Claude Code', () => {
 	for (const agent of ['.codex-plugin', '.antigravity-plugin']) {
 		const manifest = readJson<PluginManifest>(
-			`plugins/pappardelle/${agent}/plugin.json`,
+			`plugins/lasagna/${agent}/plugin.json`,
 		);
 		expect(manifest.version, `${agent} version`).toBe(plugin.version);
 	}

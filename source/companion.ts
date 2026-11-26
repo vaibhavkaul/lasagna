@@ -100,13 +100,13 @@ export function companionSessionTarget(
 	const identity = storedIdentity(spaceKey);
 	if (!identity)
 		throw new CompanionError(
-			`No companion session for ${spaceKey}: it has no stored session names. Open the space with Pappardelle to record them.`,
+			`No companion session for ${spaceKey}: it has no stored session names. Open the space with Lasagna to record them.`,
 		);
 	const session = identity.tmux.companionSession;
 	const target = resolveInnerSessionTargetSync(session, runner);
 	if (!target) {
 		throw new CompanionError(
-			`No companion session for ${spaceKey} (${session} on ${INNER_SOCKET}). Select the space in Pappardelle to start it.`,
+			`No companion session for ${spaceKey} (${session} on ${INNER_SOCKET}). Select the space in Lasagna to start it.`,
 		);
 	}
 

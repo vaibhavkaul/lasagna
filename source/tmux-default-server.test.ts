@@ -16,7 +16,7 @@ import {tempDir} from '../test/helpers/temp-dir.ts';
 
 test('outer tmux calls drop TMUX so an inner pane still reaches the default server', () => {
 	const env = defaultServerTmuxEnv({
-		TMUX: '/private/tmp/tmux-502/pappardelle_inner,59729,4',
+		TMUX: '/private/tmp/tmux-502/lasagna_inner,59729,4',
 		TMUX_PANE: '%4',
 		TMUX_TMPDIR: '/scratch/tmux',
 		HOME: '/home/me',
@@ -41,7 +41,7 @@ test('inner identity uses the selected named or absolute socket from its supplie
 			TMUX: `${socket},1,0`,
 			TMUX_PANE: '%7',
 			TMUX_TMPDIR: root,
-			PAPPARDELLE_TMUX_SOCKET: selected,
+			LASAGNA_TMUX_SOCKET: selected,
 		};
 		expect(isOnInnerServer(env)).toBe(true);
 		expect(
@@ -50,7 +50,7 @@ test('inner identity uses the selected named or absolute socket from its supplie
 				stdout: 'agent-repo-TEST-1\n',
 			})),
 		).toBe('agent-repo-TEST-1');
-		expect(isOnInnerServer({...env, PAPPARDELLE_TMUX_SOCKET: 'another'})).toBe(
+		expect(isOnInnerServer({...env, LASAGNA_TMUX_SOCKET: 'another'})).toBe(
 			false,
 		);
 	}
@@ -62,7 +62,7 @@ test('the current outer session is unknown when TMUX names a non-default socket'
 	const socketDir = path.join(tmuxTmpdir, `tmux-${uid}`);
 	fs.mkdirSync(socketDir);
 	fs.writeFileSync(path.join(socketDir, 'default'), '');
-	fs.writeFileSync(path.join(socketDir, 'pappardelle_inner'), '');
+	fs.writeFileSync(path.join(socketDir, 'lasagna_inner'), '');
 
 	const queried: string[][] = [];
 	const tmux: OuterTmuxRunner = args => {
@@ -73,7 +73,7 @@ test('the current outer session is unknown when TMUX names a non-default socket'
 	expect(
 		currentDefaultServerSession(
 			{
-				TMUX: `${path.join(socketDir, 'pappardelle_inner')},1,0`,
+				TMUX: `${path.join(socketDir, 'lasagna_inner')},1,0`,
 				TMUX_TMPDIR: tmuxTmpdir,
 			},
 			tmux,

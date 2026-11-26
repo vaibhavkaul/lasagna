@@ -2,15 +2,15 @@ import type {SpaceIdentityDao} from './space-identity.ts';
 
 export class NoTargetSpaceError extends Error {
 	constructor() {
-		super('Not in a Pappardelle workspace; pass --space KEY');
+		super('Not in a Lasagna workspace; pass --space KEY');
 	}
 }
 
 /**
  * The space a companion verb acts on: --space when given, else the space
  * this process runs in. A --space value is typed by hand, so it resolves like
- * any issue key (`696` gains the team prefix). PAPPARDELLE_SPACE is already
- * the exact key and is used as is. The main space has no PAPPARDELLE_SPACE,
+ * any issue key (`696` gains the team prefix). LASAGNA_SPACE is already
+ * the exact key and is used as is. The main space has no LASAGNA_SPACE,
  * so it is only reachable with --space main.
  */
 export function resolveTargetSpace(options: {
@@ -19,7 +19,7 @@ export function resolveTargetSpace(options: {
 	resolve: (raw: string) => string;
 }): string {
 	if (options.flag?.trim()) return options.resolve(options.flag);
-	const own = options.env['PAPPARDELLE_SPACE']?.trim();
+	const own = options.env['LASAGNA_SPACE']?.trim();
 	if (!own) throw new NoTargetSpaceError();
 	return own;
 }
@@ -51,11 +51,11 @@ export type CallerSpace =
 	| {kind: 'none'};
 
 /**
- * The space the caller is in: PAPPARDELLE_SPACE, else the space whose
+ * The space the caller is in: LASAGNA_SPACE, else the space whose
  * worktree holds `cwd`. Codex starts MCP servers with a filtered environment
- * and OpenCode from a shared service, so PAPPARDELLE_SPACE doesn't reach them,
+ * and OpenCode from a shared service, so LASAGNA_SPACE doesn't reach them,
  * and an agent started by hand in a worktree never had it; all of them run in
- * the space's directory. Outside a git checkout only PAPPARDELLE_SPACE names
+ * the space's directory. Outside a git checkout only LASAGNA_SPACE names
  * a space.
  */
 export function callerSpace(options: {
@@ -65,7 +65,7 @@ export function callerSpace(options: {
 	/** The identities of a repo's spaces. */
 	identities: (repo: string) => Pick<SpaceIdentityDao, 'atPath'>;
 }): CallerSpace {
-	const own = options.env['PAPPARDELLE_SPACE']?.trim();
+	const own = options.env['LASAGNA_SPACE']?.trim();
 	if (own) return {kind: 'env', key: own};
 	if (options.checkout.kind === 'not-in-a-repo') return {kind: 'none'};
 	const {checkout} = options.checkout;

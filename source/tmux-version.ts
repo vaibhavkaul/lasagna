@@ -73,8 +73,8 @@ export function tmuxTooOldMessage({version, source}: TmuxVersion): string[] {
 	const floor = `${MIN_TMUX_VERSION.major}.${MIN_TMUX_VERSION.minor}`;
 	return [
 		source === 'server'
-			? `Error: the running tmux server is ${version}; Pappardelle needs tmux ${floor} or newer.`
-			: `Error: tmux is ${version}; Pappardelle needs tmux ${floor} or newer.`,
+			? `Error: the running tmux server is ${version}; Lasagna needs tmux ${floor} or newer.`
+			: `Error: tmux is ${version}; Lasagna needs tmux ${floor} or newer.`,
 		...(source === 'server'
 			? [
 					'If `tmux -V` already shows a newer release, restart the tmux server so it runs that binary.',

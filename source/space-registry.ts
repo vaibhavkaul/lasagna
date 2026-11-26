@@ -4,7 +4,7 @@
 // which meant they disappeared after a reboot or tmux server kill.
 // This registry persists to disk so spaces survive across restarts.
 //
-// Registry files are namespaced per-repo under ~/.pappardelle/repos/{repoName}/
+// Registry files are namespaced per-repo under ~/.lasagna/repos/{repoName}/
 // to keep state completely separate when running pappardelle in multiple repos.
 //
 // STA-1553: the registry is shared by EVERY Pappardelle instance running against
@@ -122,7 +122,7 @@ export function listOpenSpaces(registry: SpaceRegistryDao): string[] {
 
 /**
  * Get the registry file path for a specific repo.
- * Returns ~/.pappardelle/repos/{repoName}/open-spaces.json
+ * Returns ~/.lasagna/repos/{repoName}/open-spaces.json
  */
 export function getRegistryPathForRepo(
 	repoName: string,
@@ -131,7 +131,7 @@ export function getRegistryPathForRepo(
 	return path.join(baseDir, 'repos', repoName, 'open-spaces.json');
 }
 
-/** Every repo with pappardelle state, by the name its sessions carry. */
+/** Every repo with lasagna state, by the name its sessions carry. */
 export function listKnownRepos(baseDir = DEFAULT_STATE_DIR): string[] {
 	try {
 		return fs.readdirSync(path.join(baseDir, 'repos'));

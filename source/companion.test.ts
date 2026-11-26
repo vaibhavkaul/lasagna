@@ -339,7 +339,7 @@ test('a space without a companion session errors and names the session', () => {
 		() => listCompanion('STA-1', deps(tmux.runner)),
 		CompanionError,
 	);
-	expect(error.message).toMatch(/companion-repo-STA-1 on pappardelle_inner/);
+	expect(error.message).toMatch(/companion-repo-STA-1 on lasagna_inner/);
 });
 
 test('no verb targets the agent session', () => {
@@ -392,7 +392,7 @@ test('the companion verbs target the companion session stored for the space', as
 		key: 'STA-1',
 		worktreePath: '/work/tree',
 		tmux: {
-			socket: 'pappardelle_inner',
+			socket: 'lasagna_inner',
 			agentSession: 'hand-named-agent',
 			companionSession: 'hand-named-companion',
 		},

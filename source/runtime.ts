@@ -1,10 +1,10 @@
 import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 
-declare const PAPPARDELLE_COMPILED: boolean;
+declare const LASAGNA_COMPILED: boolean;
 export const isStandalone =
 	// eslint-disable-next-line unicorn/no-typeof-undefined -- Absent in source/dev execution.
-	typeof PAPPARDELLE_COMPILED !== 'undefined' && PAPPARDELLE_COMPILED;
+	typeof LASAGNA_COMPILED !== 'undefined' && LASAGNA_COMPILED;
 
 // The executable lives in <install>/dist and this module in <install>/source.
 // Compiled import.meta URLs live in Bun's virtual filesystem, not the install.

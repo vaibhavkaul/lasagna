@@ -45,7 +45,7 @@ function fixture(python: boolean, staleNode = false) {
 	const home = path.join(root, 'home');
 	const socket = 'status-launch';
 	// The agent's hook finds the stores under its home directory.
-	const stateDir = path.join(home, '.pappardelle');
+	const stateDir = path.join(home, '.lasagna');
 	const statusSocket = path.join(stateDir, 'status-1.sock');
 	for (const dir of [bin, repo, home, stateDir, path.join(root, 'tmux')])
 		mkdirSync(dir, {mode: 0o700});
@@ -85,12 +85,12 @@ function fixture(python: boolean, staleNode = false) {
 		PATH: bin,
 		SHELL: shell,
 		TMUX_TMPDIR: path.join(root, 'tmux'),
-		PAPPARDELLE_TMUX_SOCKET: socket,
-		PAPPARDELLE_PROGRAM_STATUS_DIR: path.join(root, 'status'),
+		LASAGNA_TMUX_SOCKET: socket,
+		LASAGNA_PROGRAM_STATUS_DIR: path.join(root, 'status'),
 		// The shell launcher's `attach` has no state directory to derive it from.
-		PAPPARDELLE_STATUS_SOCKET: statusSocket,
-		PAPPARDELLE_CLAUDE_CONFIG_PATH: path.join(root, 'claude-config.json'),
-		PAPPARDELLE_BUN: '/stale/inherited/bun',
+		LASAGNA_STATUS_SOCKET: statusSocket,
+		LASAGNA_CLAUDE_CONFIG_PATH: path.join(root, 'claude-config.json'),
+		LASAGNA_BUN: '/stale/inherited/bun',
 	};
 	const tmux = (...args: string[]) =>
 		execFileSync('tmux', ['-L', socket, ...args], {
@@ -164,7 +164,7 @@ if (${JSON.stringify(launcher)} === 'tui') {
     '--issue-key', 'TEST-1', '--repo-name', 'repo', '--worktree', process.cwd(),
     '--agent-session', 'agent-repo-TEST-1', '--companion-session', 'companion-repo-TEST-1', '--legacy-agent-session', 'claude-repo-TEST-1', '--companion-command', '',
     '--agent-command', profile.command, '--agent-args', profile.args, '--agent-is-claude', String(profile.isClaude),
-    '--agent-resume-args', ''], {env: {...buildSpawnEnv(process.cwd(), {mainRepoRoot: process.cwd(), registerSpace: false}), ...(${JSON.stringify(launcher)} === 'compiled-shell' ? {PAPPARDELLE_BUN: '', PAPPARDELLE_EXECUTABLE: ${JSON.stringify(path.join(project, 'dist/pappardelle'))}} : {})}});
+    '--agent-resume-args', ''], {env: {...buildSpawnEnv(process.cwd(), {mainRepoRoot: process.cwd(), registerSpace: false}), ...(${JSON.stringify(launcher)} === 'compiled-shell' ? {LASAGNA_BUN: '', LASAGNA_EXECUTABLE: ${JSON.stringify(path.join(project, 'dist/lasagna'))}} : {})}});
 }
 `,
 		);
@@ -325,7 +325,7 @@ for (const launcher of ['tui', 'shell'] as const) {
 							'-qv',
 							'-t',
 							'=agent-repo-TEST-1:',
-							'@pappardelle_startup_gate',
+							'@lasagna_startup_gate',
 						)
 						.trim(),
 				).toBe('');

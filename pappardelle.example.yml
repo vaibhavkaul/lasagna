@@ -91,7 +91,7 @@ team_prefix: ENG
 # Off by default.
 # auto_remove_when_done: true
 
-# Give agents in this repo the pappardelle MCP tools (companion panes, other
+# Give agents in this repo the lasagna MCP tools (companion panes, other
 # spaces) and the rules for keeping the companion showing their work.
 # Off by default.
 # workspace_aware_agents: true
@@ -103,8 +103,8 @@ team_prefix: ENG
 # for it in SOUS-CHEF.md at the repo root.
 # sous_chef: true
 
-# Keep state in one SQLite database (~/.pappardelle/state.db) instead of JSON
-# files. Home config only (~/.pappardelle/.pappardelle.yml): every repo shares
+# Keep state in one SQLite database (~/.lasagna/state.db) instead of JSON
+# files. Home config only (~/.lasagna/.pappardelle.yml): every repo shares
 # the database, so this key is rejected in a project or local config. The
 # files are still written while it is on, so turning it off loses nothing.
 # Off by default.

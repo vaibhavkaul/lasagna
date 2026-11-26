@@ -37,7 +37,7 @@ test('idow creates and reopens real worktrees in the main repository namespace',
 		fs.existsSync(
 			path.join(
 				fixture.home,
-				'.pappardelle',
+				'.lasagna',
 				'repos',
 				path.basename(fixture.main),
 				'space-state',
@@ -128,10 +128,9 @@ test('idow names a space the same from a linked worktree as from the main checko
 			companion: after('--companion-session'),
 		});
 		if (sqliteRun) {
-			const db = new Database(
-				path.join(fixture.home, '.pappardelle', 'state.db'),
-				{readonly: true},
-			);
+			const db = new Database(path.join(fixture.home, '.lasagna', 'state.db'), {
+				readonly: true,
+			});
 			teardown(() => {
 				db.close();
 			});
@@ -178,7 +177,7 @@ if (sqliteRun) {
 		await fixture.run({
 			projectRoot: false,
 			cwd: fixture.linked,
-			extraEnv: {PAPPARDELLE_REGISTER_SPACE: '1'},
+			extraEnv: {LASAGNA_REGISTER_SPACE: '1'},
 		});
 		const other = path.join(path.dirname(fixture.main), 'other linked');
 		execFileSync('git', [
@@ -197,7 +196,7 @@ if (sqliteRun) {
 				{cwd: other, encoding: 'utf8'},
 			).trim(),
 		);
-		const stateDir = path.join(fixture.home, '.pappardelle');
+		const stateDir = path.join(fixture.home, '.lasagna');
 		const daos = createStateDaos({
 			repo,
 			stateDir,
@@ -238,7 +237,7 @@ if (sqliteRun) {
 if (sqliteRun) {
 	test('idow opens a space in the worktree the stores name', async () => {
 		const fixture = setup();
-		const stateDir = path.join(fixture.home, '.pappardelle');
+		const stateDir = path.join(fixture.home, '.lasagna');
 		const daos = createStateDaos({
 			repo: path.basename(fixture.main),
 			stateDir,
@@ -256,7 +255,7 @@ if (sqliteRun) {
 				repo: path.basename(fixture.main),
 				key: 'test-abc',
 				worktreePath: stored,
-				socket: 'pappardelle_inner',
+				socket: 'lasagna_inner',
 			}),
 		);
 		await fixture.run();

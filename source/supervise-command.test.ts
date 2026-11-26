@@ -38,7 +38,7 @@ const permission = (command: string) =>
 		' Esc to cancel · Tab to amend',
 	].join('\n');
 
-const worktree = '/home/u/.worktrees/repo/STA-1';
+const worktree = '/home/u/.lasagna/worktrees/repo/STA-1';
 const policy: ApprovalPolicy = {
 	worktree,
 	roots: ['/tmp/'],
@@ -487,7 +487,7 @@ test('a tool call that answers prompts holds; a Bash command naming one goes to 
 		).replace(' Bash command', ' Tool use'),
 	]);
 	tool.hookReports({
-		currentTool: 'mcp__plugin_pappardelle_pappardelle__space_hold_resolve',
+		currentTool: 'mcp__plugin_lasagna_lasagna__space_hold_resolve',
 	});
 	expect(await tool.run('answer', 'STA-1', '--option', '1')).toBe(0);
 	expect(tool.classified).toStrictEqual([]);

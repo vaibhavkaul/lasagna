@@ -4,7 +4,7 @@
 #
 # Usage: open-default-terminal-agent.sh --worktree <path> --issue-key <key> --repo-name <name> --agent-session <name> --companion-session <name> [options]
 #
-# The session names and PAPPARDELLE_TMUX_SOCKET are the ones `pappardelle space
+# The session names and LASAGNA_TMUX_SOCKET are the ones `lasagna space
 # get` reports for the space.
 #
 # The last rung of idow's step 9, reached when the terminal is one Pappardelle
@@ -79,8 +79,8 @@ if [[ -z "$TMUX_SESSION" || -z "$COMPANION_SESSION" ]]; then
     exit 1
 fi
 
-if [[ -z "${PAPPARDELLE_TMUX_SOCKET:-}" ]]; then
-    echo "Error: PAPPARDELLE_TMUX_SOCKET is required: idow exports the space's socket from pappardelle space get" >&2
+if [[ -z "${LASAGNA_TMUX_SOCKET:-}" ]]; then
+    echo "Error: LASAGNA_TMUX_SOCKET is required: idow exports the space's socket from lasagna space get" >&2
     exit 1
 fi
 
@@ -143,7 +143,7 @@ if [[ "$PRINT_LAUNCH_FLAGS" == true ]]; then
     exit 0
 fi
 
-TMUX_L="tmux -L ${PAPPARDELLE_TMUX_SOCKET}"
+TMUX_L="tmux -L ${LASAGNA_TMUX_SOCKET}"
 
 # $AGENT_CMD, $AGENT_FLAGS, $AGENT_NAME and $AGENT_RESUME stay literal here: the
 # pane shell expands them after the values have crossed this script unparsed,
@@ -183,12 +183,12 @@ fi
 
 # The viewer session sits on the default socket, so its panes can attach to the
 # inner socket without tmux's nesting check rejecting them.
-VIEW_SESSION="pappardelle-view-${TMUX_SESSION#agent-}"
+VIEW_SESSION="lasagna-view-${TMUX_SESSION#agent-}"
 
 # Kept under $HOME rather than mktemp: `open` returns as soon as the terminal is
 # handed the file, so deleting it here would race the shell that has to read it.
 # One stable name per workspace, overwritten on each open, so it never piles up.
-LAUNCH_DIR="${HOME}/.pappardelle/launch"
+LAUNCH_DIR="${HOME}/.lasagna/launch"
 mkdir -p "$LAUNCH_DIR"
 CMD_FILE="${LAUNCH_DIR}/${TMUX_SESSION#agent-}.command"
 

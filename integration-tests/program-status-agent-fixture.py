@@ -13,7 +13,7 @@ mode, root, kind = sys.argv[1:4]
 is_claude = kind == "true"
 
 spec = importlib.util.spec_from_file_location(
-    "agent_session", Path(__file__).parents[1] / "plugins" / "pappardelle" / "hooks" / "agent_session.py"
+    "agent_session", Path(__file__).parents[1] / "plugins" / "lasagna" / "hooks" / "agent_session.py"
 )
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)

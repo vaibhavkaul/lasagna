@@ -63,7 +63,7 @@ jobs:
     # Linux only: macOS hosted runners are not available to this repo yet.
     runs-on: ubuntu-latest
     env:
-      PAPPARDELLE_SQLITE_STATE: ${{ matrix.sqlite_state }}
+      LASAGNA_SQLITE_STATE: ${{ matrix.sqlite_state }}
 
     steps:
       - name: Checkout repository
@@ -102,7 +102,7 @@ jobs:
 
       - name: Test the compiled CLI after relocation
         env:
-          PAPPARDELLE_TEST_STANDALONE: '1'
+          LASAGNA_TEST_STANDALONE: '1'
         run: bun run test:unit source/open-space-command.test.ts
 
       - name: Verify program status transport, lifecycle, cleanup and app
@@ -129,7 +129,7 @@ jobs:
         sqlite_state: ['0', '1']
     runs-on: ubuntu-latest
     env:
-      PAPPARDELLE_SQLITE_STATE: ${{ matrix.sqlite_state }}
+      LASAGNA_SQLITE_STATE: ${{ matrix.sqlite_state }}
       # The oldest tmux Pappardelle supports: MIN_TMUX_VERSION in
       # source/tmux-version.ts. Move both together.
       TMUX_FLOOR_VERSION: '3.4'
@@ -243,7 +243,7 @@ jobs:
         sqlite_state: ['0', '1']
     runs-on: ubuntu-latest
     env:
-      PAPPARDELLE_SQLITE_STATE: ${{ matrix.sqlite_state }}
+      LASAGNA_SQLITE_STATE: ${{ matrix.sqlite_state }}
 
     steps:
       - name: Checkout repository
@@ -267,4 +267,4 @@ jobs:
         run: pip install pytest
 
       - name: Run hook tests
-        run: pytest plugins/pappardelle/hooks/ -v
+        run: pytest plugins/lasagna/hooks/ -v

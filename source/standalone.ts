@@ -1,3 +1,8 @@
+import {dropPappardelleEnv} from './pappardelle-env.ts';
+
+// Before anything is started: tmux servers, idow and agents inherit this.
+dropPappardelleEnv();
+
 // The compiled process can run one of these without initializing the UI.
 const internalEntries: Record<string, () => Promise<unknown>> = {
 	'--internal-status-monitor': async () =>

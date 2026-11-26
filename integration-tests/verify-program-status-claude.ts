@@ -21,12 +21,12 @@ const session = 'claude-status-live';
 const conversation = randomUUID();
 const hookScript = path.join(
 	projectRoot,
-	'plugins/pappardelle/hooks/update-status.py',
+	'plugins/lasagna/hooks/update-status.py',
 );
 const settings = path.join(harness.root, 'claude-settings.json');
 const template = JSON.parse(
 	readFileSync(
-		path.join(projectRoot, 'plugins/pappardelle/hooks/hooks.json'),
+		path.join(projectRoot, 'plugins/lasagna/hooks/hooks.json'),
 		'utf8',
 	),
 ) as {
@@ -166,9 +166,9 @@ try {
 		'-c',
 		harness.root,
 		'-e',
-		`PAPPARDELLE_SPACE=${key}`,
+		`LASAGNA_SPACE=${key}`,
 		'-e',
-		`PAPPARDELLE_STATUS_DIR=${path.join(harness.root, 'hooks')}`,
+		`LASAGNA_STATUS_DIR=${path.join(harness.root, 'hooks')}`,
 		'/bin/bash',
 		'-l',
 	]);

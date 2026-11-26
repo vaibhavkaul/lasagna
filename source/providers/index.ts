@@ -70,7 +70,7 @@ export function setStateColors(dao: StateColorDao): void {
 }
 
 /**
- * Where `pappardelle link-pr` records that a PR was just linked, which ends
+ * Where `lasagna link-pr` records that a PR was just linked, which ends
  * GitHub's failure backoff early. Handed over at startup like the two above.
  * Without it a failed lookup waits out its backoff.
  */
@@ -79,7 +79,7 @@ export function setPrLinkStamp(dao: PrLinkStampDao): void {
 }
 
 /**
- * Where each space's issue title is kept, so that `pappardelle space get`
+ * Where each space's issue title is kept, so that `lasagna space get`
  * answers with it without calling the tracker. Handed over at startup like
  * the stores above. Without it titles are not kept.
  */

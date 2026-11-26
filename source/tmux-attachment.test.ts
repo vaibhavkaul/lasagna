@@ -57,11 +57,11 @@ afterAll(async () => {
 // monorepo's config sets `companion_command: ""`, which starts no companion
 // command, so the launch tests failed there and passed upstream (STA-3087).
 // An empty repository gives every checkout the default config. A space sets
-// PAPPARDELLE_MAIN_REPO_ROOT, which would point the lookup back at its repo.
+// LASAGNA_MAIN_REPO_ROOT, which would point the lookup back at its repo.
 const emptyRepository = mkdtempSync(join(tmpdir(), 'pappa-attach-repo-'));
 spawnSync('git', ['init', '-q', emptyRepository]);
 process.chdir(emptyRepository);
-delete process.env['PAPPARDELLE_MAIN_REPO_ROOT'];
+delete process.env['LASAGNA_MAIN_REPO_ROOT'];
 afterAll(() => {
 	rmSync(emptyRepository, {recursive: true, force: true});
 });
@@ -353,7 +353,7 @@ const titleAndFocus = (issueKey: string) => [
 	'-p',
 	'-t',
 	'%1',
-	'@pappardelle_title',
+	'@lasagna_title',
 	`agent · ${issueKey}`,
 	';',
 	'select-pane',
@@ -404,7 +404,7 @@ for (const {delayed, cancel} of [
 		expect(getCurrentlyViewingSpace()).toBe(null);
 		release();
 		expect(await attaching).toBe(false);
-		expect(fake.calls.some(args => args.includes('@pappardelle_title'))).toBe(
+		expect(fake.calls.some(args => args.includes('@lasagna_title'))).toBe(
 			false,
 		);
 		fake.calls.length = 0;
@@ -474,11 +474,11 @@ test('failed cold respawn discards cached ttys before a recycled pty can target 
 
 for (const selected of ['qa-custom', "/tmp/socket with ' quotes"]) {
 	test(`cold viewers attach to the selected socket ${selected}`, async () => {
-		const previous = process.env['PAPPARDELLE_TMUX_SOCKET'];
-		process.env['PAPPARDELLE_TMUX_SOCKET'] = selected;
+		const previous = process.env['LASAGNA_TMUX_SOCKET'];
+		process.env['LASAGNA_TMUX_SOCKET'] = selected;
 		teardown(() => {
-			if (previous === undefined) delete process.env['PAPPARDELLE_TMUX_SOCKET'];
-			else process.env['PAPPARDELLE_TMUX_SOCKET'] = previous;
+			if (previous === undefined) delete process.env['LASAGNA_TMUX_SOCKET'];
+			else process.env['LASAGNA_TMUX_SOCKET'] = previous;
 		});
 		const fake = fakeTmux();
 		const run: AsyncTmuxRunner = async args => {
@@ -545,7 +545,7 @@ test('switching yields to input and sends both clients to the selected inner ses
 	const switches = fake.calls.filter(args => args.includes('switch-client'));
 	expect(switches.length).toBe(2);
 	expect(
-		switches.every(args => args[0] === '-L' && args[1] === 'pappardelle_inner'),
+		switches.every(args => args[0] === '-L' && args[1] === 'lasagna_inner'),
 	).toBe(true);
 	expect(switches[0]!.at(-1)!.endsWith('-TEST-1:')).toBe(true);
 	expect(switches[1]!.at(-1)!.endsWith('-TEST-1:')).toBe(true);
@@ -622,7 +622,7 @@ test('warm switches move both viewers in one request without setup probes', asyn
 	).toBe(true);
 	expect(fake.calls.length).toBe(2);
 	const batch = fake.calls[0]!;
-	expect(batch.slice(0, 2)).toStrictEqual(['-L', 'pappardelle_inner']);
+	expect(batch.slice(0, 2)).toStrictEqual(['-L', 'lasagna_inner']);
 	const commands = splitBatch(batch.slice(2));
 	expect(isSplitListing(commands.at(-1))).toBe(true);
 	const target = (prefix: string) =>
@@ -660,7 +660,7 @@ test('a switch and a session start use the names stored for the space', async ()
 			key,
 			worktreePath: '/tmp',
 			tmux: {
-				socket: 'pappardelle_inner',
+				socket: 'lasagna_inner',
 				agentSession: `hand-named-agent-${key}`,
 				companionSession: `hand-named-companion-${key}`,
 			},
@@ -1035,14 +1035,14 @@ test('cold companion creation completes its command before reporting success', a
 		'main',
 	]);
 	expect(
-		calls.every(args => args[0] === '-L' && args[1] === 'pappardelle_inner'),
+		calls.every(args => args[0] === '-L' && args[1] === 'lasagna_inner'),
 	).toBe(true);
-	expect(calls[1]!.includes('PAPPARDELLE_SPACE=TEST-NEW')).toBe(true);
+	expect(calls[1]!.includes('LASAGNA_SPACE=TEST-NEW')).toBe(true);
 	expect(calls[1]!.includes('custom-ui')).toBe(true);
 });
 
 // The agent's hook records its session id under the stored agent profile
-// (plugins/pappardelle/hooks/agent_session.py), never one the session carries.
+// (plugins/lasagna/hooks/agent_session.py), never one the session carries.
 test('a new agent session stores the agent profile it was started with', async () => {
 	const calls: string[][] = [];
 	const run: AsyncTmuxRunner = async args => {
@@ -1065,7 +1065,7 @@ test('a new agent session stores the agent profile it was started with', async (
 		isClaude: false,
 	});
 	const created = calls.find(args => args.includes('new-session'))!;
-	expect(created.some(arg => arg.startsWith('PAPPARDELLE_AGENT_'))).toBe(false);
+	expect(created.some(arg => arg.startsWith('LASAGNA_AGENT_'))).toBe(false);
 });
 
 test('a new agent session starts when its agent profile cannot be stored', async () => {

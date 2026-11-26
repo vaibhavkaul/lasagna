@@ -403,7 +403,7 @@ test('close kills the sessions stored for the space, and knows its own session b
 		key: 'STA-1',
 		worktreePath: '/wt/STA-1',
 		tmux: {
-			socket: 'pappardelle_inner',
+			socket: 'lasagna_inner',
 			agentSession: 'agent-hand-named',
 			companionSession: 'companion-hand-named',
 		},

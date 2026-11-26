@@ -35,7 +35,7 @@ try {
 	const daos = createStateDaos({
 		repo: getRepoName(),
 		stateDir: path.join(harness.root, 'state'),
-		sqlite: process.env['PAPPARDELLE_SQLITE_STATE'] === '1',
+		sqlite: process.env['LASAGNA_SQLITE_STATE'] === '1',
 	});
 	initTmuxState(daos);
 	const bin = path.join(harness.root, 'bin');
@@ -95,7 +95,7 @@ try {
 			'-c',
 			harness.root,
 			'-e',
-			`PAPPARDELLE_SPACE=${key}`,
+			`LASAGNA_SPACE=${key}`,
 			'/bin/bash',
 		]);
 		const pane = await daos.programStatus.attach(key, session);
@@ -184,7 +184,7 @@ try {
 			'-s',
 			session,
 			'-e',
-			`PAPPARDELLE_SPACE=${key}`,
+			`LASAGNA_SPACE=${key}`,
 			'/bin/bash',
 		]);
 	const pane = await daos.programStatus.attach(key, sessions.agent);

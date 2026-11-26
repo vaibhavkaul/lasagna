@@ -30,7 +30,7 @@ class Fixture:
     def __init__(self, root, repo, yq):
         self.root = root
         home, project, bin_dir, scripts = (root / name for name in ("home", "repo", "bin", "scripts"))
-        for directory in (home, project, bin_dir, scripts, home / ".pappardelle"):
+        for directory in (home, project, bin_dir, scripts, home / ".lasagna"):
             directory.mkdir(parents=True, exist_ok=True)
         for source in (repo / "scripts").iterdir():
             if source.is_file():
@@ -47,8 +47,8 @@ class Fixture:
         # Both names, so a baseline from before the agent-profile rename still runs.
         for session_script in ("start-claude-session.sh", "start-agent-session.sh"):
             write_script(scripts / session_script, ":")
-        write_script(scripts / "create-worktree.sh", '''mkdir -p "$HOME/.worktrees/repo/bench-123"
-printf '{"worktree_path":"%s"}\\n' "$HOME/.worktrees/repo/bench-123"''')
+        write_script(scripts / "create-worktree.sh", '''mkdir -p "$HOME/.lasagna/worktrees/repo/bench-123"
+printf '{"worktree_path":"%s"}\\n' "$HOME/.lasagna/worktrees/repo/bench-123"''')
         for launcher in (
             "open-iterm-claude.sh", "open-default-terminal-claude.sh", "open-ghostty-claude.sh",
             "open-iterm-agent.sh", "open-default-terminal-agent.sh", "open-ghostty-agent.sh",
@@ -65,15 +65,15 @@ printf '{"worktree_path":"%s"}\\n' "$HOME/.worktrees/repo/bench-123"''')
         }
         (project / ".pappardelle.yml").write_text(json.dumps(config))
         (project / ".pappardelle.local.yml").write_text("claude:\n  model: sonnet\n")
-        (home / ".pappardelle" / ".pappardelle.yml").write_text("claude:\n  effort: high\n")
+        (home / ".lasagna" / ".pappardelle.yml").write_text("claude:\n  effort: high\n")
         self.env = {
             **os.environ, "HOME": str(home), "PATH": f'{bin_dir}:{os.environ["PATH"]}',
-            "PAPPARDELLE_PROJECT_ROOT": str(project), "PAPPARDELLE_MAIN_REPO_ROOT": str(project),
+            "LASAGNA_PROJECT_ROOT": str(project), "LASAGNA_MAIN_REPO_ROOT": str(project),
             "BENCH_YQ_LOG": str(root / "yq-calls"),
         }
 
     def run(self, mode):
-        worktree = self.root / "home/.worktrees/repo/bench-123"
+        worktree = self.root / "home/.lasagna/worktrees/repo/bench-123"
         if mode == "create":
             shutil.rmtree(worktree, ignore_errors=True)
         else:

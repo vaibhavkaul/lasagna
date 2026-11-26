@@ -1,7 +1,7 @@
 // Resolves the emoji to render in the ticket rail for a single space.
 //
 // Single source of truth: the profile name persisted in the per-space state
-// file (`~/.pappardelle/repos/{repo}/space-state/{ISSUE-KEY}.json`).
+// file (`~/.lasagna/repos/{repo}/space-state/{ISSUE-KEY}.json`).
 //
 // Two callers write to that file — both at the moment a space is first added
 // to the ticket rail:

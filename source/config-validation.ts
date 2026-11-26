@@ -594,6 +594,13 @@ function validateAgentProfileEnv(name: string, env: unknown): string[] {
 			return [`${prefix}: must be an environment variable name`];
 		}
 
+		if (key.startsWith('LASAGNA_')) {
+			return [`${prefix}: LASAGNA_ variables are set by lasagna`];
+		}
+
+		// Refused as Pappardelle refuses them, so a config is valid in both
+		// tools or in neither. An installed Pappardelle's hooks would also take
+		// a session carrying them for one of its own spaces.
 		if (key.startsWith('PAPPARDELLE_')) {
 			return [`${prefix}: PAPPARDELLE_ variables are set by pappardelle`];
 		}

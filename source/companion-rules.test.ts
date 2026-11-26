@@ -114,7 +114,7 @@ test('agy gets an always-on rule the worktree stays clean of', async () => {
 	await installAgentRules('/usr/local/bin/agy --flag', tree);
 
 	const rule = fs.readFileSync(
-		path.join(tree, '.agents', 'rules', 'pappardelle.md'),
+		path.join(tree, '.agents', 'rules', 'lasagna.md'),
 		'utf8',
 	);
 	expect(rule.startsWith('---\ntrigger: always_on\n---\n')).toBe(true);
@@ -125,7 +125,7 @@ test('agy gets an always-on rule the worktree stays clean of', async () => {
 		path.join(main, '.git', 'info', 'exclude'),
 		'utf8',
 	);
-	expect(exclude.split('.agents/rules/pappardelle.md').length - 1).toBe(1);
+	expect(exclude.split('.agents/rules/lasagna.md').length - 1).toBe(1);
 	expect(git(main, 'worktree', 'remove', tree).status).toBe(0);
 });
 

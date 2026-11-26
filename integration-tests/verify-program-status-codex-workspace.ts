@@ -48,10 +48,10 @@ const env = {
 	CODEX_HOME: codexHome,
 	TMUX_TMPDIR: path.join(root, 'tmux'),
 	SHELL: '/bin/bash',
-	PAPPARDELLE_PROGRAM_STATUS_DIR: path.join(root, 'status'),
-	PAPPARDELLE_PROGRAM_STATUS_TRACE_DIR: path.join(root, 'trace'),
-	PAPPARDELLE_STATUS_DIR: path.join(root, 'hooks'),
-	PAPPARDELLE_TMUX_SOCKET: inner,
+	LASAGNA_PROGRAM_STATUS_DIR: path.join(root, 'status'),
+	LASAGNA_PROGRAM_STATUS_TRACE_DIR: path.join(root, 'trace'),
+	LASAGNA_STATUS_DIR: path.join(root, 'hooks'),
+	LASAGNA_TMUX_SOCKET: inner,
 };
 Reflect.deleteProperty(env, 'TMUX');
 Reflect.deleteProperty(env, 'TMUX_PANE');
@@ -172,7 +172,7 @@ profiles:
 		'-m',
 		'Fixture',
 	]);
-	const command = shellQuoteStatus(path.join(project, 'dist/pappardelle'));
+	const command = shellQuoteStatus(path.join(project, 'dist/lasagna'));
 	tmux(
 		outer,
 		'-f',
@@ -202,7 +202,7 @@ profiles:
 				readFileSync(
 					path.join(
 						home,
-						'.pappardelle',
+						'.lasagna',
 						'repos',
 						path.basename(repo),
 						'space-state',

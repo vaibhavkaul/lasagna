@@ -1,4 +1,4 @@
-// `pappardelle mcp install`: registers `pappardelle mcp` with the agents that
+// `lasagna mcp install`: registers `lasagna mcp` with the agents that
 // can't load the Claude Code plugin, through each one's own `mcp add` so their
 // config files keep their comments and symlinks. Claude Code gets the server
 // and its auto-approval from the plugin instead.
@@ -9,7 +9,7 @@ import {homedir} from 'node:os';
 import path from 'node:path';
 import {AUTO_APPROVED_TOOLS} from './mcp-tools.ts';
 
-const SERVER = 'pappardelle';
+const SERVER = 'lasagna';
 
 export type RunResult = {status: number | null; error?: Error};
 
@@ -132,19 +132,17 @@ export function installMcpServer(deps: McpInstallDeps): number {
 		if ((result.error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT')
 			continue;
 		if (result.status !== 0) {
-			deps.print(
-				`Could not add the Pappardelle MCP server to ${agent.binary}.`,
-			);
+			deps.print(`Could not add the Lasagna MCP server to ${agent.binary}.`);
 			status = 1;
 			continue;
 		}
 
 		try {
 			agent.approve?.(deps);
-			deps.print(`Added the Pappardelle MCP server to ${agent.binary}.`);
+			deps.print(`Added the Lasagna MCP server to ${agent.binary}.`);
 		} catch (error) {
 			deps.print(
-				`Added the Pappardelle MCP server to ${agent.binary}, but could not auto-approve its companion tools: ${error instanceof Error ? error.message : String(error)}`,
+				`Added the Lasagna MCP server to ${agent.binary}, but could not auto-approve its companion tools: ${error instanceof Error ? error.message : String(error)}`,
 			);
 			status = 1;
 		}
@@ -155,11 +153,11 @@ export function installMcpServer(deps: McpInstallDeps): number {
 
 export function defaultMcpInstallDeps(): McpInstallDeps {
 	const home = homedir();
-	const shim = path.join(home, '.local', 'bin', 'pappardelle');
+	const shim = path.join(home, '.local', 'bin', 'lasagna');
 	return {
 		home,
 		codexHome: process.env['CODEX_HOME'] ?? path.join(home, '.codex'),
-		serverCommand: fs.existsSync(shim) ? shim : 'pappardelle',
+		serverCommand: fs.existsSync(shim) ? shim : 'lasagna',
 		run(command, args) {
 			const result = spawnSync(command, args, {stdio: 'ignore'});
 			return {status: result.status, error: result.error};

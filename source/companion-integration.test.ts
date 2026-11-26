@@ -1,4 +1,4 @@
-// `pappardelle companion` against a real tmux server. The server runs on its
+// `lasagna companion` against a real tmux server. The server runs on its
 // own socket in a short temp directory, never the user's servers, and is
 // killed through that socket only.
 import {tmpdir} from 'node:os';

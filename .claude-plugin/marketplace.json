@@ -1,27 +1,28 @@
 {
-	"name": "pappardelle-marketplace",
+	"name": "lasagna-marketplace",
 	"owner": {
 		"name": "chardigio",
 		"email": "hi@charliedigiovanna.com"
 	},
 	"metadata": {
-		"description": "Official plugin marketplace for Pappardelle — the TUI for multi-clauding without losing your marbles. Includes the Pappardelle plugin: skills for installing, updating, and configuring Pappardelle, and the hooks that connect Claude sessions to the TUI.",
+		"description": "Plugin marketplace for Lasagna, a fork of Pappardelle — the TUI for multi-clauding without losing your marbles. Includes the Lasagna plugin: skills for installing, updating, and configuring Lasagna, and the hooks that connect Claude sessions to the TUI.",
 		"version": "1.1.0",
 		"pluginRoot": "./plugins"
 	},
 	"plugins": [
 		{
-			"name": "pappardelle",
-			"source": "./plugins/pappardelle",
-			"description": "Install, update, configure, and monitor Pappardelle workspaces. Provides /init-pappardelle (interactive setup wizard), /update-pappardelle (update to latest version), /configure-pappardelle (interactive config editor), /sous-chef (kitchen-style workspace coordinator), /link-pr (record a PR/MR for the workspace), and pappardelle-agent (workspace reference), an MCP server with tools for the companion pane and spaces, plus the hooks that report Claude status to the TUI, post question answers to the issue, and send ntfy notifications.",
+			"name": "lasagna",
+			"source": "./plugins/lasagna",
+			"description": "Install, update, configure, and monitor Lasagna workspaces. Lasagna is a fork of Pappardelle (github.com/chardigio/pappardelle). Provides /init-lasagna (interactive setup wizard), /update-lasagna (update to latest version), /configure-lasagna (interactive config editor), /sous-chef (kitchen-style workspace coordinator), /link-pr (record a PR/MR for the workspace), and lasagna-agent (workspace reference), an MCP server with tools for the companion pane and spaces, plus the hooks that report Claude status to the TUI, post question answers to the issue, and send ntfy notifications.",
 			"version": "1.1.0",
 			"author": {
 				"name": "chardigio"
 			},
-			"homepage": "https://github.com/chardigio/pappardelle",
-			"repository": "https://github.com/chardigio/pappardelle",
+			"homepage": "https://github.com/vaibhavkaul/lasagna",
+			"repository": "https://github.com/vaibhavkaul/lasagna",
 			"license": "MIT",
 			"keywords": [
+				"lasagna",
 				"pappardelle",
 				"worktree",
 				"workspace",

@@ -25,7 +25,7 @@ import type {StateDaos} from './state-daos.ts';
 import {processIsAlive, type TuiMarkerDao} from './tui-marker.ts';
 
 export interface CompanionCommandDeps {
-	/** Resolves --space (or $PAPPARDELLE_SPACE when undefined) to a key. */
+	/** Resolves --space (or $LASAGNA_SPACE when undefined) to a key. */
 	resolveSpace: (flag: string | undefined) => string;
 	/** The repo's stores, built once they are used so --help works outside a repo. */
 	daos: () => Pick<
@@ -74,7 +74,7 @@ async function execute(
 					: command.text;
 			if (command.keys.length === 0 && !text && !command.enter) {
 				deps.err(
-					'Usage: pappardelle companion keys [--pane NAME] [--no-enter] [--keys KEY]... [text]',
+					'Usage: lasagna companion keys [--pane NAME] [--no-enter] [--keys KEY]... [text]',
 				);
 				return 1;
 			}
@@ -197,7 +197,7 @@ function report(
 		}
 
 		case 'no-tui': {
-			deps.out(`${label}; ${verb} when Pappardelle next launches`);
+			deps.out(`${label}; ${verb} when Lasagna next launches`);
 			return 0;
 		}
 

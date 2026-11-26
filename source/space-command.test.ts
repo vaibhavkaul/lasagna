@@ -101,7 +101,7 @@ async function openSpace(
 				key === 'main'
 					? MAIN_ROOT
 					: worktreePathFor(options.home ?? HOME, state.repo, key),
-			socket: options.socket ?? 'pappardelle_inner',
+			socket: options.socket ?? 'lasagna_inner',
 		}),
 	);
 	if (key !== 'main' && options.register !== false)
@@ -217,7 +217,7 @@ test('both stores answer get and list the same for one history', async () => {
 		key: 'STA-2',
 		phase: 'open',
 		title: 'Fix the login page',
-		worktreePath: '/home/u/.worktrees/repo/STA-2',
+		worktreePath: '/home/u/.lasagna/worktrees/repo/STA-2',
 		branch: 'STA-2',
 		profile: 'dev',
 		agentSessions: {claude: 'c-1', codex: 'x-1'},
@@ -248,7 +248,7 @@ test('session names and targets encode dots and underscores, and name main', asy
 		return JSON.parse(stdout) as unknown;
 	};
 	expect(await tmuxOf('a.b_c')).toStrictEqual({
-		socket: 'pappardelle_inner',
+		socket: 'lasagna_inner',
 		socketFlag: '-L',
 		agentSession: 'agent-repo-a_b__c',
 		companionSession: 'companion-repo-a_b__c',
@@ -266,7 +266,7 @@ test('session names and targets encode dots and underscores, and name main', asy
 });
 
 test('a socket path is passed with -S', async () => {
-	const state = stateOf({env: {PAPPARDELLE_TMUX_SOCKET: '/tmp/inner.sock'}});
+	const state = stateOf({env: {LASAGNA_TMUX_SOCKET: '/tmp/inner.sock'}});
 	await openSpace(state, 'STA-1', {socket: '/tmp/inner.sock'});
 	const result = await run(
 		['get', 'STA-1', '--field', 'tmux.socketFlag', '--field', 'tmux.socket'],
@@ -386,7 +386,7 @@ contractTest(
 	},
 );
 
-test('a space named by PAPPARDELLE_SPACE belongs to PAPPARDELLE_REPO, not the nested checkout', async () => {
+test('a space named by LASAGNA_SPACE belongs to LASAGNA_REPO, not the nested checkout', async () => {
 	const outer = stateOf({repo: 'repo'});
 	const nested = stateOf({repo: 'nested'});
 	await openSpace(outer, 'STA-1');
@@ -399,23 +399,30 @@ test('a space named by PAPPARDELLE_SPACE belongs to PAPPARDELLE_REPO, not the ne
 				checkout: {repoName: 'nested', mainRoot: MAIN_ROOT},
 			}),
 			daos: repo => (repo === 'repo' ? outer.daos : nested.daos),
-			env: {PAPPARDELLE_SPACE: 'STA-1', PAPPARDELLE_REPO: 'repo'},
+			env: {LASAGNA_SPACE: 'STA-1', LASAGNA_REPO: 'repo'},
 		}),
 	);
 	expect(JSON.parse(result.stdout)).toStrictEqual({
 		repo: 'repo',
 		profile: 'dev',
-		worktreePath: '/home/u/.worktrees/repo/STA-1',
+		worktreePath: '/home/u/.lasagna/worktrees/repo/STA-1',
 	});
 });
 
-test('with no key and no PAPPARDELLE_SPACE, the space is the worktree the caller is in', async () => {
+test('with no key and no LASAGNA_SPACE, the space is the worktree the caller is in', async () => {
 	const home = fs.realpathSync(
 		fs.mkdtempSync(path.join(os.tmpdir(), 'space-home-')),
 	);
 	teardown(() => fs.rmSync(home, {recursive: true, force: true}));
 	const state = stateOf({home});
-	const inside = path.join(home, '.worktrees', 'repo', 'STA-1', 'src');
+	const inside = path.join(
+		home,
+		'.lasagna',
+		'worktrees',
+		'repo',
+		'STA-1',
+		'src',
+	);
 	fs.mkdirSync(inside, {recursive: true});
 	await openSpace(state, 'STA-1', {home});
 	expect(
@@ -427,7 +434,7 @@ test('with no key and no PAPPARDELLE_SPACE, the space is the worktree the caller
 	expect(await run(['get'], deps(state, {cwd: home}))).toStrictEqual({
 		code: 1,
 		stdout: '',
-		stderr: 'Not in a Pappardelle space; pass a KEY',
+		stderr: 'Not in a Lasagna space; pass a KEY',
 	});
 });
 
@@ -459,7 +466,7 @@ test('a space is reported under the names stored for it', async () => {
 	});
 });
 
-test('with no key, a worktree outside ~/.worktrees is found by its stored path', async () => {
+test('with no key, a worktree outside ~/.lasagna/worktrees is found by its stored path', async () => {
 	const root = fs.realpathSync(
 		fs.mkdtempSync(path.join(os.tmpdir(), 'space-custom-')),
 	);
@@ -472,7 +479,7 @@ test('with no key, a worktree outside ~/.worktrees is found by its stored path',
 			repo: 'repo',
 			key: 'STA-1',
 			worktreePath: worktree,
-			socket: 'pappardelle_inner',
+			socket: 'lasagna_inner',
 		}),
 	);
 	await state.daos.registry.add('STA-1');
@@ -496,7 +503,7 @@ test('a space closed before identities were stored has no names', async () => {
 	});
 });
 
-test('outside a git checkout, get with a key or PAPPARDELLE_SPACE and list exit 1 with one line', async () => {
+test('outside a git checkout, get with a key or LASAGNA_SPACE and list exit 1 with one line', async () => {
 	const state = stateOf();
 	await openSpace(state, 'STA-1');
 	const outside = {checkout: () => ({kind: 'not-in-a-repo'}) as const};
@@ -512,7 +519,7 @@ test('outside a git checkout, get with a key or PAPPARDELLE_SPACE and list exit 
 	expect(
 		await run(
 			['get'],
-			deps(state, {...outside, env: {PAPPARDELLE_SPACE: 'STA-1'}}),
+			deps(state, {...outside, env: {LASAGNA_SPACE: 'STA-1'}}),
 		),
 	).toStrictEqual(expected);
 	expect(await run(['list'], deps(state, outside))).toStrictEqual(expected);
@@ -759,8 +766,8 @@ profiles:
 					env: {
 						...process.env,
 						HOME: home,
-						PAPPARDELLE_PROJECT_ROOT: repo,
-						PAPPARDELLE_MAIN_REPO_ROOT: repo,
+						LASAGNA_PROJECT_ROOT: repo,
+						LASAGNA_MAIN_REPO_ROOT: repo,
 					},
 					stdio: ['ignore', 'pipe', 'pipe'],
 				},
@@ -776,7 +783,7 @@ profiles:
 	};
 }
 
-test('pappardelle space with a bad verb, flag or field exits 2 without opening a space', async () => {
+test('lasagna space with a bad verb, flag or field exits 2 without opening a space', async () => {
 	const f = cli();
 	for (const args of [
 		['space', 'bogus'],
@@ -785,7 +792,7 @@ test('pappardelle space with a bad verb, flag or field exits 2 without opening a
 	]) {
 		const result = await f.run(args);
 		expect(result.code, args.join(' ')).toBe(2);
-		expect(result.stderr).toMatch(/Usage: pappardelle space get/);
+		expect(result.stderr).toMatch(/Usage: lasagna space get/);
 	}
 
 	expect(f.idowRan()).toBe(false);

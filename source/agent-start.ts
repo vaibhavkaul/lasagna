@@ -32,7 +32,7 @@ async function agentStarted(
 
 /**
  * Wait for a space's agent to start. A failed agent launch leaves a login
- * shell in the pane, and `pappardelle send` only checks that the tmux session
+ * shell in the pane, and `lasagna send` only checks that the tmux session
  * exists, so sending without this check can run the text as a shell command.
  */
 export async function waitForAgentStart(options: {

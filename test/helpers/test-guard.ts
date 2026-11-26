@@ -1,7 +1,7 @@
 // Loaded first into every test file (bunfig.toml, preload), before any module
 // under source/ fixes a path from homedir() or starts tmux. A test file run
 // by `bun test` without scripts/unit-tests.ts would write to the real
-// ~/.pappardelle and could reach the live tmux server every agent runs in.
+// ~/.lasagna and could reach the live tmux server every agent runs in.
 import os from 'node:os';
 import path from 'node:path';
 import {isHostPappardelleEnv} from './env.ts';

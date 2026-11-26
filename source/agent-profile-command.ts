@@ -1,4 +1,4 @@
-// `pappardelle agent-profile list`: the agent profiles a space can be opened
+// `lasagna agent-profile list`: the agent profiles a space can be opened
 // on, so callers pick a valid --agent-profile without reading the config.
 
 import {parseArgs} from 'node:util';

@@ -1,5 +1,6 @@
 import {parseArgs, type ParseArgsConfig} from 'node:util';
 import type {WaitTarget} from './agent-state.ts';
+import {STATE_DIR_NAME} from './state-dir.ts';
 import {
 	decodeCursor,
 	WATCH_TARGETS,
@@ -91,21 +92,21 @@ export class SuperviseUsageError extends Error {}
 
 export const superviseHelp = `
 	Usage
-	  $ pappardelle screen KEY [--companion [--pane NAME]] [--lines N]
-	  $ pappardelle state KEY [--json] [--tabs]
-	  $ pappardelle wait KEY --until working|idle|blocked|ready|changed [--timeout SECONDS] [--json]
-	  $ pappardelle watch [KEY...] [--until STATE...] [--since CURSOR] [--timeout SECONDS] [--json]
-	  $ pappardelle answer KEY (--option N... | --text TEXT | --keys KEY...) [--force]
-	  $ pappardelle queue KEY [text]
-	  $ pappardelle schedule KEY --at TIME --message TEXT
-	  $ pappardelle schedule KEY --after-limit [--message TEXT]
-	  $ pappardelle schedule KEY --keep-going --every DURATION --nudge TEXT [--until TIME]
-	  $ pappardelle schedules [KEY]
-	  $ pappardelle unschedule ID
-	  $ pappardelle holds [KEY] [--all] [--json]
-	  $ pappardelle holds approve|dismiss ID
-	  $ pappardelle tui panes
-	  $ pappardelle tui focus-log [--seconds N]
+	  $ lasagna screen KEY [--companion [--pane NAME]] [--lines N]
+	  $ lasagna state KEY [--json] [--tabs]
+	  $ lasagna wait KEY --until working|idle|blocked|ready|changed [--timeout SECONDS] [--json]
+	  $ lasagna watch [KEY...] [--until STATE...] [--since CURSOR] [--timeout SECONDS] [--json]
+	  $ lasagna answer KEY (--option N... | --text TEXT | --keys KEY...) [--force]
+	  $ lasagna queue KEY [text]
+	  $ lasagna schedule KEY --at TIME --message TEXT
+	  $ lasagna schedule KEY --after-limit [--message TEXT]
+	  $ lasagna schedule KEY --keep-going --every DURATION --nudge TEXT [--until TIME]
+	  $ lasagna schedules [KEY]
+	  $ lasagna unschedule ID
+	  $ lasagna holds [KEY] [--all] [--json]
+	  $ lasagna holds approve|dismiss ID
+	  $ lasagna tui panes
+	  $ lasagna tui focus-log [--seconds N]
 
 	Watch and answer the agent in another space. KEY is a space key such as
 	STA-696, a bare number with the team prefix, or main.
@@ -150,7 +151,7 @@ export const superviseHelp = `
 	  tui focus-log  Log active-pane and client-focus changes for --seconds (30)
 
 	Everything sent or scheduled, and each change watch reports, is logged to
-	~/.pappardelle/repos/<repo>/supervise.jsonl.
+	~/${STATE_DIR_NAME}/repos/<repo>/supervise.jsonl.
 `;
 
 function positiveInt(value: string | undefined, flag: string): number {
@@ -175,7 +176,7 @@ function timeoutSeconds(value: string | undefined): number {
 
 function oneKey(positionals: string[], verb: string, name = 'KEY'): string {
 	if (positionals.length !== 1) {
-		throw new SuperviseUsageError(`Usage: pappardelle ${verb} ${name} ...`);
+		throw new SuperviseUsageError(`Usage: lasagna ${verb} ${name} ...`);
 	}
 
 	return positionals[0]!;
@@ -402,7 +403,7 @@ export function parseSuperviseArgs(argv: string[]): SuperviseCommand {
 		case 'queue': {
 			const [key, ...text] = rest;
 			if (!key)
-				throw new SuperviseUsageError('Usage: pappardelle queue KEY [text]');
+				throw new SuperviseUsageError('Usage: lasagna queue KEY [text]');
 			return {verb, key, ...(text.length > 0 ? {text: text.join(' ')} : {})};
 		}
 
@@ -434,7 +435,7 @@ export function parseSuperviseArgs(argv: string[]): SuperviseCommand {
 				json: {type: 'boolean'},
 			});
 			if (positionals.length > 1)
-				throw new SuperviseUsageError('Usage: pappardelle holds [KEY] ...');
+				throw new SuperviseUsageError('Usage: lasagna holds [KEY] ...');
 			return {
 				verb,
 				...(positionals[0] ? {key: positionals[0]} : {}),
@@ -461,7 +462,7 @@ export function parseSuperviseArgs(argv: string[]): SuperviseCommand {
 				return {verb: 'focus-log', seconds};
 			}
 
-			throw new SuperviseUsageError('Usage: pappardelle tui panes|focus-log');
+			throw new SuperviseUsageError('Usage: lasagna tui panes|focus-log');
 		}
 
 		default: {

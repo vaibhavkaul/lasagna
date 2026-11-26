@@ -1,0 +1,8 @@
+{
+	"mcpServers": {
+		"lasagna": {
+			"command": "lasagna",
+			"args": ["mcp"]
+		}
+	}
+}

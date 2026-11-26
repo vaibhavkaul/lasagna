@@ -2,7 +2,7 @@
 // Stores state name → hex color mappings in memory and on disk so the
 // main worktree color works even when no active issue has that state.
 //
-// Cache files are namespaced per-repo under ~/.pappardelle/repos/{repoName}/.
+// Cache files are namespaced per-repo under ~/.lasagna/repos/{repoName}/.
 import fs from 'node:fs';
 import path from 'node:path';
 import {createLogger} from '../logger.ts';

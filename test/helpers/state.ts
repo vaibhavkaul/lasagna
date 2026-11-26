@@ -21,8 +21,8 @@ import {initTmuxState} from '../../source/tmux.ts';
 import {sendHookEvent, serveTestHub} from './status-daemon.ts';
 import {teardown, type Cleanup} from './teardown.ts';
 
-/** Whether this test run keeps state in SQLite (PAPPARDELLE_SQLITE_STATE=1). */
-export const sqliteRun = process.env['PAPPARDELLE_SQLITE_STATE'] === '1';
+/** Whether this test run keeps state in SQLite (LASAGNA_SQLITE_STATE=1). */
+export const sqliteRun = process.env['LASAGNA_SQLITE_STATE'] === '1';
 
 export type TestState = {
 	daos: StateDaos;
@@ -138,7 +138,7 @@ export function testTmuxState(
 
 /**
  * Record identities for `keys` as idow records them when it opens a space:
- * the worktree under `~/.worktrees` and the names the creation rule gives.
+ * the worktree under `~/.lasagna/worktrees` and the names the creation rule gives.
  */
 export async function recordIdentities(
 	state: TestState,
@@ -185,7 +185,7 @@ export function idowIdentities(
 			repo,
 			key,
 			worktreePath: `/w/${key}`,
-			socket: 'pappardelle_inner',
+			socket: 'lasagna_inner',
 		});
 	return {
 		get: key =>
