@@ -264,6 +264,14 @@ import importlib.util, sys
 spec = importlib.util.spec_from_file_location("agent_session", sys.argv[1])
 agent_session = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(agent_session)
+# The renames below hold the database for longer than the hook's 0.1 s busy
+# timeout on a loaded CI runner, and the hook would fall back to the file.
+load_state_db = agent_session._load_state_db
+def patient_state_db():
+    state_db = load_state_db()
+    state_db.BUSY_TIMEOUT_SECONDS = 10
+    return state_db
+agent_session._load_state_db = patient_state_db
 table = {
     100: (99, "python3 record-agent-session.py"),
     99: (98, "sh -c python3 record-agent-session.py"),

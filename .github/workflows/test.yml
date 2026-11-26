@@ -6,7 +6,51 @@ on:
       - main
   pull_request:
 
+# A newer push to the same PR cancels the run still going for the old one.
+# Pushes to main always finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  # Formatting, lint and types don't depend on sqliteState, so they run once,
+  # beside the tests rather than inside each test job.
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.5'
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify lint tooling does not invoke Node
+        run: |
+          mkdir -p "$RUNNER_TEMP/no-node"
+          cat > "$RUNNER_TEMP/no-node/node" <<'SH'
+          #!/bin/sh
+          echo "Pappardelle must use Bun, not Node" >&2
+          exit 1
+          SH
+          chmod +x "$RUNNER_TEMP/no-node/node"
+          echo "$RUNNER_TEMP/no-node" >> "$GITHUB_PATH"
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Check formatting (prettier)
+        run: bun --bun prettier --check .
+
+      - name: Lint (xo)
+        run: bun --bun xo
+
   bun-tests:
     name: Bun Tests (sqliteState ${{ matrix.sqlite_state }})
     strategy:
@@ -47,20 +91,11 @@ jobs:
       - name: Build
         run: bun run build
 
-      - name: Typecheck
-        run: bun run typecheck
-
       - name: Install terminal test tools
         run: |
           sudo apt-get update && sudo apt-get install -y tmux shellcheck
           sudo curl -fsSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.54.3/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
-
-      - name: Check formatting (prettier)
-        run: bun --bun prettier --check .
-
-      - name: Lint (xo)
-        run: bun --bun xo
 
       - name: Run tests
         run: bun run test:unit
