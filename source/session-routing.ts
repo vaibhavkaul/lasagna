@@ -41,6 +41,11 @@ export function routeSession(normalizedIssueKey: string | null): SessionRoute {
  * Set when a session is spawned, cleared when the real space appears.
  */
 export interface PendingSession {
+	/**
+	 * The repo the space is made in, on a rail that shows more than one. `name`
+	 * is then `repo:KEY`, as the rail names the space once it exists.
+	 */
+	repo?: string;
 	type: 'issue' | 'description';
 	/** Issue key for issue routes (e.g., "STA-477"), empty string for description routes */
 	name: string;

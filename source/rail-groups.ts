@@ -29,7 +29,8 @@ export interface RailGroup {
 export type RailAttention = 'approval' | 'question';
 
 export type RailRow =
-	| {kind: 'header'; group: RailGroup; count: number}
+	/** `folded` is set on a header whose rows can be hidden, and says whether they are. */
+	| {kind: 'header'; group: RailGroup; count: number; folded?: boolean}
 	| {kind: 'space'; space: SpaceData}
 	| {kind: 'pending'; space: SpaceData};
 

@@ -38,6 +38,8 @@ interface Props {
 	layout: ListLayout;
 	/** Shown in place of the space's key. */
 	label?: string;
+	/** A short tag before the key: the space's repo, on a rail that shows several. */
+	tag?: string;
 	onSelect?: (name: string) => void;
 }
 
@@ -63,6 +65,7 @@ function SpaceListItem({
 	width,
 	layout,
 	label,
+	tag,
 	onSelect,
 }: Props) {
 	const handleClick = (event: MouseEvent) => {
@@ -154,14 +157,19 @@ function SpaceListItem({
 	// needs. The key is clipped to what is left after the emoji, the status
 	// icon and the rail icons, so it ends where the icons begin instead of
 	// running under them. At ordinary widths the clip changes nothing.
-	const issueKey = clipIssueKey(
-		label ?? space.name,
-		contentWidth - keyLineEmojiCells - ROW_ICON_CELLS - prefixCells,
-	);
+	// The tag is the first thing a narrow rail gives up: the key says more.
+	const keyRoom =
+		contentWidth - keyLineEmojiCells - ROW_ICON_CELLS - prefixCells;
+	const tagText =
+		tag && tag.length + 1 + (label ?? space.name).length <= keyRoom
+			? `${tag} `
+			: '';
+	const issueKey = clipIssueKey(label ?? space.name, keyRoom - tagText.length);
 	const hasIssueKey = issueKey.length > 0;
-	// emoji prefix + icon (1) + space (1) [+ issueKey (variable) + space (1)] + rail suffix
+	// emoji prefix + icon (1) + space (1) [+ tag] [+ issueKey (variable) + space (1)] + rail suffix
 	const fixedWidth =
 		keyLineEmojiCells +
+		tagText.length +
 		(hasIssueKey ? 1 + 1 + issueKey.length + 1 : 1 + 1) +
 		prefixCells;
 	const twoLineIndent = twoLineTitleIndent(
@@ -237,6 +245,7 @@ function SpaceListItem({
 				</span>
 			)}
 			<span {...gap}> </span>
+			{tagText ? <span {...paint({dim: true})}>{tagText}</span> : null}
 			{hasIssueKey ? (
 				<span {...paint({fg: stateColor, bold: true})}>{issueKey}</span>
 			) : null}
