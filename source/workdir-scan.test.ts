@@ -430,23 +430,49 @@ describe('scanning a work dir', () => {
 
 	test('a gh that hangs is given up on, and one that is missing is not run', async () => {
 		const fixture = workdirFixture();
-		writeExecutable(path.join(fixture.bin, 'gh'), '#!/bin/bash\nsleep 30\n');
+		// `exec`, so the signal that ends gh ends the sleep, and nothing is
+		// left holding gh's output open. It sleeps far past the timeout, and
+		// the timeout leaves git room on a busy machine.
+		writeExecutable(
+			path.join(fixture.bin, 'gh'),
+			'#!/bin/bash\nexec sleep 600\n',
+		);
 		const slow = await scanWorkdir(fixture.work, {
 			env: fixture.env,
-			commandTimeoutMs: 300,
+			commandTimeoutMs: 1000,
 		});
 		expect(slow.repos[0]!.errors).toStrictEqual([
 			'gh pr list failed: timed out',
 		]);
+		expect(slow.repos[0]!.tickets).toMatchObject({
+			read: {prs: null},
+			prsSkipped: 'gh pr list failed: timed out',
+		});
 		// The branches still name the prefix.
 		expect(slow.prefixes).toHaveProperty('B2B');
 
-		fs.rmSync(path.join(fixture.bin, 'gh'));
+		// A PATH that holds git and nothing else. Dropping the stub from PATH
+		// is not enough: some machines have a gh of their own in /usr/bin
+		// (GitHub's runners do), and that one would be run.
+		const gitOnly = path.join(fixture.root, 'git-only');
+		writeExecutable(
+			path.join(gitOnly, 'git'),
+			`#!/bin/sh\nexec ${JSON.stringify(Bun.which('git'))} "$@"\n`,
+		);
 		const without = await scanWorkdir(fixture.work, {
-			env: {...fixture.env, PATH: `${fixture.bin}:/usr/bin:/bin`},
+			env: {...fixture.env, PATH: gitOnly},
 		});
-		expect(without.repos[0]!.tickets.prsSkipped).toBe('gh is not installed');
+		expect(without.repos[0]!.tickets).toMatchObject({
+			read: {branches: 5, prs: null},
+			prsSkipped: 'gh is not installed',
+		});
 		expect(without.repos[0]!.errors).toStrictEqual([]);
+		// The hanging stub was not run a second time, nor any other gh.
+		expect(without.repos.map(repo => repo.tickets.prsSkipped)).toStrictEqual([
+			'gh is not installed',
+			'gh is not installed',
+			'the repo has no origin',
+		]);
 	});
 
 	test('what was skipped is counted by reason', async () => {
