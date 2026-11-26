@@ -612,7 +612,6 @@ async function makeTicketSpace(
 		await writeTicketFolder(env, ticket);
 		await startLead(env, key, options);
 	} catch (error) {
-		if (!(error instanceof TicketError)) throw error;
 		if (!grown) {
 			// As it was before: a ticket closed earlier stays closed, and a new
 			// one that got nowhere leaves no folder.
@@ -620,7 +619,11 @@ async function makeTicketSpace(
 			throw error;
 		}
 
-		throw new TicketError(`${error.message}. ${await keepOnRail(env, ticket)}`);
+		// Whatever stopped it, what was made is not left out of sight. If that
+		// cannot be done either, the first failure is the one to report.
+		const kept = await keepOnRail(env, ticket).catch(() => undefined);
+		if (!(error instanceof TicketError) || kept === undefined) throw error;
+		throw new TicketError(`${error.message}. ${kept}`);
 	}
 
 	// idow recorded the issue's title, which the first write could not have.
@@ -1003,10 +1006,11 @@ async function convertPlainSpace(
 			),
 		});
 	} catch (error) {
-		if (!(error instanceof TicketError)) throw error;
-		// Back to the plain space it was. Of the worktrees, only the one this
-		// run made is removed, which no agent ever ran in, and one it moved in
-		// goes back where it was. The plain spaces were not touched.
+		// Back to the plain space it was, whatever stopped the lead agent. Of
+		// the worktrees, only the one this run made is removed, which no agent
+		// ever ran in, and one it moved in goes back where it was. The plain
+		// spaces were not touched.
+		const reason = error instanceof Error ? error.message : String(error);
 		let left = '';
 		const at = brought?.member.worktreePath;
 		try {
@@ -1029,9 +1033,10 @@ async function convertPlainSpace(
 		removeIfEmpty(folder);
 		const stays = `${key} stays a plain space in ${leaving.join(' and ')}`;
 		await tellLeaving(
-			`The lead agent could not be started, so ${stays} and this session carries on: ${error.message}`,
+			`The lead agent could not be started, so ${stays} and this session carries on: ${reason}`,
 		);
-		throw new TicketError(`${error.message}. ${stays}${left}`);
+		if (!(error instanceof TicketError)) throw error;
+		throw new TicketError(`${reason}. ${stays}${left}`);
 	}
 
 	// The handoff is in the lead agent's hands: now the plain agents can end,

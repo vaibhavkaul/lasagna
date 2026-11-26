@@ -656,6 +656,45 @@ test('a plain space whose sessions cannot be ended keeps its worktree and stays 
 	);
 });
 
+test('a failure nobody planned for is undone, or kept in sight, like any other', async () => {
+	// idow could not be run at all: no exit status to read a reason from.
+	const unrunnable = (t: ReturnType<typeof fixture>) => {
+		const original = t.env.runIdow;
+		t.env.runIdow = async (args, repo) => {
+			if (!args.includes('--worktree-only'))
+				throw new Error('spawn idow ENOENT');
+			return original(args, repo);
+		};
+
+		return t;
+	};
+
+	// A plain space being converted stays as it was.
+	const converting = unrunnable(fixture());
+	const plain = await converting.plainSpace(converting.api, 'In api');
+	const refused = await rejectionOf(
+		addRepoToSpace(converting.env, {key: KEY, repo: converting.web.name}),
+	);
+	expect(refused.message).toBe('spawn idow ENOENT');
+	expect(fs.existsSync(plain)).toBe(true);
+	expect(converting.daos(converting.api.name).registry.has(KEY)).toBe(true);
+	expect(worktreesOf(converting.web.root)).toEqual([converting.web.root]);
+	expect(fs.existsSync(converting.folder)).toBe(false);
+	expect(converting.env.tickets.read(KEY)).toBeUndefined();
+
+	// A new ticket space is on the rail with the worktrees made for it.
+	const creating = unrunnable(fixture());
+	const failed = await rejectionOf(
+		createTicketSpace(creating.env, {
+			key: KEY,
+			repos: [creating.api.name, creating.web.name],
+		}),
+	);
+	expect(failed.message).toBe('spawn idow ENOENT');
+	expect(creating.own().registry.openSpaces()).toEqual([KEY]);
+	expect(creating.env.tickets.read(KEY)?.repos).toHaveLength(2);
+});
+
 test('a plain worktree is never moved into a directory that is already there', async () => {
 	const t = fixture();
 	const plain = await t.plainSpace(t.api, 'In api');
