@@ -273,6 +273,10 @@ export function parseRepoAnswer(
 
 	const specs = new Map(KEY_SPECS.map(spec => [keyFor(spec, profile), spec]));
 	const values: InferredValue[] = [];
+	// A value with a problem of its own is dropped, with a note saying why,
+	// so one bad value doesn't cost the repo every other one. Only an answer
+	// whose shape is wrong is refused as a whole.
+	const dropped: string[] = [];
 	const seen = new Set<string>();
 	for (const [index, entry] of answer['values'].entries()) {
 		const where = `values[${index}]`;
@@ -281,30 +285,38 @@ export function parseRepoAnswer(
 			continue;
 		}
 
-		for (const field of Object.keys(entry)) {
-			if (!VALUE_FIELDS.has(field))
-				errors.push(`${where}.${field} is not part of a value`);
-		}
-
-		const {key, value, source, confidence} = entry;
+		const {key, value, confidence} = entry;
 		const spec = typeof key === 'string' ? specs.get(key) : undefined;
 		if (typeof key !== 'string' || !spec) {
-			errors.push(
-				`${where}.key ${JSON.stringify(key)} is not a key setup infers`,
-			);
+			dropped.push(`${JSON.stringify(key)} is not a key setup infers`);
 			continue;
 		}
 
-		if (seen.has(key)) errors.push(`${where}.key ${key} is given twice`);
+		if (seen.has(key)) {
+			errors.push(`${where}.key ${key} is given twice`);
+			continue;
+		}
+
 		seen.add(key);
-		const problem = spec.problem(value);
-		if (problem) errors.push(`${key} ${problem}`);
-		const sourceProblem = line(source);
-		if (sourceProblem) errors.push(`${key}: source ${sourceProblem}`);
-		if (!CONFIDENCES.includes(confidence as Confidence))
-			errors.push(
-				`${key}: confidence must be one of ${CONFIDENCES.join(', ')}`,
-			);
+		// A source spread over lines is still a source.
+		const source =
+			typeof entry['source'] === 'string'
+				? entry['source'].replaceAll(/\s+/g, ' ').trim()
+				: entry['source'];
+		const problems = [
+			...Object.keys(entry)
+				.filter(field => !VALUE_FIELDS.has(field))
+				.map(field => `${field} is not part of a value`),
+			spec.problem(value),
+			line(source) && `source ${line(source)}`,
+			!CONFIDENCES.includes(confidence as Confidence) &&
+				`confidence must be one of ${CONFIDENCES.join(', ')}`,
+		].filter((problem): problem is string => typeof problem === 'string');
+		if (problems.length > 0) {
+			dropped.push(`${key}: ${problems.join('; ')}`);
+			continue;
+		}
+
 		values.push({
 			path: pathFor(spec, profile),
 			value,
@@ -313,5 +325,12 @@ export function parseRepoAnswer(
 		});
 	}
 
-	return errors.length > 0 ? {errors} : {values, notes: notes as string[]};
+	if (errors.length > 0) return {errors};
+	return {
+		values,
+		notes: [
+			...(notes as string[]),
+			...dropped.map(problem => `left out ${problem}`),
+		],
+	};
 }

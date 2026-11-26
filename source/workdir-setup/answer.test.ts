@@ -15,6 +15,12 @@ function value(key: string, held: unknown, confidence = 'high') {
 	return {key, value: held, source: 'CLAUDE.md:3', confidence};
 }
 
+function accepted(text: string): {values: InferredValue[]; notes: string[]} {
+	const parsed = parseRepoAnswer(text, 'api');
+	if ('errors' in parsed) throw new Error(parsed.errors.join('\n'));
+	return parsed;
+}
+
 function errorsOf(text: string): string[] {
 	const parsed = parseRepoAnswer(text, 'api');
 	if (!('errors' in parsed)) throw new Error('the answer was accepted');
@@ -92,33 +98,35 @@ describe('a repo answer', () => {
 		]);
 	});
 
-	test('a key setup does not infer makes the whole answer invalid', () => {
-		expect(
-			errorsOf(
-				answer([
-					value('team_prefix', 'B2B'),
-					value('claude.dangerously_skip_permissions', true),
-					// Another profile than the repo's.
-					value('profiles.web.display_name', 'Web'),
-				]),
-			),
-		).toStrictEqual([
-			'values[1].key "claude.dangerously_skip_permissions" is not a key setup infers',
-			'values[2].key "profiles.web.display_name" is not a key setup infers',
+	test('a key setup does not infer is left out with a note, and the rest kept', () => {
+		const parsed = accepted(
+			answer([
+				value('team_prefix', 'B2B'),
+				value('claude.dangerously_skip_permissions', true),
+				// Another profile than the repo's.
+				value('profiles.web.display_name', 'Web'),
+			]),
+		);
+		expect(parsed.values.map(held => held.path.join('.'))).toStrictEqual([
+			'team_prefix',
+		]);
+		expect(parsed.notes).toStrictEqual([
+			'left out "claude.dangerously_skip_permissions" is not a key setup infers',
+			'left out "profiles.web.display_name" is not a key setup infers',
 		]);
 	});
 
-	test('a value of the wrong shape is refused, naming the key', () => {
+	test('a value of the wrong shape is left out, naming the key and why', () => {
 		const cases: Array<[string, unknown, string]> = [
-			['team_prefix', 'b2b', 'team_prefix must be an upper-case project key'],
-			['issue_tracker.provider', 'github', 'issue_tracker.provider must be'],
+			['team_prefix', 'b2b', 'team_prefix: must be an upper-case project key'],
+			['issue_tracker.provider', 'github', 'issue_tracker.provider: must be'],
 			['issue_tracker.base_url', 'acme.atlassian.net', 'must be a URL'],
 			['issue_tracker.base_url', 'ftp://acme', 'must be an http(s) URL'],
 			['post_workspace_init', [], 'must be a non-empty list of commands'],
 			[
 				'post_workspace_init',
 				[{name: 'x', run: 'true', shell: 'zsh'}],
-				'post_workspace_init [0].shell is not a command field',
+				'[0].shell is not a command field',
 			],
 			[
 				'post_workspace_init',
@@ -130,32 +138,41 @@ describe('a repo answer', () => {
 			['profiles.api.vars.PR_TITLE_FORMAT', 'a\nb', 'must be a single line'],
 		];
 		for (const [key, held, message] of cases) {
-			const errors = errorsOf(answer([value(key, held)]));
-			expect(errors.join('\n'), `${key} ${JSON.stringify(held)}`).toContain(
-				message,
-			);
+			const parsed = accepted(answer([value(key, held)]));
+			expect(parsed.values, `${key} ${JSON.stringify(held)}`).toStrictEqual([]);
+			expect(
+				parsed.notes.join('\n'),
+				`${key} ${JSON.stringify(held)}`,
+			).toContain(message);
 		}
 	});
 
-	test('a value needs a one-line source and a known confidence', () => {
-		expect(
-			errorsOf(
-				answer([
-					{key: 'team_prefix', value: 'B2B', source: '', confidence: 'sure'},
-				]),
-			),
-		).toStrictEqual([
-			'team_prefix: source must be a non-empty string',
-			'team_prefix: confidence must be one of high, medium, low',
+	test('a value needs a source and a known confidence; a source over lines is folded onto one', () => {
+		const parsed = accepted(
+			answer([
+				{key: 'team_prefix', value: 'B2B', source: '', confidence: 'sure'},
+				{
+					key: 'issue_tracker.provider',
+					value: 'jira',
+					source: 'README.md:3\n  and CLAUDE.md:9',
+					confidence: 'high',
+				},
+			]),
+		);
+		expect(parsed.notes).toStrictEqual([
+			'left out team_prefix: source must be a non-empty string; confidence must be one of high, medium, low',
+		]);
+		expect(parsed.values.map(held => held.source)).toStrictEqual([
+			'README.md:3 and CLAUDE.md:9',
 		]);
 	});
 
-	test('fields outside the shape, repeats and bad notes are refused', () => {
+	test('an answer of the wrong shape is refused as a whole', () => {
 		expect(
 			errorsOf(
 				JSON.stringify({
 					values: [
-						{...value('team_prefix', 'B2B'), why: 'x'},
+						value('team_prefix', 'B2B'),
 						value('team_prefix', 'PLAT'),
 						'team_prefix',
 					],
@@ -166,11 +183,16 @@ describe('a repo answer', () => {
 		).toStrictEqual([
 			'summary is not part of the answer',
 			'notes must be a list of single-line strings',
-			'values[0].why is not part of a value',
 			'values[1].key team_prefix is given twice',
 			'values[2] must be an object',
 		]);
 		expect(errorsOf('{"notes": []}')).toStrictEqual(['values must be a list']);
+	});
+
+	test('a field outside a value leaves that value out', () => {
+		expect(
+			accepted(answer([{...value('team_prefix', 'B2B'), why: 'x'}])).notes,
+		).toStrictEqual(['left out team_prefix: why is not part of a value']);
 	});
 });
 
