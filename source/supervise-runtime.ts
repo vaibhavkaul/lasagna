@@ -51,7 +51,8 @@ const PASSED_TO_TIMERS = [
 	'LASAGNA_STATUS_SOCKET',
 ];
 
-function timerBackend(): TimerBackend {
+/** `repo` is the one whose wake-ups these are, when not the process's own. */
+function timerBackend(repo?: {name: string; mainRoot: string}): TimerBackend {
 	const env = Object.fromEntries(
 		PASSED_TO_TIMERS.flatMap(name => {
 			const value = process.env[name];
@@ -59,8 +60,8 @@ function timerBackend(): TimerBackend {
 		}),
 	);
 	const context: TimerContext = {
-		repo: getRepoName(),
-		cwd: getMainRepoRoot(),
+		repo: repo?.name ?? getRepoName(),
+		cwd: repo?.mainRoot ?? getMainRepoRoot(),
 		launch: [process.execPath, ...selfLaunchArgs()],
 		env,
 		run(command, args) {
@@ -146,16 +147,19 @@ function approvalPolicy(key: string): ApprovalPolicy {
 }
 
 /** Run as the TUI starts, so wake-ups lost to a reboot come back. */
-export async function rearmSchedules(schedules: ScheduleDao): Promise<void> {
+export async function rearmSchedules(
+	schedules: ScheduleDao,
+	repo?: {name: string; mainRoot: string},
+): Promise<void> {
 	try {
 		const rearmed = await rearmMissingTimers(
 			schedules,
-			timerBackend(),
+			timerBackend(repo),
 			new Date(),
 		);
 		for (const job of rearmed) {
 			recordSupervision(
-				getRepoName(),
+				repo?.name ?? getRepoName(),
 				'tui',
 				{
 					action: 'schedule',
@@ -245,7 +249,7 @@ export function defaultSuperviseDeps(
 		store: () => schedules,
 		holds: () => holds,
 		newHoldId,
-		timers: timerBackend,
+		timers: () => timerBackend(),
 		caller: callerFromEnv(process.env),
 		readStdin: defaultReadStdin,
 		out(text) {

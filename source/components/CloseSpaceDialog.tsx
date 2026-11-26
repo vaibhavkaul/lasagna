@@ -13,7 +13,7 @@ import {
 	STATE_ROW_ONE_LINE_COLS,
 	type StateChoice,
 } from '../close-state-choice.ts';
-import {createIssueTracker} from '../providers/index.ts';
+import {spaceTracker} from '../space-scope.ts';
 import type {
 	IssueTrackerProvider,
 	TrackerIssue,
@@ -64,9 +64,10 @@ function useCloseStates(
 	return states;
 }
 
-function defaultTracker(): IssueTrackerProvider | null {
+/** The tracker of the space's repo. */
+function defaultTracker(spaceName: string): IssueTrackerProvider | null {
 	try {
-		return createIssueTracker();
+		return spaceTracker(spaceName);
 	} catch {
 		return null;
 	}
@@ -91,8 +92,11 @@ export default function CloseSpaceDialog({
 	tracker: trackerOverride,
 }: Props) {
 	const tracker = useMemo(
-		() => (trackerOverride === undefined ? defaultTracker() : trackerOverride),
-		[trackerOverride],
+		() =>
+			trackerOverride === undefined
+				? defaultTracker(spaceName)
+				: trackerOverride,
+		[trackerOverride, spaceName],
 	);
 	const pickable = canPickCloseState(tracker);
 	const states = useCloseStates(tracker);
