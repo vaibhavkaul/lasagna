@@ -320,14 +320,12 @@ test('a adds a repo to a space, one add at a time for each space', () => {
 	// behind the first and then find the space changed: it is not started.
 	const adding = {repos, adding: new Set(['B2B-12'])};
 	expect(addRepoRefusal(plain, adding)).toBe(
-		'A repo is still being added to B2B-12. Add the next one when it is done',
+		'Still adding a repo to B2B-12. Add the next one when it is done',
 	);
 	// The plain space it is converting is the ticket space of the same key.
 	expect(
 		addRepoRefusal(space('@work', 'B2B-12', {ticketRepos: []}), adding),
-	).toBe(
-		'A repo is still being added to B2B-12. Add the next one when it is done',
-	);
+	).toBe('Still adding a repo to B2B-12. Add the next one when it is done');
 	expect(addRepoRefusal(ticket, adding)).toBeUndefined();
 
 	for (const none of [

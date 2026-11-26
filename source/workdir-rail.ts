@@ -68,7 +68,8 @@ export function addableRepos(
  * undefined when it can. `adding` holds the keys of the spaces a repo is
  * being added to: a second add to one of them would only wait behind the
  * first, with nothing on screen to say so, and a second conversion of the
- * same plain space would find it half-way to a ticket space.
+ * same plain space would find it half-way to a ticket space. What it says
+ * leads with the reason: the rail's header is as narrow as the rail.
  */
 export function addRepoRefusal(
 	space: SpaceData | undefined,
@@ -80,7 +81,7 @@ export function addRepoRefusal(
 	if (!space || space.isMainWorktree || space.isPending || !space.key)
 		return 'Select a space to add a repo to';
 	if (options.adding.has(space.key))
-		return `A repo is still being added to ${space.key}. Add the next one when it is done`;
+		return `Still adding a repo to ${space.key}. Add the next one when it is done`;
 	if (addableRepos(space, options.repos).length === 0)
 		return `Every repo of the work dir is already in ${space.key}`;
 	return undefined;
