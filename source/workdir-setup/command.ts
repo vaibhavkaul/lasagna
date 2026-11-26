@@ -10,7 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {createInterface} from 'node:readline/promises';
 import {parseArgs} from 'node:util';
-import {Document, isMap, parse, parseDocument, stringify} from 'yaml';
+import {Document, isMap, isScalar, parse, parseDocument, stringify} from 'yaml';
 import {
 	getDefaultHomeConfigDir,
 	layerOf,
@@ -979,9 +979,16 @@ export function scaffoldTopLevel(
 		added.push('version: 1');
 	}
 
-	if (!document.has('profiles')) {
+	if (!document.has('profiles') && isMap(document.contents)) {
 		const name = path.basename(workdir);
-		document.set('profiles', document.createNode({work: {display_name: name}}));
+		document.contents.items.push(
+			commentedPair(
+				document,
+				'profiles',
+				{work: {display_name: name}},
+				" Written once by setup for the work dir's own spaces. Yours to edit.",
+			),
+		);
 		added.push(`profiles.work.display_name: ${JSON.stringify(name)}`);
 	}
 
@@ -990,17 +997,62 @@ export function scaffoldTopLevel(
 		added.push(`issue_tracker: ${JSON.stringify(tracker)}`);
 	}
 
-	const {contents} = document;
-	if (isMap(contents) && added.some(line => line.startsWith('profiles.'))) {
-		const pair = contents.items.find(
-			item => isScalarKey(item.key) === 'profiles',
-		);
-		if (pair?.key && typeof pair.key === 'object')
-			(pair.key as {commentBefore?: string}).commentBefore =
-				" Written once by setup for the work dir's own spaces. Yours to edit.";
-	}
-
 	return added;
+}
+
+/**
+ * The prefixes a repo's default can be, yours first: most keys in your own
+ * branches, then most keys in the repo. At most six.
+ */
+export function defaultPrefixChoices(
+	repo: RepoScan,
+): Array<{prefix: string; why: string}> {
+	return Object.entries(repo.tickets.prefixes)
+		.sort(([, a], [, b]) => b.localKeys - a.localKeys || b.keys - a.keys)
+		.slice(0, 6)
+		.map(([prefix, counts]) => ({
+			prefix,
+			why:
+				counts.localKeys > 0
+					? `${counts.localKeys} of your branches`
+					: `${counts.keys} keys in the repo`,
+		}));
+}
+
+/** Save a repo's default ticket prefix as the user's own setting. */
+export function setDefaultPrefix(
+	document: Document,
+	repoName: string,
+	prefix: string,
+): void {
+	if (!isMap(document.contents)) document.contents = document.createNode({});
+	if (!isMap(document.get('repos', true)))
+		document.set('repos', document.createNode({}));
+	if (!isMap(document.getIn(['repos', repoName], true)))
+		document.setIn(['repos', repoName], document.createNode({}));
+	const section = document.getIn(['repos', repoName], true);
+	if (!isMap(section)) return;
+	section.delete('team_prefix');
+	section.items.push(
+		commentedPair(
+			document,
+			'team_prefix',
+			prefix,
+			' Yours (setup asked): bare numbers and new tickets from free text.',
+		),
+	);
+}
+
+/** A key and value whose key carries a comment above it. */
+function commentedPair(
+	document: Document,
+	key: string,
+	value: unknown,
+	comment: string,
+) {
+	const pair = document.createPair(key, value);
+	if (isScalar(pair.key)) pair.key.commentBefore = comment;
+	return pair;
 }
 
 /** The issue tracker every usable proposal names, when they all name the same. */
@@ -1031,12 +1083,6 @@ function sharedIssueTracker(
 	return trackers.every(tracker => text(tracker) === text(first))
 		? first
 		: undefined;
-}
-
-function isScalarKey(key: unknown): unknown {
-	return key && typeof key === 'object' && 'value' in key
-		? (key as {value: unknown}).value
-		: key;
 }
 
 /** Replace one repo's `inferred` section, leaving the rest of the file be. */
@@ -1674,13 +1720,49 @@ export async function runSetupCommand(
 		return answer.trim().toLowerCase();
 	};
 
+	// A repo worked on under several ticket prefixes gets its default from
+	// you, saved beside inferred so it wins and isn't asked again.
+	const askDefaultPrefixes = async (written: Document) => {
+		for (const {repo, problems} of proposals) {
+			if (problems.length > 0) continue;
+			const choices = defaultPrefixChoices(repo);
+			if (choices.length < 2) continue;
+			if (written.hasIn(['repos', repo.name, 'team_prefix'])) continue;
+			if (readOwnConfig(repo)?.config['team_prefix'] !== undefined) continue;
+			const list = choices
+				.map(({prefix, why}, index) => `[${index + 1}] ${prefix} (${why})`)
+				.join(', ');
+			// eslint-disable-next-line no-await-in-loop -- One question at a time.
+			const typed = await deps.ask(
+				`\nDefault ticket prefix for ${repo.name}, for bare numbers and new tickets from free text: ${list}, or type one (Enter = ${choices[0]!.prefix}): `,
+			);
+			const reply = typed.trim();
+			const picked = /^\d+$/.test(reply)
+				? choices[Number(reply) - 1]?.prefix
+				: reply.toUpperCase() || choices[0]!.prefix;
+			if (!picked || !/^[A-Z][A-Z\d]*$/.test(picked)) {
+				deps.err(
+					`  ${reply} is not a ticket prefix, so ${repo.name} keeps the inferred one`,
+				);
+				continue;
+			}
+
+			setDefaultPrefix(written, repo.name, picked);
+		}
+	};
+
 	for (;;) {
 		// eslint-disable-next-line no-await-in-loop -- One question at a time.
 		const answer = await answerTo(
 			`\nWrite ${pending.length === 1 ? 'this' : `these ${pending.length} repos`}? [a]ccept all, go [r]epo by repo, [e]dit the file first, [q]uit: `,
 		);
 		if (answer === 'q' || answer === '') return finish('Nothing written');
-		if (answer === 'a') return write(candidate);
+		if (answer === 'a') {
+			// eslint-disable-next-line no-await-in-loop -- Asked once, then done.
+			await askDefaultPrefixes(candidate);
+			return write(candidate);
+		}
+
 		if (answer === 'r') {
 			const accepted = document.clone();
 			let any = false;
@@ -1695,7 +1777,10 @@ export async function runSetupCommand(
 				}
 			}
 
-			return any ? write(accepted) : finish('Nothing written');
+			if (!any) return finish('Nothing written');
+			// eslint-disable-next-line no-await-in-loop -- Asked once, then done.
+			await askDefaultPrefixes(accepted);
+			return write(accepted);
 		}
 
 		if (answer === 'e') {

@@ -230,6 +230,41 @@ describe('lasagna setup', () => {
 		expect(out).toContain('Nothing to change');
 	});
 
+	test('a repo with several prefixes gets its default from you, saved as yours and not asked again', async () => {
+		const {run, workdirYml, written} = setup({api: {values: []}});
+		const asked: string[] = [];
+		const replies = (...answers: string[]) => ({
+			interactive: true,
+			async ask(question: string) {
+				asked.push(question);
+				return answers.shift() ?? 'q';
+			},
+		});
+
+		await run(['--repo', 'api'], replies('a', 'tts'));
+
+		expect(
+			asked.some(question =>
+				question.includes('Default ticket prefix for api'),
+			),
+		).toBe(true);
+		expect(written().repos.api.team_prefix).toBe('TTS');
+		expect(fs.readFileSync(workdirYml, 'utf8')).toContain(
+			'# Yours (setup asked)',
+		);
+
+		asked.length = 0;
+		await run(['--repo', 'api'], replies('a'));
+		expect(
+			asked.some(question => question.includes('Default ticket prefix')),
+		).toBe(false);
+		expect(written().repos.api.team_prefix).toBe('TTS');
+
+		asked.length = 0;
+		await run(['--yes', '--repo', 'web'], replies());
+		expect(asked).toStrictEqual([]);
+	});
+
 	test('an answer that is not JSON is reported and leaves the repo as it was', async () => {
 		const {run, workdirYml} = setup({}, {FAKE_CLAUDE_MODE: 'invalid'});
 
