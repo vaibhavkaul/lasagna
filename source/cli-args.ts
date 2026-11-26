@@ -15,6 +15,8 @@ const helpText = `
 	  $ lasagna space list [--json]
 	  $ lasagna space add-repo [space] <repo>
 	  $ lasagna agent-profile list [--json]
+	  $ lasagna scan [dir] [--depth N] [--json] [--dry-run]
+	  $ lasagna setup [dir] [--yes] [--dry-run] [--no-claude] [--repo <name>]...
 	  $ lasagna read <issue-key> [--turns N] [--json]
 	  $ lasagna companion <command...>
 	  $ lasagna update [--restart-tuis | --no-restart-tuis]
@@ -66,6 +68,12 @@ const helpText = `
 	  agent-profile list
 	                   The agent profiles a space can be opened on with
 	                   --agent-profile (--json with the files defining each)
+	  scan [dir]       Find the repos in a work dir and the ticket prefixes
+	                   their branches, commits and PRs name; writes
+	                   <dir>/.lasagna/scan.json. See lasagna scan --help
+	  setup [dir]      Scan, then learn each repo's defaults with Claude and,
+	                   once approved, write them to <dir>/.lasagna/workdir.yml.
+	                   See lasagna setup --help
 	  read <key>       Print the last turns of a space's conversation
 	                   (--turns N, default 5; --json)
 	  screen|state|wait|answer <key>
