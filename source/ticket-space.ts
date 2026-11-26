@@ -1,10 +1,10 @@
 // A ticket space: one ticket worked on in several repos by one lead agent.
-// Its agent runs in a ticket folder, `~/.lasagna/worktrees/_tickets/<KEY>/`, which
-// holds a real git worktree of each repo (`<KEY>/<repo>/`, on the branch
-// `<KEY>`), so one search reaches all of them. The space itself belongs to no
-// repo: it is a space of the work dir's pseudo-repo (`@<workdir>`), whose
-// worktree is the folder, and which repos it holds is recorded beside that
-// pseudo-repo's other state.
+// Its agent runs in a ticket folder, `~/.lasagna/worktrees/_tickets/<workdir>/<KEY>/`,
+// which holds a real git worktree of each repo (`<KEY>/<repo>/`, on the
+// branch `<KEY>`), so one search reaches all of them. The space itself
+// belongs to no repo: it is a space of the work dir's pseudo-repo
+// (`@<workdir>`), whose worktree is the folder, and which repos it holds is
+// recorded beside that pseudo-repo's other state.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -33,7 +33,7 @@ export type Ticket = {
 	repos: TicketRepo[];
 };
 
-/** Where every ticket folder is: `~/.lasagna/worktrees/_tickets`. */
+/** Where every work dir's ticket folders are: `~/.lasagna/worktrees/_tickets`. */
 export function ticketsDir(home: string = os.homedir()): string {
 	return path.join(home, STATE_DIR_NAME, 'worktrees', TICKETS_DIR);
 }
@@ -160,13 +160,13 @@ export function withTicketRepo(ticket: Ticket, repo: TicketRepo): Ticket {
 
 /**
  * The ticket folder holding a directory: the nearest directory at or above
- * it that sits directly in `~/.lasagna/worktrees/_tickets`. A session started in one
- * of a ticket's repos is still in the ticket.
+ * it that sits in a work dir's directory under `~/.lasagna/worktrees/_tickets`. A
+ * session started in one of a ticket's repos is still in the ticket.
  */
 export function ticketFolderAt(
 	directory: string,
 	home: string = os.homedir(),
-): {key: string; folder: string} | undefined {
+): {key: string; folder: string; workdirRepo: string} | undefined {
 	const tickets = ticketsDir(home);
 	let current: string;
 	try {
@@ -178,8 +178,12 @@ export function ticketFolderAt(
 	for (;;) {
 		const parent = path.dirname(current);
 		if (parent === current) return undefined;
-		if (sameFile(parent, tickets))
-			return {key: path.basename(current), folder: current};
+		if (sameFile(path.dirname(parent), tickets))
+			return {
+				key: path.basename(current),
+				folder: current,
+				workdirRepo: `@${path.basename(parent)}`,
+			};
 		current = parent;
 	}
 }

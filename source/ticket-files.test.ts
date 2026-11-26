@@ -17,7 +17,7 @@ import {
 	type TicketRepoFacts,
 } from './ticket-files.ts';
 
-const folder = '/home/me/.lasagna/worktrees/_tickets/B2B-123';
+const folder = '/home/me/.lasagna/worktrees/_tickets/work/B2B-123';
 const repos: TicketRepoFacts[] = [
 	{
 		name: 'tts-business',
@@ -240,6 +240,21 @@ test("a file rule anchored at the repo gains the repo's directory; other rules a
 		expect(rerootRule(rule, 'api')).toBe(rule);
 });
 
+test('a rule of a repo whose worktree is outside the folder names that worktree outright', () => {
+	const outside = '/home/me/.lasagna/worktrees/api/B2B-1';
+	expect(rerootRule('Read(/src/**)', outside)).toBe(
+		'Read(//home/me/.lasagna/worktrees/api/B2B-1/src/**)',
+	);
+	expect(rerootRule('Edit(./.env)', outside)).toBe(
+		'Edit(//home/me/.lasagna/worktrees/api/B2B-1/.env)',
+	);
+	expect(rerootRule('Write(src/gen/**)', outside)).toBe(
+		'Write(//home/me/.lasagna/worktrees/api/B2B-1/src/gen/**)',
+	);
+	for (const rule of ['Read(*.pem)', 'Read(//etc/hosts)', 'Bash(yarn test:*)'])
+		expect(rerootRule(rule, outside)).toBe(rule);
+});
+
 test("the lead agent's settings are every repo's permissions, and no repo's hooks or env", () => {
 	const merged = mergeRepoSettings([
 		{
@@ -367,10 +382,10 @@ test("a repo's settings are read from its worktree: shared, then personal", () =
 			worktreePath: path.join(ticket, 'web'),
 		}).settings,
 	).toEqual([]);
-	// A worktree outside the folder goes by its repo's name.
+	// A worktree outside the folder goes by where it is.
 	expect(
 		readRepoSettings(ticket, {name: 'far', worktreePath: '/far/KEY'}).dir,
-	).toBe('far');
+	).toBe('/far/KEY');
 });
 
 test('closing removes what was generated and leaves everything else in the folder', () => {

@@ -235,21 +235,20 @@ if (process.argv[2] === 'space' && process.argv[3] === 'add-repo') {
 		await import('./ticket-command.ts');
 	const ownSpace = process.env['LASAGNA_SPACE'];
 	const ownRepo = process.env['LASAGNA_REPO'];
+	// The detached half of converting the caller's own space. Its stdio is
+	// ignored, so what it has to say goes to the log.
+	const detached = Boolean(process.env[ADD_REPO_DETACHED]);
+	const addRepoLog = createLogger('add-repo');
 	await exitAfterFlush(
 		await runAddRepoCommand(process.argv.slice(4), {
 			cwd: process.cwd(),
 			env: process.env,
 			ticketEnv: root =>
 				workdirTicketEnv(root, {
-					async tellLead(own, key, text) {
-						// The lead agent that ran this reads its output instead.
-						if (
-							key === ownSpace &&
-							ownRepo !== undefined &&
-							isWorkdirRepoName(ownRepo)
-						)
-							return 'sent';
-						initTmuxState(own);
+					async tell(stores, repo, key, text) {
+						// The agent that ran this reads its output instead.
+						if (key === ownSpace && repo === ownRepo) return 'sent';
+						initTmuxState(stores);
 						return sendToSpaceAgent(key, text);
 					},
 				}),
@@ -264,8 +263,8 @@ if (process.argv[2] === 'space' && process.argv[3] === 'add-repo') {
 					},
 				).unref();
 			},
-			out: text => console.log(text),
-			err: text => console.error(text),
+			out: text => (detached ? addRepoLog.info(text) : console.log(text)),
+			err: text => (detached ? addRepoLog.error(text) : console.error(text)),
 		}),
 	);
 }

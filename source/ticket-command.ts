@@ -14,6 +14,7 @@ import {parseSpaceRef} from './space-ref.ts';
 import {createStateDaos, type StateDaos} from './state-daos.ts';
 import {
 	addRepoToSpace,
+	checkAddRepo,
 	TicketError,
 	type AddRepoResult,
 	type TicketEnv,
@@ -34,15 +35,20 @@ Add a repo of the work dir to a space.
   <repo>   A repo the work dir lists.
 
 A ticket space gains the repo's worktree, in its ticket folder
-(~/.lasagna/worktrees/_tickets/<KEY>/<repo>, branch <KEY>) and set up with that
-repo's own commands. Its CLAUDE.md and settings are written again and its lead
-agent is told.
+(~/.lasagna/worktrees/_tickets/<workdir>/<KEY>/<repo>, branch <KEY>) and set up with
+that repo's own commands. Its CLAUDE.md and settings are written again and its
+lead agent is told.
 
 A plain space becomes a ticket space: a lead agent starts in a new ticket
 folder with a handoff from the plain space's agent (the issue, its last turns
-and its diff), that agent's sessions end, and then its worktree is moved into
-the folder. Run from inside that plain space, the command carries on in the
-background, since the session it was run from is one of those that end.`;
+and its diff), that agent is told and its sessions end, and then its worktree
+is moved into the folder. Run from inside a plain space that ends this way,
+the command checks that it can be done, then carries on in the background,
+since the session it was run from is one of those that end. What goes wrong
+there is in the log (~/.lasagna/logs).
+
+Two changes to one ticket run one after the other: a second add-repo waits
+for the first.`;
 
 function checkoutAt(directory: string): RepoRoots | undefined {
 	try {
@@ -74,8 +80,17 @@ export function commandWorkdir(
 export function workdirTicketEnv(
 	root: string,
 	options: {
-		/** Submit text to a ticket's lead agent, found through the work dir's stores. */
-		tellLead: (own: StateDaos, key: string, text: string) => Promise<string>;
+		/**
+		 * Submit text to the agent of a space, found through the stores of its
+		 * repo: the work dir's for a ticket's lead agent, a repo's for the agent
+		 * of its plain space.
+		 */
+		tell: (
+			stores: StateDaos,
+			repo: string,
+			key: string,
+			text: string,
+		) => Promise<string>;
 		daos?: (repo: string, mainRoot: string) => StateDaos;
 	},
 ): TicketEnv {
@@ -109,7 +124,9 @@ export function workdirTicketEnv(
 		daos,
 		tickets: ticketStore(workdir.name),
 		tellLead: async (key, text) =>
-			options.tellLead(daos(workdir.name), key, text),
+			options.tell(daos(workdir.name), workdir.name, key, text),
+		tellSpace: async (repo, key, text) =>
+			options.tell(daos(repo), repo, key, text),
 	});
 }
 
@@ -123,6 +140,7 @@ export type AddRepoDeps = {
 	 * session this one runs in.
 	 */
 	detach: (argv: string[]) => void;
+	/** Where the result goes: the terminal, or the log for the detached run. */
 	out: (text: string) => void;
 	err: (text: string) => void;
 };
@@ -179,37 +197,51 @@ export async function runAddRepoCommand(
 	}
 
 	const ref = parseSpaceRef(space);
-	// Converting the plain space this runs in ends this very session, before
-	// its worktree is moved: the rest has to happen in a process of its own.
-	if (
-		ownKey === ref.key &&
-		ownRepo !== undefined &&
-		!isWorkdirRepoName(ownRepo) &&
-		(ref.repo === undefined || ref.repo === ownRepo) &&
-		!deps.env[ADD_REPO_DETACHED]
-	) {
-		deps.detach([`${ownRepo}:${ref.key}`, repo]);
-		deps.out(
-			`Making ${ref.key} a ticket space with ${repo}, in the background. A lead agent takes over with a handoff of this conversation, and this session ends when it has started. Finish what you are saying and stop.`,
-		);
-		return 0;
-	}
-
+	const detached = Boolean(deps.env[ADD_REPO_DETACHED]);
+	const options = {
+		key: ref.key,
+		repo,
+		// A ticket space is the work dir's own: naming it that way names no
+		// plain space to convert.
+		...(ref.repo === undefined || isWorkdirRepoName(ref.repo)
+			? {}
+			: {from: ref.repo}),
+	};
 	try {
-		const result = await addRepoToSpace(deps.ticketEnv(root), {
-			key: ref.key,
-			repo,
-			// A ticket space is the work dir's own: naming it that way names no
-			// plain space to convert.
-			...(ref.repo === undefined || isWorkdirRepoName(ref.repo)
-				? {}
-				: {from: ref.repo}),
-		});
+		const env = deps.ticketEnv(root);
+		// A plain space this would end may be the one the command runs in: the
+		// one converted, or the new repo's own for the same key. Its session
+		// ends before its worktree has moved, so the rest has to happen in a
+		// process of its own.
+		if (
+			!detached &&
+			ownKey === ref.key &&
+			ownRepo !== undefined &&
+			!isWorkdirRepoName(ownRepo)
+		) {
+			// That process has nobody to tell, so what can be refused is refused
+			// here, where the caller reads it.
+			const {ending} = checkAddRepo(env, options);
+			if (ending.includes(ownRepo)) {
+				deps.detach([
+					options.from ? `${options.from}:${ref.key}` : space,
+					repo,
+				]);
+				deps.out(
+					`Making ${ref.key} a ticket space with ${repo}, in the background. A lead agent takes over with a handoff of this conversation, and this session ends when it has started. Finish what you are saying and stop.`,
+				);
+				return 0;
+			}
+		}
+
+		const result = await addRepoToSpace(env, options);
 		deps.out(describeAddRepo(result, repo));
 		return 0;
 	} catch (error) {
-		if (!(error instanceof TicketError)) throw error;
-		deps.err(error.message);
+		// Nobody reads the detached run's output: whatever stops it is said
+		// where `err` puts it, which is the log.
+		if (!(error instanceof TicketError) && !detached) throw error;
+		deps.err(error instanceof Error ? error.message : String(error));
 		return 1;
 	}
 }

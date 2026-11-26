@@ -532,6 +532,7 @@ test("without the database, a path in a ticket folder's repo is found as the tic
 		'.lasagna',
 		'worktrees',
 		'_tickets',
+		'work',
 		'B2B-5',
 		'api',
 	);
@@ -541,7 +542,14 @@ test("without the database, a path in a ticket folder's repo is found as the tic
 	expect(found.kind === 'identity' && found.identity).toMatchObject({
 		repo: '@work',
 		key: 'B2B-5',
-		worktreePath: path.join(home, '.lasagna', 'worktrees', '_tickets', 'B2B-5'),
+		worktreePath: path.join(
+			home,
+			'.lasagna',
+			'worktrees',
+			'_tickets',
+			'work',
+			'B2B-5',
+		),
 	});
 	// A repo's own stores do not take it for one of that repo's spaces.
 	const api = testState({

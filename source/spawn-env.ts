@@ -41,24 +41,33 @@ export function buildSpawnEnv(
  * with the repo's own environment.
  */
 export function idowSpawnOptions(
-	repo: {root: string; mainRoot: string; env: NodeJS.ProcessEnv; name?: string},
+	repo: {root: string; mainRoot: string; env: NodeJS.ProcessEnv},
 	registerSpace: boolean,
 ): {cwd: string; env: NodeJS.ProcessEnv} {
 	return {
 		cwd: repo.root,
-		env: {
-			...buildSpawnEnv(repo.root, {
-				mainRepoRoot: repo.mainRoot,
-				registerSpace,
-				env: repo.env,
-			}),
-			// A work dir is no checkout for idow to read a name off: its spaces
-			// (ticket spaces) are kept under the pseudo-repo named here.
-			...(repo.name !== undefined && isWorkdirRepoName(repo.name)
-				? {LASAGNA_WORKDIR_REPO: repo.name}
-				: {}),
-		},
+		env: buildSpawnEnv(repo.root, {
+			mainRepoRoot: repo.mainRoot,
+			registerSpace,
+			env: repo.env,
+		}),
 	};
+}
+
+/**
+ * idow's arguments for a repo. A work dir is no checkout for idow to read a
+ * name off, so its pseudo-repo, which its spaces (ticket spaces) are kept
+ * under, is named first.
+ *
+ * As an argument, not in the environment: idow's environment becomes the
+ * inner tmux server's when the session it starts is the first on that
+ * server, and from there every later pane's. An idow run for a repo from
+ * one of those panes would then take itself for the work dir's.
+ */
+export function idowArgsFor(repo: {name: string}, args: string[]): string[] {
+	return isWorkdirRepoName(repo.name)
+		? ['--workdir-repo', repo.name, ...args]
+		: args;
 }
 
 /**

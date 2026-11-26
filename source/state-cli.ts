@@ -57,12 +57,17 @@ function idowConfigPaths(args: string[]): {
 		options: {
 			'project-root': {type: 'string'},
 			'main-root': {type: 'string'},
+			'workdir-repo': {type: 'string'},
 		},
 	});
-	const {'project-root': projectDir, 'main-root': mainRoot} = values;
+	const {
+		'project-root': projectDir,
+		'main-root': mainRoot,
+		'workdir-repo': workdirRepo,
+	} = values;
 	// idow run for a work dir itself (the lead agent of a ticket space) says
-	// so: the work dir is no checkout, and its config is its own top level.
-	const workdirRepo = process.env['LASAGNA_WORKDIR_REPO'];
+	// so with --workdir-repo: the work dir is no checkout, and its config is
+	// its own top level.
 	return {
 		paths:
 			projectDir && mainRoot

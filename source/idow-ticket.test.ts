@@ -15,6 +15,7 @@ test('idow --worktree-only makes the worktree where it is told, sets it up, and 
 		'.lasagna',
 		'worktrees',
 		'_tickets',
+		'work',
 		'test-abc',
 		repo,
 	);
@@ -72,17 +73,18 @@ test('idow for a work dir itself starts the lead agent in the ticket folder, und
 		'.lasagna',
 		'worktrees',
 		'_tickets',
+		'work',
 		'test-abc',
 	);
 	fs.mkdirSync(path.join(folder, 'api'), {recursive: true});
 
 	const output = await fixture.run({
 		cwd: work,
+		workdirRepo: '@work',
+		agentPrompt: 'Read HANDOFF.md first; then carry on',
 		extraEnv: {
 			LASAGNA_PROJECT_ROOT: work,
 			LASAGNA_MAIN_REPO_ROOT: work,
-			LASAGNA_WORKDIR_REPO: '@work',
-			LASAGNA_AGENT_PROMPT: 'Read HANDOFF.md first; then carry on',
 		},
 	});
 
@@ -113,6 +115,37 @@ test('idow for a work dir itself starts the lead agent in the ticket folder, und
 	).toBe(true);
 	// Its init commands are a repo\u2019s business, run for each worktree.
 	expect(fs.existsSync(path.join(folder, '.env'))).toBe(false);
+	// Neither the pseudo-repo nor the prompt is in the environment its
+	// sessions start in: the tmux server a first session starts keeps that
+	// environment, and an idow run for a repo from a later pane would read it.
+	const environment = fs.readFileSync(`${fixture.launchArgs}.env`, 'utf8');
+	expect(environment).toContain('IDOW_TEST_LAUNCH_ARGS=');
+	expect(environment).not.toContain('@work');
+	expect(environment).not.toContain('HANDOFF.md');
+});
+
+test('an environment that names a work dir does not make a repo\u2019s space the work dir\u2019s', async () => {
+	const fixture = setup();
+	// What a pane of a tmux server started by an older lead agent\u2019s run has.
+	const output = await fixture.run({
+		extraEnv: {
+			LASAGNA_WORKDIR_REPO: '@work',
+			LASAGNA_AGENT_PROMPT: 'not this space\u2019s prompt',
+		},
+	});
+	expect(output.includes('Workspace test-abc is ready!'), output).toBe(true);
+	const args = fs.readFileSync(fixture.launchArgs, 'utf8');
+	expect(args).toContain(`--repo-name\n${path.basename(fixture.main)}\n`);
+	expect(args).not.toContain('@work');
+	expect(args).not.toContain('--prompt');
+});
+
+test('--workdir-repo takes a work dir\u2019s pseudo-repo and nothing else', async () => {
+	const fixture = setup();
+	const error = await rejectionOf(fixture.run({workdirRepo: 'api'}));
+	expect(error.message).toContain(
+		"--workdir-repo needs a work dir's pseudo-repo name",
+	);
 });
 
 test('without a handoff the lead agent starts on the issue, as any space\u2019s agent does', async () => {
@@ -124,17 +157,22 @@ test('without a handoff the lead agent starts on the issue, as any space\u2019s 
 		`${fixture.config('The work dir')}initialization_command: do\n`,
 	);
 	fs.mkdirSync(
-		path.join(fixture.home, '.lasagna', 'worktrees', '_tickets', 'test-abc'),
-		{
-			recursive: true,
-		},
+		path.join(
+			fixture.home,
+			'.lasagna',
+			'worktrees',
+			'_tickets',
+			'work',
+			'test-abc',
+		),
+		{recursive: true},
 	);
 	await fixture.run({
 		cwd: work,
+		workdirRepo: '@work',
 		extraEnv: {
 			LASAGNA_PROJECT_ROOT: work,
 			LASAGNA_MAIN_REPO_ROOT: work,
-			LASAGNA_WORKDIR_REPO: '@work',
 		},
 	});
 	const args = fs.readFileSync(fixture.launchArgs, 'utf8');

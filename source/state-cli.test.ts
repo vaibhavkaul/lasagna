@@ -340,21 +340,24 @@ test("idow run for a work dir itself reads the work dir's top level, and puts it
 		path.join(work, '.lasagna', 'workdir.yml'),
 		'version: 1\nteam_prefix: TOP\nprofiles:\n  t:\n    display_name: T\nrepos:\n  api:\n    team_prefix: API\n',
 	);
-	const merged = (env: Record<string, string>) =>
+	const merged = (flags: string[], env: Record<string, string> = {}) =>
 		pappardelleState(
-			['merged-config', '--project-root', work, '--main-root', work],
+			['merged-config', ...flags, '--project-root', work, '--main-root', work],
 			home,
 			env,
 		);
 
 	// As a repo the directory has no config: it lists itself nowhere.
-	const asRepo = merged({});
+	const asRepo = merged([]);
 	expect(asRepo.status).toBe(1);
 	expect(asRepo.stderr).toContain('no config for this repo');
+	// Nor does the environment make it the work dir's: a tmux server started
+	// by an idow run keeps that run's environment for every later pane.
+	expect(merged([], {LASAGNA_WORKDIR_REPO: '@work'}).status).toBe(1);
 
 	// As the work dir's own pseudo-repo, its top level is its config, and no
 	// repo's section is.
-	const own = merged({LASAGNA_WORKDIR_REPO: '@work'});
+	const own = merged(['--workdir-repo', '@work']);
 	expect(own.status, `stderr: ${own.stderr}`).toBe(0);
 	expect(own.stdout).toBe(
 		'version: 1\nteam_prefix: TOP\nprofiles:\n  t:\n    display_name: T\n',
@@ -366,6 +369,6 @@ test("idow run for a work dir itself reads the work dir's top level, and puts it
 	);
 	expect(worktree.status, `stderr: ${worktree.stderr}`).toBe(0);
 	expect(worktree.stdout.trim()).toBe(
-		path.join(home, '.lasagna', 'worktrees', '_tickets', 'B2B-5'),
+		path.join(home, '.lasagna', 'worktrees', '_tickets', 'work', 'B2B-5'),
 	);
 });

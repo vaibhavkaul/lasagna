@@ -52,6 +52,40 @@ export function isTicketSpace(space: SpaceData): boolean {
 	);
 }
 
+/** The work dir's repos a space is not in yet. */
+export function addableRepos(
+	space: SpaceData,
+	repos: readonly string[],
+): string[] {
+	const held = new Set(
+		space.ticketRepos?.map(repo => repo.name) ?? [space.repo],
+	);
+	return repos.filter(name => !held.has(name));
+}
+
+/**
+ * Why the rail's `a` cannot add a repo to the selected space right now, or
+ * undefined when it can. `adding` holds the keys of the spaces a repo is
+ * being added to: a second add to one of them would only wait behind the
+ * first, with nothing on screen to say so, and a second conversion of the
+ * same plain space would find it half-way to a ticket space.
+ */
+export function addRepoRefusal(
+	space: SpaceData | undefined,
+	options: {
+		repos: readonly string[];
+		adding: Pick<ReadonlySet<string>, 'has'>;
+	},
+): string | undefined {
+	if (!space || space.isMainWorktree || space.isPending || !space.key)
+		return 'Select a space to add a repo to';
+	if (options.adding.has(space.key))
+		return `A repo is still being added to ${space.key}. Add the next one when it is done`;
+	if (addableRepos(space, options.repos).length === 0)
+		return `Every repo of the work dir is already in ${space.key}`;
+	return undefined;
+}
+
 function group(kind: WorkdirGrouping, name: string): RailGroup {
 	return {
 		id: `${kind}-${railGroupId(name)}`,

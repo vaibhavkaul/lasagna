@@ -50,6 +50,9 @@ export function ticketFixture(options: {failMove?: boolean} = {}) {
 		workdirConfig: names =>
 			[
 				'version: 1',
+				'agent_profiles:',
+				'  codex:',
+				'    command: codex',
 				'profiles:',
 				'  t:',
 				'    display_name: T',
@@ -118,20 +121,18 @@ export function ticketFixture(options: {failMove?: boolean} = {}) {
 	};
 
 	const steps: string[] = [];
-	const idow: Array<{
-		repo: string;
-		args: string[];
-		env?: Record<string, string>;
-	}> = [];
+	const idow: Array<{repo: string; args: string[]}> = [];
 	const told: Array<{key: string; text: string}> = [];
+	/** What the agents of plain spaces were told, by `repo:KEY`. */
+	const toldSpaces: Array<{space: string; text: string}> = [];
 	const env: TicketEnv = {
 		home,
 		workdir,
 		repos: () => repos,
 		daos,
 		tickets: new TicketStore(path.join(stateDir, 'tickets')),
-		async runIdow(args, repo, extraEnv) {
-			idow.push({repo: repo.name, args, env: extraEnv});
+		async runIdow(args, repo) {
+			idow.push({repo: repo.name, args});
 			const at = args.indexOf('--worktree-only');
 			const key = args.at(-1)!;
 			if (at === -1) {
@@ -167,6 +168,11 @@ export function ticketFixture(options: {failMove?: boolean} = {}) {
 		},
 		async tellLead(key, text) {
 			told.push({key, text});
+			return 'sent';
+		},
+		async tellSpace(repo, key, text) {
+			steps.push(`tell ${repo}:${key}`);
+			toldSpaces.push({space: `${repo}:${key}`, text});
 			return 'sent';
 		},
 		async endSessions(repo, key) {
@@ -207,7 +213,14 @@ export function ticketFixture(options: {failMove?: boolean} = {}) {
 		return worktree;
 	};
 
-	const folder = path.join(home, '.lasagna', 'worktrees', '_tickets', KEY);
+	const folder = path.join(
+		home,
+		'.lasagna',
+		'worktrees',
+		'_tickets',
+		workdir.name.slice(1),
+		KEY,
+	);
 	const read = (file: string) =>
 		fs.readFileSync(path.join(folder, file), 'utf8');
 	return {
@@ -218,6 +231,7 @@ export function ticketFixture(options: {failMove?: boolean} = {}) {
 		steps,
 		idow,
 		told,
+		toldSpaces,
 		marks,
 		api: apiRepo,
 		web,

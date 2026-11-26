@@ -19,21 +19,25 @@ import {
 	type Ticket,
 } from './ticket-space.ts';
 
-test('a ticket folder is ~/.lasagna/worktrees/_tickets/<KEY>, with a directory per repo', () => {
+test('a ticket folder is ~/.lasagna/worktrees/_tickets/<workdir>/<KEY>, with a directory per repo', () => {
 	expect(ticketsDir('/home/me')).toBe('/home/me/.lasagna/worktrees/_tickets');
 	const folder = ticketFolder('/home/me', '@work', 'B2B-123');
-	expect(folder).toBe('/home/me/.lasagna/worktrees/_tickets/B2B-123');
+	expect(folder).toBe('/home/me/.lasagna/worktrees/_tickets/work/B2B-123');
 	expect(memberWorktree(folder, 'tts-business')).toBe(
-		'/home/me/.lasagna/worktrees/_tickets/B2B-123/tts-business',
+		'/home/me/.lasagna/worktrees/_tickets/work/B2B-123/tts-business',
+	);
+	// The same key in another work dir is another ticket, in repos of its own.
+	expect(ticketFolder('/home/me', '@other', 'B2B-123')).toBe(
+		'/home/me/.lasagna/worktrees/_tickets/other/B2B-123',
 	);
 });
 
 test("a work dir's own space has its ticket folder for a worktree, a repo's space its own", () => {
 	expect(worktreePathFor('/home/me', '@work', 'B2B-123')).toBe(
-		'/home/me/.lasagna/worktrees/_tickets/B2B-123',
+		'/home/me/.lasagna/worktrees/_tickets/work/B2B-123',
 	);
 	expect(worktreesDir('/home/me', '@work')).toBe(
-		'/home/me/.lasagna/worktrees/_tickets',
+		'/home/me/.lasagna/worktrees/_tickets/work',
 	);
 	expect(worktreePathFor('/home/me', 'tts-business', 'B2B-123')).toBe(
 		'/home/me/.lasagna/worktrees/tts-business/B2B-123',
@@ -50,18 +54,19 @@ test("a work dir's own space has its ticket folder for a worktree, a repo's spac
 		'B2B-123',
 	);
 	expect(identity.worktreePath).toBe(
-		'/home/me/.lasagna/worktrees/_tickets/B2B-123',
+		'/home/me/.lasagna/worktrees/_tickets/work/B2B-123',
 	);
 	expect(identity.tmux.agentSession).toBe('agent-@work-B2B-123');
 });
 
 const ticket: Ticket = {
 	key: 'B2B-123',
-	folder: '/home/me/.lasagna/worktrees/_tickets/B2B-123',
+	folder: '/home/me/.lasagna/worktrees/_tickets/work/B2B-123',
 	repos: [
 		{
 			name: 'tts-business',
-			worktreePath: '/home/me/.lasagna/worktrees/_tickets/B2B-123/tts-business',
+			worktreePath:
+				'/home/me/.lasagna/worktrees/_tickets/work/B2B-123/tts-business',
 		},
 	],
 };
@@ -80,7 +85,8 @@ test("a ticket's repos are kept under the work dir's pseudo-repo, a file per tic
 
 	const grown = withTicketRepo(ticket, {
 		name: 'appian-server',
-		worktreePath: '/home/me/.lasagna/worktrees/_tickets/B2B-123/appian-server',
+		worktreePath:
+			'/home/me/.lasagna/worktrees/_tickets/work/B2B-123/appian-server',
 	});
 	store.write(grown);
 	store.write({key: 'A-1', folder: '/f', repos: []});
@@ -141,7 +147,7 @@ test("a directory inside a ticket folder, or inside one of its repos, is in that
 	const home = tempDir('lasagna-home-');
 	const folder = ticketFolder(home, '@work', 'B2B-123');
 	writeFiles(folder, {'tts-business/src/app.ts': '', 'CLAUDE.md': ''});
-	const found = {key: 'B2B-123', folder};
+	const found = {key: 'B2B-123', folder, workdirRepo: '@work'};
 	expect(ticketFolderAt(folder, home)).toEqual(found);
 	expect(
 		ticketFolderAt(path.join(folder, 'tts-business', 'src'), home),
@@ -159,4 +165,6 @@ test("a directory inside a ticket folder, or inside one of its repos, is in that
 	).toBeUndefined();
 	expect(ticketFolderAt(path.join(folder, 'missing'), home)).toBeUndefined();
 	expect(ticketFolderAt(ticketsDir(home), home)).toBeUndefined();
+	// The directory that holds one work dir's ticket folders is not one.
+	expect(ticketFolderAt(path.dirname(folder), home)).toBeUndefined();
 });

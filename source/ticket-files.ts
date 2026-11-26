@@ -274,22 +274,31 @@ const FILE_TOOLS = new Set([
  * matches at any depth (`*.pem`, or one starting with `**`) is kept. Other
  * rules (Bash, WebFetch, MCP tools) say nothing about where they run and are
  * kept too.
+ *
+ * `dir` is the repo's directory in the folder, or the full path of a
+ * worktree that stayed outside it. That one is named outright, as `//path`:
+ * a rule under the folder would be about a directory that is not there.
  */
 export function rerootRule(rule: string, dir: string): string {
 	const match = /^([A-Za-z]+)\((.*)\)$/s.exec(rule);
 	if (!match || !FILE_TOOLS.has(match[1]!)) return rule;
 	const [, tool, pattern] = match as unknown as [string, string, string];
 	if (pattern.startsWith('//') || pattern.startsWith('~')) return rule;
+	const outside = path.isAbsolute(dir);
 	if (pattern.startsWith('/')) return `${tool}(/${dir}${pattern})`;
-	if (pattern.startsWith('./')) return `${tool}(./${dir}/${pattern.slice(2)})`;
+	if (pattern.startsWith('./'))
+		return `${tool}(${outside ? '/' : './'}${dir}/${pattern.slice(2)})`;
 	if (pattern.startsWith('**') || !pattern.includes('/')) return rule;
-	return `${tool}(${dir}/${pattern})`;
+	return `${tool}(${outside ? '/' : ''}${dir}/${pattern})`;
 }
 
 export type RepoSettings = {
 	/** The repo's name in the work dir. */
 	name: string;
-	/** The repo's directory in the ticket folder. */
+	/**
+	 * The repo's directory in the ticket folder, or the full path of a
+	 * worktree that is not in it.
+	 */
 	dir: string;
 	/** Where the repo's worktree is, for the directories it adds by path. */
 	worktreePath: string;
@@ -412,7 +421,7 @@ export function readRepoSettings(
 		name: repo.name,
 		dir:
 			relative.startsWith('..') || path.isAbsolute(relative)
-				? repo.name
+				? repo.worktreePath
 				: relative,
 		worktreePath: repo.worktreePath,
 		settings: ['settings.json', 'settings.local.json'].flatMap(name => {

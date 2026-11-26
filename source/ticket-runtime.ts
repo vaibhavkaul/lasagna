@@ -12,7 +12,7 @@ import type {RepoContext} from './repo-context.ts';
 import {scriptsDir} from './runtime.ts';
 import {legacyAgentSession, type SpaceIdentity} from './space-identity.ts';
 import {findLatestSessionJsonl} from './space-state.ts';
-import {idowSpawnOptions} from './spawn-env.ts';
+import {idowArgsFor, idowSpawnOptions} from './spawn-env.ts';
 import {ticketCompanionSplits} from './ticket-companions.ts';
 import type {TicketDaos, TicketEnv} from './ticket-ops.ts';
 import type {Ticket, TicketStore} from './ticket-space.ts';
@@ -78,6 +78,7 @@ export type TicketRuntime = {
 	daos: (repo: string) => TicketDaos;
 	tickets: TicketStore;
 	tellLead: TicketEnv['tellLead'];
+	tellSpace: TicketEnv['tellSpace'];
 	/** Defaults to ending the sessions the plain space's identity names. */
 	endSessions?: TicketEnv['endSessions'];
 	home?: string;
@@ -92,16 +93,13 @@ export function ticketEnv(runtime: TicketRuntime): TicketEnv {
 		repos: runtime.repos,
 		daos,
 		tickets: runtime.tickets,
-		async runIdow(args, repo, extraEnv) {
-			// Only the lead agent's run makes a space for the registry to hold.
-			const options = idowSpawnOptions(
-				repo,
-				repo === workdir && own.registry.keepsLifecycle,
+		async runIdow(args, repo) {
+			return runWorkspaceSetup(
+				path.join(scriptsDir, 'idow'),
+				idowArgsFor(repo, args),
+				// Only the lead agent's run makes a space for the registry to hold.
+				idowSpawnOptions(repo, repo === workdir && own.registry.keepsLifecycle),
 			);
-			return runWorkspaceSetup(path.join(scriptsDir, 'idow'), args, {
-				cwd: options.cwd,
-				env: {...options.env, ...extraEnv},
-			});
 		},
 		async git(cwd, args) {
 			const {stdout} = await exec('git', ['-C', cwd, ...args], {
@@ -111,6 +109,7 @@ export function ticketEnv(runtime: TicketRuntime): TicketEnv {
 			return stdout;
 		},
 		tellLead: runtime.tellLead,
+		tellSpace: runtime.tellSpace,
 		endSessions:
 			runtime.endSessions ??
 			(async (repo, key) => {

@@ -114,9 +114,11 @@ if [[ "\${IDOW_TEST_FAIL_PR_INSPECTION:-}" == true && "$2" == *'hooks.post_works
 fi
 exec "$IDOW_TEST_YQ" "$@"`,
 	);
+	// What it is started with, and in what environment: the tmux server the
+	// real one starts keeps that environment for every pane after.
 	writeScript(
 		path.join(scripts, 'start-agent-session.sh'),
-		`printf '%s\\n' "$@" > "$IDOW_TEST_LAUNCH_ARGS"`,
+		`printf '%s\\n' "$@" > "$IDOW_TEST_LAUNCH_ARGS"\nenv > "$IDOW_TEST_LAUNCH_ARGS.env"`,
 	);
 	writeScript(
 		path.join(scripts, 'create-worktree.sh'),
@@ -202,6 +204,8 @@ jq -n --arg worktree_path "$2" '{worktree_path: $worktree_path}'`,
 			profile,
 			agentProfile,
 			worktreeOnly,
+			workdirRepo,
+			agentPrompt,
 			input,
 			cwd,
 		}: {
@@ -215,6 +219,10 @@ jq -n --arg worktree_path "$2" '{worktree_path: $worktree_path}'`,
 			agentProfile?: string;
 			/** Make the worktree at this path and stop (`--worktree-only`). */
 			worktreeOnly?: string;
+			/** Run for a work dir itself, under this pseudo-repo (`--workdir-repo`). */
+			workdirRepo?: string;
+			/** The agent's first prompt (`--agent-prompt`). */
+			agentPrompt?: string;
 			input?: string;
 		} = {}): Promise<string> {
 			const env = {...process.env};
@@ -231,6 +239,8 @@ jq -n --arg worktree_path "$2" '{worktree_path: $worktree_path}'`,
 					'bash',
 					[
 						path.join(scripts, 'idow'),
+						...(workdirRepo ? ['--workdir-repo', workdirRepo] : []),
+						...(agentPrompt ? ['--agent-prompt', agentPrompt] : []),
 						...(open ? ['--resume', '--open'] : []),
 						...(profile ? ['--profile', profile] : []),
 						...(agentProfile ? ['--agent-profile', agentProfile] : []),

@@ -8,6 +8,8 @@ import {
 } from './rail-groups.ts';
 import type {SpaceData} from './types.ts';
 import {
+	addableRepos,
+	addRepoRefusal,
 	buildWorkdirRailRows,
 	isRepoMainSpace,
 	isRootMainSpace,
@@ -297,4 +299,45 @@ test('a ticket space being made leads its header as a pending row', () => {
 		'~ @work:B2B-40',
 		'  @work:B2B-12',
 	]);
+});
+
+test('a adds a repo to a space, one add at a time for each space', () => {
+	const repos = ['api', 'web', 'data'];
+	const plain = space('api', 'B2B-12');
+	const ticket = space('@work', 'B2B-7', {
+		ticketRepos: [
+			{name: 'api', tag: 'ap'},
+			{name: 'web', tag: 'we'},
+		],
+	});
+	const idle = {repos, adding: new Set<string>()};
+	expect(addableRepos(plain, repos)).toEqual(['web', 'data']);
+	expect(addableRepos(ticket, repos)).toEqual(['data']);
+	expect(addRepoRefusal(plain, idle)).toBeUndefined();
+	expect(addRepoRefusal(ticket, idle)).toBeUndefined();
+
+	// While a repo is being added to a space, a second add to it would wait
+	// behind the first and then find the space changed: it is not started.
+	const adding = {repos, adding: new Set(['B2B-12'])};
+	expect(addRepoRefusal(plain, adding)).toBe(
+		'A repo is still being added to B2B-12. Add the next one when it is done',
+	);
+	// The plain space it is converting is the ticket space of the same key.
+	expect(
+		addRepoRefusal(space('@work', 'B2B-12', {ticketRepos: []}), adding),
+	).toBe(
+		'A repo is still being added to B2B-12. Add the next one when it is done',
+	);
+	expect(addRepoRefusal(ticket, adding)).toBeUndefined();
+
+	for (const none of [
+		undefined,
+		rootMain,
+		apiMain,
+		space('api', 'B2B-1', {isPending: true}),
+	])
+		expect(addRepoRefusal(none, idle)).toBe('Select a space to add a repo to');
+	expect(
+		addRepoRefusal(ticket, {repos: ['api', 'web'], adding: new Set()}),
+	).toBe('Every repo of the work dir is already in B2B-7');
 });

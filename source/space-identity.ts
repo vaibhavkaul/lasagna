@@ -127,7 +127,7 @@ export function newSpaceIdentity(input: {
 	};
 }
 
-/** The directory under `~/.lasagna/worktrees` that holds every ticket folder. */
+/** The directory under `~/.lasagna/worktrees` that holds every work dir's ticket folders. */
 export const TICKETS_DIR = '_tickets';
 
 /**
@@ -135,15 +135,15 @@ export const TICKETS_DIR = '_tickets';
  * directory, not Pappardelle's ~/.worktrees, so neither tool takes the
  * other's worktree for one of its spaces. A work dir's own spaces are its
  * ticket spaces, which have a ticket folder each in place of a worktree: a
- * folder holding a worktree of every repo of the ticket.
+ * folder holding a worktree of every repo of the ticket. They are kept by
+ * work dir (`_tickets/<workdir>/<KEY>`), since two work dirs can each have a
+ * ticket with the same key, in repos of their own.
  */
 export function worktreesDir(home: string, repoName: string): string {
-	return path.join(
-		home,
-		STATE_DIR_NAME,
-		'worktrees',
-		isWorkdirRepoName(repoName) ? TICKETS_DIR : repoName,
-	);
+	const worktrees = path.join(home, STATE_DIR_NAME, 'worktrees');
+	return isWorkdirRepoName(repoName)
+		? path.join(worktrees, TICKETS_DIR, repoName.slice(1))
+		: path.join(worktrees, repoName);
 }
 
 export function worktreePathFor(

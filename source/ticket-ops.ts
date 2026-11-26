@@ -6,8 +6,14 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import {checkAgentProfile, unknownAgentProfileMessage} from './config.ts';
+import {inlineConfigErrors} from './config-errors.ts';
+import {LockTimeoutError, withFileLock} from './file-lock.ts';
+import {statusSocket} from './program-status-monitor.ts';
+import {WORKDIR_CONFIG_FILE} from './repo-config-files.ts';
 import type {RepoContext} from './repo-context.ts';
-import type {SpaceIdentity} from './space-identity.ts';
+import {sameFile} from './same-file.ts';
+import {newSpaceIdentity, type SpaceIdentity} from './space-identity.ts';
 import type {StateDaos} from './state-daos.ts';
 import {
 	readRepoSettings,
@@ -51,15 +57,13 @@ export type TicketEnv = {
 	daos: (repo: string) => TicketDaos;
 	tickets: TicketStore;
 	/** Run idow for a repo: in its checkout, with its environment. */
-	runIdow: (
-		args: string[],
-		repo: RepoContext,
-		extraEnv?: Record<string, string>,
-	) => Promise<IdowResult>;
+	runIdow: (args: string[], repo: RepoContext) => Promise<IdowResult>;
 	/** Run git in a directory, resolving with its output. */
 	git: (cwd: string, args: string[]) => Promise<string>;
 	/** Submit text to the lead agent of a ticket space; resolves with how it went. */
 	tellLead: (key: string, text: string) => Promise<string>;
+	/** Submit text to the agent of a repo's plain space, the same way. */
+	tellSpace: (repo: string, key: string, text: string) => Promise<string>;
 	/** End the agent and companion sessions of a repo's plain space. */
 	endSessions: (repo: string, key: string) => Promise<boolean>;
 	/** Start a companion pane for each of a ticket's repos that has none. */
@@ -76,6 +80,88 @@ function isDirectory(directory: string): boolean {
 	} catch {
 		return false;
 	}
+}
+
+/**
+ * How long a change to a ticket waits for another process's change to the
+ * same ticket: a repo's setup commands can take minutes.
+ */
+const TICKET_WAIT_MS = 15 * 60_000;
+
+/**
+ * One change to a ticket at a time, in this process and across the others
+ * that change tickets (the rail, `space add-repo`, each agent's MCP server).
+ * A change reads the ticket's record, makes a worktree for as long as the
+ * repo's setup takes, and writes the record back: two at once would each
+ * write what they had read, and the second would drop the first one's repo.
+ */
+async function changingTicket<T>(
+	env: TicketEnv,
+	key: string,
+	change: () => Promise<T>,
+): Promise<T> {
+	try {
+		return await withFileLock(
+			env.tickets.file(key),
+			change,
+			undefined,
+			TICKET_WAIT_MS,
+		);
+	} catch (error) {
+		if (!(error instanceof LockTimeoutError)) throw error;
+		throw new TicketError(
+			`${key} is still being changed by another command. Try again when it is done`,
+		);
+	}
+}
+
+/**
+ * Whether the work dir's config can start a lead agent, asked before any
+ * worktree is made. idow, which starts it, refuses the same configs, and by
+ * then every repo's setup has run for a space that cannot open.
+ */
+function checkLead(
+	env: TicketEnv,
+	options: {profileName?: string | null; agentProfileName?: string | null},
+): void {
+	const file = path.join(env.workdir.root, WORKDIR_CONFIG_FILE);
+	const load = env.workdir.readConfig();
+	if (load.kind === 'invalid')
+		throw new TicketError(
+			`The work dir's config (${file}) cannot start a ticket space's lead agent: ${inlineConfigErrors(load.errors)}`,
+		);
+	const profiles =
+		load.kind === 'valid' ? Object.keys(load.config.profiles ?? {}) : [];
+	if (load.kind !== 'valid' || profiles.length === 0)
+		throw new TicketError(
+			`A ticket space's lead agent is configured by the work dir itself, which has no profile. Add a top-level \`profiles\` entry to ${file}`,
+		);
+	if (options.profileName && !profiles.includes(options.profileName))
+		throw new TicketError(
+			`The work dir has no profile ${options.profileName}. Its profiles: ${profiles.join(', ')}`,
+		);
+	if (options.agentProfileName) {
+		const check = checkAgentProfile(load.config, options.agentProfileName);
+		if (check.kind !== 'known')
+			throw new TicketError(
+				unknownAgentProfileMessage(options.agentProfileName, check.names),
+			);
+	}
+}
+
+/**
+ * Refuse a plain space that is still being set up or closed: its worktree is
+ * not at rest, and moving it would pull it out from under its own setup
+ * commands or its deinit hooks.
+ */
+function checkAtRest(env: TicketEnv, repo: string, key: string): void {
+	const lookup = env.daos(repo).registry.phase(key);
+	if (lookup.kind !== 'phase' || lookup.phase === 'open') return;
+	throw new TicketError(
+		lookup.phase === 'starting'
+			? `${repo}:${key} is still being set up. Add the repo once it has opened`
+			: `${repo}:${key} is being closed`,
+	);
 }
 
 function idowFailure(result: IdowResult): string {
@@ -113,6 +199,47 @@ function plainWorktree(
 	return {identity: lookup.identity, open: daos.registry.has(key)};
 }
 
+/** Whether a directory is a worktree of the repo, by the checkout it belongs to. */
+async function isWorktreeOf(
+	env: TicketEnv,
+	repo: RepoContext,
+	directory: string,
+): Promise<boolean> {
+	const commonDir = async (cwd: string) => {
+		const output = await env.git(cwd, [
+			'rev-parse',
+			'--path-format=absolute',
+			'--git-common-dir',
+		]);
+		return output.trim();
+	};
+
+	try {
+		return sameFile(await commonDir(directory), await commonDir(repo.mainRoot));
+	} catch {
+		// No repository at all, or no git to ask.
+		return false;
+	}
+}
+
+type BroughtIn = {
+	member: TicketRepo;
+	warning?: string;
+	/** Whether this run made the worktree, which nothing has worked in yet. */
+	created?: boolean;
+	/** Where the worktree was, when this run moved it in. */
+	movedFrom?: string;
+};
+
+/** Remove a ticket folder that nothing is in. */
+function removeIfEmpty(folder: string): void {
+	try {
+		fs.rmdirSync(folder);
+	} catch {
+		// Something is in it, or it was never made.
+	}
+}
+
 /**
  * Bring a repo's worktree for the key into the ticket folder: the one its
  * plain space left, moved, or a new one that idow makes there with the
@@ -123,12 +250,24 @@ async function bringIn(
 	key: string,
 	folder: string,
 	repo: RepoContext,
-): Promise<{member: TicketRepo; warning?: string}> {
+): Promise<BroughtIn> {
 	const worktreePath = memberWorktree(folder, repo.name);
-	if (isDirectory(worktreePath))
+	if (fs.existsSync(worktreePath)) {
+		// What is there is the repo's worktree only if git says so: a folder
+		// left by something else must not be worked in as if it were.
+		if (!(await isWorktreeOf(env, repo, worktreePath)))
+			throw new TicketError(
+				`${worktreePath} is already there and is not a worktree of ${repo.name} (${repo.mainRoot}). Move it away, then add ${repo.name} again`,
+			);
 		return {member: {name: repo.name, worktreePath}};
+	}
+
 	const plain = plainWorktree(env, repo.name, key);
-	if (plain) return moveIn(env, key, folder, repo, plain.identity);
+	if (plain) {
+		if (plain.open) checkAtRest(env, repo.name, key);
+		return moveIn(env, key, folder, repo, plain.identity);
+	}
+
 	const result = await env.runIdow(
 		['--worktree-only', worktreePath, '--issue-key', key],
 		repo,
@@ -137,7 +276,19 @@ async function bringIn(
 		throw new TicketError(
 			`Could not set up ${repo.name} for ${key}: ${idowFailure(result)}`,
 		);
-	return {member: {name: repo.name, worktreePath}};
+	return {member: {name: repo.name, worktreePath}, created: true};
+}
+
+/** A plain space's worktree left where it is, and why. */
+function stayAt(
+	repo: RepoContext,
+	identity: SpaceIdentity,
+	reason: string,
+): BroughtIn {
+	return {
+		member: {name: repo.name, worktreePath: identity.worktreePath},
+		warning: `${repo.name}'s worktree stays at ${identity.worktreePath}: ${reason}`,
+	};
 }
 
 /**
@@ -151,17 +302,28 @@ async function moveIn(
 	folder: string,
 	repo: RepoContext,
 	identity: SpaceIdentity,
-): Promise<{member: TicketRepo; warning?: string}> {
-	const worktreePath = memberWorktree(folder, repo.name);
-	const stay = (reason: string) => ({
-		member: {name: repo.name, worktreePath: identity.worktreePath},
-		warning: `${repo.name}'s worktree stays at ${identity.worktreePath}: ${reason}`,
-	});
+): Promise<BroughtIn> {
 	// With its agent still running the plain space stays what it was.
 	if (!(await env.endSessions(repo.name, key)))
-		return stay('its sessions could not be ended');
+		return stayAt(repo, identity, 'its sessions could not be ended');
+	return moveEnded(env, key, folder, repo, identity);
+}
+
+/** `moveIn`, for a plain space whose sessions have ended. */
+async function moveEnded(
+	env: TicketEnv,
+	key: string,
+	folder: string,
+	repo: RepoContext,
+	identity: SpaceIdentity,
+): Promise<BroughtIn> {
+	const worktreePath = memberWorktree(folder, repo.name);
 	// From here the plain space is the ticket's: one row, not two.
 	await env.daos(repo.name).registry.remove(key);
+	// git moves a worktree into a directory that is there, as mv does: it
+	// would end up one level down, where nothing looks for it.
+	if (fs.existsSync(worktreePath))
+		return stayAt(repo, identity, `${worktreePath} is already there`);
 	try {
 		await env.git(repo.mainRoot, [
 			'worktree',
@@ -170,12 +332,17 @@ async function moveIn(
 			worktreePath,
 		]);
 	} catch (error) {
-		return stay(
+		return stayAt(
+			repo,
+			identity,
 			`git worktree move failed (${error instanceof Error ? error.message.trim().split('\n').at(-1) : String(error)})`,
 		);
 	}
 
-	return {member: {name: repo.name, worktreePath}};
+	return {
+		member: {name: repo.name, worktreePath},
+		movedFrom: identity.worktreePath,
+	};
 }
 
 async function defaultBranch(
@@ -298,7 +465,12 @@ export async function writeTicketFolder(
 /**
  * Start the lead agent's sessions in the ticket folder. idow does it, as it
  * does for any space: here the space is the work dir's own, so the agent, its
- * model and its first prompt come from the work dir's config.
+ * model and its first prompt come from the work dir's config. `prompt` is
+ * the agent's first prompt in place of the issue: a handoff.
+ *
+ * Both reach idow as arguments. Its environment becomes the tmux server's
+ * when its session is the first on that server, and every later pane's from
+ * there, where an idow run for a repo would take itself for the work dir's.
  */
 async function startLead(
 	env: TicketEnv,
@@ -311,6 +483,9 @@ async function startLead(
 ): Promise<void> {
 	const result = await env.runIdow(
 		[
+			...(options.prompt === undefined
+				? []
+				: ['--agent-prompt', options.prompt]),
 			...(options.profileName ? ['--profile', options.profileName] : []),
 			...(options.agentProfileName
 				? ['--agent-profile', options.agentProfileName]
@@ -319,12 +494,6 @@ async function startLead(
 			key,
 		],
 		env.workdir,
-		{
-			LASAGNA_WORKDIR_REPO: env.workdir.name,
-			...(options.prompt === undefined
-				? {}
-				: {LASAGNA_AGENT_PROMPT: options.prompt}),
-		},
 	);
 	if (result.code !== 0)
 		throw new TicketError(
@@ -334,10 +503,40 @@ async function startLead(
 	await env.daos(env.workdir.name).registry.add(key);
 }
 
+/**
+ * Put a ticket space whose start failed part-way on the rail all the same,
+ * with the repos it has: their worktrees are made, and out of sight nobody
+ * would close them or find them again. Selecting it there starts its lead
+ * agent; closing it runs each repo's deinit hooks. Resolves with a sentence
+ * saying so.
+ */
+async function keepOnRail(env: TicketEnv, ticket: Ticket): Promise<string> {
+	const own = env.daos(env.workdir.name);
+	// A registered key always has an identity. One idow got to record stays.
+	await own.spaceIdentities.record(
+		newSpaceIdentity({
+			repo: env.workdir.name,
+			key: ticket.key,
+			worktreePath: ticket.folder,
+			socket: statusSocket(),
+		}),
+	);
+	await own.registry.add(ticket.key);
+	await writeTicketFolder(env, ticket);
+	return `${ticket.key} is on the rail with ${ticket.repos.map(repo => repo.name).join(' and ')}, not started: select it to start its lead agent, or close it`;
+}
+
 export type TicketResult = {
 	ticket: Ticket;
 	/** What did not go as asked but did not stop the ticket space. */
 	warnings: string[];
+};
+
+type NewTicket = {
+	key: string;
+	repos: readonly string[];
+	profileName?: string | null;
+	agentProfileName?: string | null;
 };
 
 /**
@@ -347,13 +546,22 @@ export type TicketResult = {
  */
 export async function createTicketSpace(
 	env: TicketEnv,
-	options: {
-		key: string;
-		repos: readonly string[];
-		profileName?: string | null;
-		agentProfileName?: string | null;
-	},
+	options: NewTicket,
 ): Promise<TicketResult> {
+	return changingTicket(env, options.key, async () =>
+		makeTicketSpace(env, options),
+	);
+}
+
+/**
+ * What a ticket space for the key would be made of, or why it cannot be
+ * made: the ticket closed earlier under the key, and the repos it would
+ * hold. Nothing is changed.
+ */
+function planTicketSpace(
+	env: TicketEnv,
+	options: NewTicket,
+): {known: Ticket | undefined; repos: RepoContext[]} {
 	const {key} = options;
 	const known = env.tickets.read(key);
 	const names = [
@@ -373,20 +581,48 @@ export async function createTicketSpace(
 			`${key} is open as a plain space in ${open.map(repo => repo.name).join(' and ')}. Add the other repos to it instead: lasagna space add-repo ${open[0]!.name}:${key} <repo>`,
 		);
 
+	checkLead(env, options);
+	return {known, repos};
+}
+
+/** `createTicketSpace`, for a caller that is already the one changing the ticket. */
+async function makeTicketSpace(
+	env: TicketEnv,
+	options: NewTicket,
+): Promise<TicketResult> {
+	const {key} = options;
+	const {known, repos} = planTicketSpace(env, options);
 	const folder = known?.folder ?? ticketFolder(env.home, env.workdir.name, key);
 	fs.mkdirSync(folder, {recursive: true});
 	let ticket: Ticket = {key, folder, repos: known?.repos ?? []};
 	const warnings: string[] = [];
-	for (const repo of repos) {
-		const {member, warning} = await bringIn(env, key, folder, repo);
-		if (warning) warnings.push(warning);
-		ticket = withTicketRepo(ticket, member);
-		// Recorded as it goes: a later repo that fails leaves the ones made.
-		env.tickets.write(ticket);
+	// Whether this run has put a worktree in the folder that was not the
+	// ticket's before.
+	let grown = false;
+	try {
+		for (const repo of repos) {
+			const {member, warning} = await bringIn(env, key, folder, repo);
+			if (warning) warnings.push(warning);
+			grown ||= !ticket.repos.some(each => each.name === member.name);
+			ticket = withTicketRepo(ticket, member);
+			// Recorded as it goes: a later repo that fails leaves the ones made.
+			env.tickets.write(ticket);
+		}
+
+		await writeTicketFolder(env, ticket);
+		await startLead(env, key, options);
+	} catch (error) {
+		if (!(error instanceof TicketError)) throw error;
+		if (!grown) {
+			// As it was before: a ticket closed earlier stays closed, and a new
+			// one that got nowhere leaves no folder.
+			if (!known) removeIfEmpty(folder);
+			throw error;
+		}
+
+		throw new TicketError(`${error.message}. ${await keepOnRail(env, ticket)}`);
 	}
 
-	await writeTicketFolder(env, ticket);
-	await startLead(env, key, options);
 	// idow recorded the issue's title, which the first write could not have.
 	await writeTicketFolder(env, ticket);
 	env.showCompanions(ticket);
@@ -477,9 +713,9 @@ export async function buildHandoff(
 	].join('\n');
 }
 
-function handoffPrompt(key: string, from: string[], added: string): string {
+function handoffPrompt(key: string, from: string[], repos: string[]): string {
 	const dirs = from.map(name => `./${name}`).join(' and ');
-	return `You are the lead agent for ${key}, which now spans ${[...new Set([...from, added])].join(', ')}. Until now ${from.join(' and ')} had an agent of its own working on it; that work is in ${dirs}, which is moved into this folder as you start, so wait a moment if it is not there yet. Read ${TICKET_HANDOFF} in this folder first: it has the issue, that agent's last turns and its diff so far. Then carry on with ${key} across the repos. CLAUDE.md here says how this folder works.`;
+	return `You are the lead agent for ${key}, which now spans ${repos.join(', ')}. Until now ${from.join(' and ')} had an agent of its own working on it; that work is in ${dirs}, which is moved into this folder as you start, so wait a moment if it is not there yet. Read ${TICKET_HANDOFF} in this folder first: it has the issue, that agent's last turns and its diff so far. Then carry on with ${key} across the repos. CLAUDE.md here says how this folder works.`;
 }
 
 export type AddRepoResult = TicketResult & {
@@ -487,48 +723,46 @@ export type AddRepoResult = TicketResult & {
 	kind: 'added' | 'converted';
 };
 
+type AddRepoOptions = {
+	key: string;
+	repo: string;
+	/** The plain space's repo, when the key is open in more than one. */
+	from?: string;
+};
+
+/** A plain space that hands over to a lead agent: its repo and where it works. */
+type Handing = {repo: RepoContext; identity: SpaceIdentity};
+
+type AddRepoPlan =
+	| {kind: 'add'; added: RepoContext; known: Ticket}
+	| {kind: 'reopen'; added: RepoContext}
+	| {
+			kind: 'convert';
+			added: RepoContext;
+			/** The ticket closed earlier under this key, whose repos come along. */
+			known: Ticket | undefined;
+			folder: string;
+			/** The plain spaces that end: the one named, and the new repo's own if it has one open. */
+			handing: Handing[];
+	  };
+
 /**
- * Add a repo to the space `key`. A ticket space gains the repo's worktree
- * and its lead agent is told. A plain space, which has one repo, becomes a
- * ticket space: a lead agent starts in a new ticket folder with a handoff
- * from the plain space's agent, that agent's sessions end, and only then is
- * its worktree moved into the folder.
+ * What adding the repo to the space would do, or why it cannot be done.
+ * Nothing is changed: everything that can be refused is refused here, before
+ * a worktree is made or a session ends.
  */
-export async function addRepoToSpace(
-	env: TicketEnv,
-	options: {
-		key: string;
-		repo: string;
-		/** The plain space's repo, when the key is open in more than one. */
-		from?: string;
-	},
-): Promise<AddRepoResult> {
+function planAddRepo(env: TicketEnv, options: AddRepoOptions): AddRepoPlan {
 	const {key} = options;
 	const added = repoNamed(env, options.repo);
 	const own = env.daos(env.workdir.name);
 	const known = env.tickets.read(key);
+	// The new repo's own plain space for the key, whose worktree moves in.
+	const second = plainWorktree(env, added.name, key);
 	if (known && own.registry.has(key)) {
 		if (known.repos.some(repo => repo.name === added.name))
 			throw new TicketError(`${added.name} is already in ${key}`);
-		const {member, warning} = await bringIn(env, key, known.folder, added);
-		const ticket = withTicketRepo(known, member);
-		env.tickets.write(ticket);
-		await writeTicketFolder(env, ticket);
-		env.showCompanions(ticket);
-		const told = await env.tellLead(
-			key,
-			`The repo ${added.name} was added to this ticket. Its worktree is ./${path.relative(ticket.folder, member.worktreePath) || added.name} on the branch ${key}. CLAUDE.md in this folder was rewritten and lists it with its PR rules. Read its own CLAUDE.md before you change it.`,
-		);
-		return {
-			kind: 'added',
-			ticket,
-			warnings: [
-				...(warning ? [warning] : []),
-				...(told === 'sent'
-					? []
-					: [`The lead agent was not told (${told}): tell it yourself`]),
-			],
-		};
+		if (second?.open) checkAtRest(env, added.name, key);
+		return {kind: 'add', added, known};
 	}
 
 	// A plain space: the repos that have the key open, other than the new one.
@@ -545,11 +779,8 @@ export async function addRepoToSpace(
 			throw new TicketError(`${added.name} is already the repo of ${key}`);
 		// A ticket space closed earlier opens again with the repo added.
 		if (known) {
-			const reopened = await createTicketSpace(env, {
-				key,
-				repos: [added.name],
-			});
-			return {kind: 'added', ...reopened};
+			planTicketSpace(env, {key, repos: [added.name]});
+			return {kind: 'reopen', added};
 		}
 
 		throw new TicketError(
@@ -564,22 +795,131 @@ export async function addRepoToSpace(
 			`${key} is a space in more than one repo. Name one: ${plain.map(repo => `${repo.name}:${key}`).join(', ')}`,
 		);
 	const [origin] = plain as [RepoContext];
+	checkAtRest(env, origin.name, key);
 	const from = plainWorktree(env, origin.name, key);
 	if (!from)
 		throw new TicketError(
 			`${origin.name}:${key} has no worktree to move into a ticket folder`,
 		);
-
-	const folder = ticketFolder(env.home, env.workdir.name, key);
-	fs.mkdirSync(folder, {recursive: true});
-	const warnings: string[] = [];
-	// The new repo may have a plain space of its own for the key. An open one
-	// hands over too, and moves in with the first once the lead agent is up.
-	const second = plainWorktree(env, added.name, key);
+	// An open plain space of the new repo hands over too, and moves in with
+	// the first once the lead agent is up.
+	if (second?.open) checkAtRest(env, added.name, key);
 	const handing = [
 		{repo: origin, identity: from.identity},
 		...(second?.open ? [{repo: added, identity: second.identity}] : []),
 	];
+	checkLead(env, {});
+	const folder = known?.folder ?? ticketFolder(env.home, env.workdir.name, key);
+	for (const {repo} of handing) {
+		const destination = memberWorktree(folder, repo.name);
+		if (fs.existsSync(destination))
+			throw new TicketError(
+				`${destination} is already there, so the worktree of ${repo.name}:${key} cannot move into the ticket folder. Move it away, then add ${added.name} again`,
+			);
+	}
+
+	return {kind: 'convert', added, known, folder, handing};
+}
+
+/**
+ * Why the repo cannot be added to the space, as `addRepoToSpace` would say
+ * it, for a caller that has to know before it starts: throws a TicketError,
+ * and changes nothing. Resolves with the repos whose plain space for the key
+ * would end, the one that is converted first.
+ */
+export function checkAddRepo(
+	env: TicketEnv,
+	options: AddRepoOptions,
+): {ending: string[]} {
+	const plan = planAddRepo(env, options);
+	if (plan.kind === 'convert')
+		return {ending: plan.handing.map(({repo}) => repo.name)};
+	// The new repo's own plain space, open or closed, gives up its worktree.
+	return {
+		ending: plainWorktree(env, plan.added.name, options.key)
+			? [plan.added.name]
+			: [],
+	};
+}
+
+/**
+ * Add a repo to the space `key`. A ticket space gains the repo's worktree
+ * and its lead agent is told. A plain space, which has one repo, becomes a
+ * ticket space: a lead agent starts in a new ticket folder with a handoff
+ * from the plain space's agent, that agent's sessions end, and only then is
+ * its worktree moved into the folder.
+ */
+export async function addRepoToSpace(
+	env: TicketEnv,
+	options: AddRepoOptions,
+): Promise<AddRepoResult> {
+	const {key} = options;
+	return changingTicket(env, key, async () => {
+		// Planned once the ticket is this run's to change: what an earlier
+		// change left is what this one adds to.
+		const plan = planAddRepo(env, options);
+		switch (plan.kind) {
+			case 'add': {
+				return addToTicket(env, plan.known, plan.added);
+			}
+
+			case 'reopen': {
+				const reopened = await makeTicketSpace(env, {
+					key,
+					repos: [plan.added.name],
+				});
+				return {kind: 'added', ...reopened};
+			}
+
+			case 'convert': {
+				return convertPlainSpace(env, key, plan);
+			}
+		}
+	});
+}
+
+async function addToTicket(
+	env: TicketEnv,
+	known: Ticket,
+	added: RepoContext,
+): Promise<AddRepoResult> {
+	const {key} = known;
+	const {member, warning} = await bringIn(env, key, known.folder, added);
+	const ticket = withTicketRepo(known, member);
+	env.tickets.write(ticket);
+	await writeTicketFolder(env, ticket);
+	env.showCompanions(ticket);
+	const told = await env.tellLead(
+		key,
+		`The repo ${added.name} was added to this ticket. Its worktree is ${whereFrom(ticket.folder, member)} on the branch ${key}. CLAUDE.md in this folder was rewritten and lists it with its PR rules. Read its own CLAUDE.md before you change it.`,
+	);
+	return {
+		kind: 'added',
+		ticket,
+		warnings: [...(warning ? [warning] : []), ...notTold(told)],
+	};
+}
+
+/** A repo's worktree as the lead agent reaches it: `./<repo>`, or in full when it is elsewhere. */
+function whereFrom(folder: string, member: TicketRepo): string {
+	const relative = path.relative(folder, member.worktreePath);
+	return relative.startsWith('..') || path.isAbsolute(relative)
+		? member.worktreePath
+		: `./${relative || member.name}`;
+}
+
+function notTold(told: string): string[] {
+	return told === 'sent'
+		? []
+		: [`The lead agent was not told (${told}): tell it yourself`];
+}
+
+async function writeHandoff(
+	env: TicketEnv,
+	key: string,
+	folder: string,
+	handing: readonly Handing[],
+): Promise<void> {
 	const handoffs = await Promise.all(
 		handing.map(async ({repo, identity}) =>
 			buildHandoff(env, {
@@ -594,21 +934,54 @@ export async function addRepoToSpace(
 		path.join(folder, TICKET_HANDOFF),
 		handoffs.join('\n---\n\n'),
 	);
+}
 
-	let ticket: Ticket = {
-		key,
-		folder,
-		// Where the plain worktrees will be once they have moved.
-		repos: handing.map(({repo}) => ({
+async function convertPlainSpace(
+	env: TicketEnv,
+	key: string,
+	plan: Extract<AddRepoPlan, {kind: 'convert'}>,
+): Promise<AddRepoResult> {
+	const {added, known, folder, handing} = plan;
+	const own = env.daos(env.workdir.name);
+	const [{repo: origin}] = handing as [Handing];
+	fs.mkdirSync(folder, {recursive: true});
+	const warnings: string[] = [];
+
+	// The ticket as it will be: what a ticket closed earlier under this key
+	// held, the plain worktrees where they are once they have moved, and the
+	// new repo.
+	let ticket: Ticket = {key, folder, repos: known?.repos ?? []};
+	for (const {repo} of handing) {
+		ticket = withTicketRepo(ticket, {
 			name: repo.name,
 			worktreePath: memberWorktree(folder, repo.name),
-		})),
-	};
-	if (!second?.open) {
-		const {member, warning} = await bringIn(env, key, folder, added);
-		if (warning) warnings.push(warning);
-		ticket = withTicketRepo(ticket, member);
+		});
 	}
+
+	// What this run does for the new repo, to undo if the lead agent cannot
+	// start: a worktree it made, which nothing has worked in, or one it moved.
+	let brought: BroughtIn | undefined;
+	if (!handing.some(({repo}) => repo.name === added.name)) {
+		brought = await bringIn(env, key, folder, added);
+		if (brought.warning) warnings.push(brought.warning);
+		ticket = withTicketRepo(ticket, brought.member);
+	}
+
+	// The new repo's setup can take minutes, in which the plain agents worked
+	// on. They are told only now, and the handoff is what they have done by now.
+	const leaving = handing.map(({repo}) => repo.name);
+	// A plain agent that cannot be told (it is at a prompt, or gone) is ended
+	// all the same: the handoff holds what it did.
+	const tellLeaving = async (text: string) =>
+		Promise.all(
+			leaving.map(async name =>
+				env.tellSpace(name, key, text).catch(() => 'failed'),
+			),
+		);
+	await tellLeaving(
+		`${key} is becoming a ticket space: ${added.name} was added to it. A lead agent is starting in ${folder} with a handoff of your last turns and your diff, and this session ends as soon as it is up. Stop here and start nothing new.`,
+	);
+	await writeHandoff(env, key, folder, handing);
 
 	env.tickets.write(ticket);
 	// The ticket carries on what the plain space knew: its title and its PR.
@@ -621,25 +994,80 @@ export async function addRepoToSpace(
 	}
 
 	await writeTicketFolder(env, ticket);
-	await startLead(env, key, {
-		prompt: handoffPrompt(
-			key,
-			handing.map(({repo}) => repo.name),
-			added.name,
-		),
-	});
+	try {
+		await startLead(env, key, {
+			prompt: handoffPrompt(
+				key,
+				leaving,
+				ticket.repos.map(repo => repo.name),
+			),
+		});
+	} catch (error) {
+		if (!(error instanceof TicketError)) throw error;
+		// Back to the plain space it was. Of the worktrees, only the one this
+		// run made is removed, which no agent ever ran in, and one it moved in
+		// goes back where it was. The plain spaces were not touched.
+		let left = '';
+		const at = brought?.member.worktreePath;
+		try {
+			if (brought?.created)
+				await env.git(added.mainRoot, ['worktree', 'remove', '--force', at!]);
+			else if (brought?.movedFrom)
+				await env.git(added.mainRoot, [
+					'worktree',
+					'move',
+					at!,
+					brought.movedFrom,
+				]);
+		} catch {
+			left = `. The worktree of ${added.name} is still at ${at}`;
+		}
+
+		if (known) env.tickets.write(known);
+		else env.tickets.remove(key);
+		removeTicketFiles(folder);
+		removeIfEmpty(folder);
+		const stays = `${key} stays a plain space in ${leaving.join(' and ')}`;
+		await tellLeaving(
+			`The lead agent could not be started, so ${stays} and this session carries on: ${error.message}`,
+		);
+		throw new TicketError(`${error.message}. ${stays}${left}`);
+	}
 
 	// The handoff is in the lead agent's hands: now the plain agents can end,
 	// and only then do their worktrees move.
+	const ended = new Map<string, boolean>();
+	for (const {repo} of handing)
+		ended.set(repo.name, await env.endSessions(repo.name, key));
+	// Nothing changes in those worktrees any more: the handoff's last word,
+	// written before the lead agent has had the time to read the first.
+	await writeHandoff(env, key, folder, handing);
+	const stayed: BroughtIn[] = [];
 	for (const {repo, identity} of handing) {
-		const {member, warning} = await moveIn(env, key, folder, repo, identity);
-		if (warning) warnings.push(warning);
-		ticket = withTicketRepo(ticket, member);
+		const brought = ended.get(repo.name)
+			? await moveEnded(env, key, folder, repo, identity)
+			: stayAt(repo, identity, 'its sessions could not be ended');
+		if (brought.warning) {
+			warnings.push(brought.warning);
+			stayed.push(brought);
+		}
+
+		ticket = withTicketRepo(ticket, brought.member);
 	}
 
 	env.tickets.write(ticket);
 	await writeTicketFolder(env, ticket);
 	env.showCompanions(ticket);
+	if (stayed.length > 0) {
+		// The lead agent was started on `./<repo>`: it has to hear where the
+		// worktree really is, or it waits for a directory that never comes.
+		const told = await env.tellLead(
+			key,
+			`${stayed.map(({warning}) => warning).join('. ')}. Work on ${stayed.map(({member}) => member.name).join(' and ')} there, not under this folder: CLAUDE.md here was rewritten and gives the full path.`,
+		);
+		warnings.push(...notTold(told));
+	}
+
 	return {kind: 'converted', ticket, warnings};
 }
 

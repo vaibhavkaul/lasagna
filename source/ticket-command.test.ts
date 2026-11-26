@@ -11,6 +11,7 @@ import {
 	commandWorkdir,
 	runAddRepoCommand,
 } from './ticket-command.ts';
+import {resetRepoContexts} from './repo-context.ts';
 import {createTicketSpace} from './ticket-ops.ts';
 
 function command(env: NodeJS.ProcessEnv = {}, cwd?: string) {
@@ -179,4 +180,106 @@ test('the work dir is found from its root, from a repo in it, and from a ticket 
 	expect(commandWorkdir(t.folder, {LASAGNA_MAIN_REPO_ROOT: t.work.work})).toBe(
 		t.work.work,
 	);
+});
+
+/** The command as run from inside a space's own session, in its worktree. */
+function inSpace(
+	t: ReturnType<typeof ticketFixture>,
+	repo: string,
+	cwd: string,
+	env: NodeJS.ProcessEnv = {},
+) {
+	const out: string[] = [];
+	const err: string[] = [];
+	const detached: string[][] = [];
+	const run = async (...argv: string[]) =>
+		runAddRepoCommand(argv, {
+			cwd,
+			env: {LASAGNA_SPACE: KEY, LASAGNA_REPO: repo, ...env},
+			ticketEnv: () => t.env,
+			detach: argv => detached.push(argv),
+			out: text => out.push(text),
+			err: text => err.push(text),
+		});
+	return {run, out, err, detached};
+}
+
+test('what cannot be done is said before the command leaves for the background', async () => {
+	const t = ticketFixture();
+	const plain = await t.plainSpace(t.api, 'Biz remittance credit');
+	const own = inSpace(t, t.api.name, plain);
+	// The background run has nobody to tell, so a repo the work dir does not
+	// have must not come back as "it is being done".
+	expect(await own.run('nope')).toBe(1);
+	expect(own.err.at(-1)).toStartWith('No repo nope in this work dir.');
+	expect(await own.run(t.api.name)).toBe(1);
+	expect(own.err.at(-1)).toBe(`${t.api.name} is already the repo of ${KEY}`);
+	// Nor a work dir whose config cannot start the lead agent.
+	const file = path.join(t.work.work, '.lasagna', 'workdir.yml');
+	const text = fs.readFileSync(file, 'utf8');
+	fs.writeFileSync(file, `version: 1\n${text.slice(text.indexOf('repos:'))}`);
+	resetRepoContexts();
+	expect(await own.run(t.web.name)).toBe(1);
+	expect(own.err.at(-1)).toContain("cannot start a ticket space's lead agent");
+	expect(own.detached).toEqual([]);
+	expect(own.out).toEqual([]);
+	expect(t.steps).toEqual([]);
+});
+
+test('adding the repo whose own plain space the command runs in carries on in the background too', async () => {
+	const t = ticketFixture();
+	await t.plainSpace(t.api, 'In api');
+	const plain = await t.plainSpace(t.web, 'In web');
+	// web's open plain space hands over with api's: its session, which this
+	// runs in, is one of those that end before the worktrees have moved.
+	const own = inSpace(t, t.web.name, plain);
+	expect(await own.run(`${t.api.name}:${KEY}`, t.web.name)).toBe(0);
+	expect(own.detached).toEqual([[`${t.api.name}:${KEY}`, t.web.name]]);
+	expect(own.out[0]).toContain('in the background');
+	expect(t.steps).toEqual([]);
+	expect(fs.existsSync(plain)).toBe(true);
+
+	// From a session none of this ends, it is done in place.
+	const other = inSpace(t, t.data.name, t.data.root);
+	expect(await other.run(`${t.api.name}:${KEY}`, t.web.name)).toBe(0);
+	expect(other.detached).toEqual([]);
+	expect(other.out[0]).toStartWith(`${KEY} is now a ticket space`);
+});
+
+test('what stops the background run is said where it is read, whatever it is', async () => {
+	const t = ticketFixture();
+	const plain = await t.plainSpace(t.api, 'In api');
+	const background = (ticketEnv: () => typeof t.env) => {
+		const err: string[] = [];
+		return {
+			err,
+			run: async () =>
+				runAddRepoCommand([`${t.api.name}:${KEY}`, t.web.name], {
+					cwd: plain,
+					env: {
+						LASAGNA_SPACE: KEY,
+						LASAGNA_REPO: t.api.name,
+						[ADD_REPO_DETACHED]: '1',
+					},
+					ticketEnv,
+					detach() {},
+					out() {},
+					err: text => err.push(text),
+				}),
+		};
+	};
+
+	// Its output goes nowhere, so its caller hands it the log to write to.
+	const refused = background(() => t.env);
+	t.env.runIdow = async () => ({code: 1, stdout: '', stderr: 'Error: no\n'});
+	expect(await refused.run()).toBe(1);
+	expect(refused.err).toEqual([
+		`Could not set up ${t.web.name} for ${KEY}: Error: no`,
+	]);
+	// A failure nobody planned for would otherwise end it without a word.
+	const broken = background(() => {
+		throw new Error('the work dir could not be read');
+	});
+	expect(await broken.run()).toBe(1);
+	expect(broken.err).toEqual(['the work dir could not be read']);
 });
