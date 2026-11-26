@@ -198,7 +198,7 @@ import {
 	type SpaceRegistryDao,
 } from './space-registry.ts';
 import type {StateDaos} from './state-daos.ts';
-import {QaSimulatorCleanup} from './qa-simulator.ts';
+import {QaSimulatorCleanup, type SimctlRunner} from './qa-simulator.ts';
 import type {AgentSessionsDao, SpaceStateDao} from './space-state.ts';
 import {
 	legacyAgentSession,
@@ -215,8 +215,10 @@ import {
 	scopedSpace,
 	spaceBareKey,
 	spaceConfig,
+	spaceNameIn,
 	spaceReportedConfig,
 } from './space-scope.ts';
+import {isWorkdirRepoName} from './repo-config-files.ts';
 import {
 	calculateIdealListHeightForCount,
 	calculateLayoutForSize,
@@ -1156,8 +1158,14 @@ export const defaultOuterTmuxRunner = spawnTmuxRunner(args => [...args]);
 // Outer TUI sessions are named `lasagna-<repo>`.
 export const OUTER_SESSION_PREFIX = 'lasagna-';
 
+/** A work dir's TUI, which runs for its pseudo-repo `@<workdir>`, is `lasagna-wd-<workdir>`. */
+export const WORKDIR_SESSION_PREFIX = 'wd-';
+
 export function outerSessionName(repoName: string): string {
-	return `${OUTER_SESSION_PREFIX}${tmuxSessionRepo(repoName)}`;
+	const name = isWorkdirRepoName(repoName)
+		? `${WORKDIR_SESSION_PREFIX}${repoName.slice(1)}`
+		: repoName;
+	return `${OUTER_SESSION_PREFIX}${tmuxSessionRepo(name)}`;
 }
 
 // The rail's header already names the repo, so the user's status bar would
@@ -1194,7 +1202,9 @@ export function newOuterSessionArgs(
 		'-t',
 		target,
 		'set-titles-string',
-		tmuxFormatLiteral(`🍝 ${repoName}`),
+		tmuxFormatLiteral(
+			`🍝 ${isWorkdirRepoName(repoName) ? repoName.slice(1) : repoName}`,
+		),
 	];
 }
 
@@ -1550,7 +1560,9 @@ export function cleanupOrphanedInnerSessions(
 		// status it reports is the space's own.
 		for (const key of reapedKeys)
 			if (!failedKeys.has(key) && !owned.keys.has(key))
-				void programStatus().remove(key);
+				void programStatus().remove(
+					repoName === undefined ? key : spaceNameIn(repoName, key),
+				);
 		return killed;
 	} catch {
 		return 0;
@@ -1574,10 +1586,26 @@ function sessionSpace(name: string, runner: OuterTmuxRunner): string | null {
 	return match?.[1]?.trim() || null;
 }
 
-const simulatorCleanup = new QaSimulatorCleanup(
-	undefined,
-	key => !registry().has(key),
-);
+/**
+ * Deletes the QA simulator of a space that has closed. A simulator is named
+ * after its space's key alone (`QA-<KEY>`), whatever the space is called on a
+ * rail of several repos, so two repos' spaces with one key share one: it
+ * stays while either of them is open.
+ */
+export function spaceSimulatorCleanup(run?: SimctlRunner): QaSimulatorCleanup {
+	const keyOpenElsewhere = (name: string) =>
+		listOpenSpaces(registry()).some(
+			other => other !== name && spaceBareKey(other) === spaceBareKey(name),
+		);
+	return new QaSimulatorCleanup(
+		run,
+		name => !registry().has(name) && !keyOpenElsewhere(name),
+		undefined,
+		spaceBareKey,
+	);
+}
+
+const simulatorCleanup = spaceSimulatorCleanup();
 
 export async function deleteQaSimulator(issueKey: string): Promise<boolean> {
 	return simulatorCleanup.delete(issueKey);
@@ -3939,7 +3967,10 @@ export async function getWorktreePathAsync(
  * The main worktree is the original git checkout (not a `git worktree add` worktree).
  * Returns null if detection fails.
  */
-export async function getMainWorktreeInfo(): Promise<{
+export async function getMainWorktreeInfo(
+	/** A directory of the repo to ask about; the process's own by default. */
+	cwd?: string,
+): Promise<{
 	path: string;
 	branch: string;
 } | null> {
@@ -3957,6 +3988,7 @@ export async function getMainWorktreeInfo(): Promise<{
 			{
 				encoding: 'utf-8',
 				timeout: 5000,
+				...(cwd ? {cwd} : {}),
 			},
 		);
 
@@ -4398,7 +4430,9 @@ export function createCompanionSplit(
 	const session = splitSessionName(main, split.name);
 	const createArgs = [
 		...companionSessionArgs(
-			identity.key,
+			// By the name the space has here, so that on a rail of several repos
+			// the split is told its own repo's main checkout, not the rail's.
+			spaceNameIn(identity.repo, identity.key),
 			session,
 			cwd.stdout.trim(),
 			split.command,

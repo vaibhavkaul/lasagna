@@ -24,16 +24,19 @@ export function railGroupHeaderText(
 	widthMethod: WidthMethod,
 ): {name: string; count: string} {
 	const count = ` (${row.count})`;
+	// A header whose rows fold says which way it is.
+	const fold = row.folded === undefined ? '' : row.folded ? '▸ ' : '▾ ';
+	const label = `${fold}${row.group.name}`;
 	const nameCells = maxCells - displayWidth(count, widthMethod);
 	if (nameCells < 1) {
 		return {
-			name: truncateToWidth(`${row.group.name}${count}`, maxCells, widthMethod),
+			name: truncateToWidth(`${label}${count}`, maxCells, widthMethod),
 			count: '',
 		};
 	}
 
 	return {
-		name: truncateToWidth(row.group.name, nameCells, widthMethod),
+		name: truncateToWidth(label, nameCells, widthMethod),
 		count,
 	};
 }

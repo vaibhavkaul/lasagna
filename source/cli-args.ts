@@ -4,6 +4,7 @@ import {packageJsonUrl} from './runtime.ts';
 const helpText = `
 	Usage
 	  $ lasagna [--profile <name>] [prompt]
+	  $ lasagna --workdir <dir>
 	  $ lasagna --resume <prompt or issue-key>
 	  $ lasagna highlight <issue-key> [--focus]
 	  $ lasagna send <issue-key> [text]
@@ -31,6 +32,12 @@ const helpText = `
 	  In a work dir (a directory with .lasagna/workdir.yml listing its repos)
 	  a space of another repo is named repo:KEY, wherever an issue key goes.
 	  A bare key is the repo the command runs in, or the one repo that has it.
+
+	  Started at a work dir's root, or anywhere in it outside its configured
+	  repos, or with --workdir <dir>, the TUI shows every repo of the work dir
+	  on one rail: the work dir's own main space, each repo's main space, and
+	  the spaces of all of them, grouped by repo (t groups by ticket, r folds
+	  the repos' main spaces). Started in a configured repo it shows that repo.
 
 	Commands
 	  highlight <key>  Select a row in the running TUI by issue key. With
@@ -192,6 +199,7 @@ export function parseCli(argv: readonly string[] = process.argv.slice(2)) {
 			resume: {type: 'boolean'},
 			wait: {type: 'boolean'},
 			workspace: {type: 'string'},
+			workdir: {type: 'string'},
 			layout: {
 				type: 'boolean',
 				default: true,

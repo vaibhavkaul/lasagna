@@ -34,6 +34,7 @@ import {
 	paneRespawned,
 	installedLaunchCommand,
 	restartOwnTui,
+	workdirLaunchCommand,
 } from './tui-sessions.ts';
 import {DEFAULT_REPO_STATE_ROOT, clearDeadRestartLock} from './tui-marker.ts';
 import {
@@ -77,7 +78,7 @@ import {
 	sortIssuesByCreatedAt,
 	watchlistSourceId,
 } from './watchlist.ts';
-import {createIssueTracker, createVcsHost} from './providers/index.ts';
+import {createIssueTracker, issueTrackerFor} from './providers/index.ts';
 import {WorkspaceStatuses} from './workspace-status.ts';
 import {spaceSessionNames} from './tmux.ts';
 import {normalizeIssueIdentifier} from './issue-checker.ts';
@@ -144,7 +145,10 @@ import {
 	type RailRow,
 } from './rail-groups.ts';
 import RailGroupHeader from './components/RailGroupHeader.tsx';
-import {findSpacesToAutoRemove} from './auto-remove.ts';
+import {
+	findRepoSpacesToAutoRemove,
+	findSpacesToAutoRemove,
+} from './auto-remove.ts';
 import {
 	buildKillDoneConfirmContent,
 	findDoneSpaces,
@@ -157,10 +161,24 @@ import {
 	spaceBareKey,
 	spaceRepo,
 	spaceRepoRoots,
+	spaceReportedConfig,
+	spacesRailStatus,
 	spaceTracker,
 	spaceVcsHost,
 } from './space-scope.ts';
 import {defaultRepoContext} from './repo-context.ts';
+import {formatSpaceRef, parseSpaceRef} from './space-ref.ts';
+import type {WorkdirRepo, WorkdirRuntime} from './workdir-runtime.ts';
+import {WorkdirRefresh} from './workdir-refresh.ts';
+import {
+	buildWorkdirRailRows,
+	isRepoMainSpace,
+	nextWorkdirGrouping,
+	workdirRowLabel,
+	type WorkdirGrouping,
+} from './workdir-rail.ts';
+import {defaultRepoIndex} from './repo-picker.ts';
+import RepoPicker from './components/RepoPicker.tsx';
 import {
 	buildConfigFixConfirmContent,
 	buildConfigMigrationConfirmContent,
@@ -170,7 +188,12 @@ import {
 	type ConfigMigration,
 	runConfigFix,
 } from './config-migration.ts';
-import {deinitSkipped, runCloseHooks, shouldAttach} from './close-space.ts';
+import {
+	closeHooksDepsFor,
+	deinitSkipped,
+	runCloseHooks,
+	shouldAttach,
+} from './close-space.ts';
 import {
 	readReportedConfig,
 	reportConfigEvent,
@@ -300,10 +323,27 @@ interface AppProps {
 	// the help-overlay version with a `-dev` marker (STA-1494).
 	isDevBuild?: boolean;
 	updateCheckPromise?: Promise<UpdateInfo | null>;
+	/**
+	 * Set when the rail shows a whole work dir: its repos, side by side.
+	 * `daos` are then the stores over all of them, and a space is named
+	 * `repo:KEY`.
+	 */
+	workdir?: WorkdirRuntime;
+}
+
+/** The keys a work dir's rail adds, as the help lists them. */
+const WORKDIR_HELP_KEYS: KeybindingConfig[] = [
+	{key: 't', name: 'Group by repo / by ticket', run: ''},
+	{key: 'r', name: "Fold / unfold the repos' main spaces", run: ''},
+];
+
+function validConfig(load: ReturnType<typeof readConfig>) {
+	return load.kind === 'valid' ? load.config : null;
 }
 
 export default function App({
 	daos,
+	workdir,
 	initialWorkspaces,
 	firstRailPaint,
 	onFirstRailPaint,
@@ -334,15 +374,29 @@ export default function App({
 			return 'unknown';
 		}
 	}, []);
+	// On a work dir's rail, the repo the new-space dialog is open for.
+	const [newSpaceRepo, setNewSpaceRepo] = useState<WorkdirRepo | null>(null);
+	const newSpaceRepoRef = useRef<WorkdirRepo | null>(null);
+	newSpaceRepoRef.current = newSpaceRepo;
+	const [showRepoPicker, setShowRepoPicker] = useState(false);
+	const lastSpaceRepo = useRef<string | undefined>(undefined);
 	const savedProfileFor = React.useCallback(
 		(input: string, config: PappardelleConfig | null) => {
+			const repo = newSpaceRepoRef.current;
 			const key = resolveSpaceKey(
 				input,
 				config ? getTeamPrefix(config) : 'STA',
-				createIssueTracker().name,
-				config ? getBeadsPrefixes(config, readBeadsIssuePrefix()) : [],
+				(repo ? issueTrackerFor(repo.name) : createIssueTracker()).name,
+				config
+					? getBeadsPrefixes(
+							config,
+							readBeadsIssuePrefix(repo?.context.mainRoot),
+						)
+					: [],
 			);
-			return key ? spaceState.read(key)?.profile : undefined;
+			if (!key) return undefined;
+			return spaceState.read(repo ? formatSpaceRef(repo.name, key) : key)
+				?.profile;
 		},
 		[spaceState],
 	);
@@ -504,23 +558,74 @@ export default function App({
 		}
 	}, []);
 
-	const railGrouped = isRailGroupedByStatus(configMemo);
+	// A work dir's rail is always grouped: by repo, or by ticket.
+	const railGrouped = workdir ? true : isRailGroupedByStatus(configMemo);
 	const [stackedLayout, setStackedLayout] = useState(false);
 	const railGroups = useMemo(() => getRailGroups(configMemo), [configMemo]);
+	const [workdirGrouping, setWorkdirGrouping] =
+		useState<WorkdirGrouping>('repo');
+	const [mainsFolded, setMainsFolded] = useState(false);
+	const workdirRepoNames = useMemo(
+		() => workdir?.repos.map(repo => repo.name) ?? [],
+		[workdir],
+	);
+	const groupedRows = useCallback(
+		(
+			displaySpaces: readonly SpaceData[],
+			headers: boolean,
+			selected: SpaceData | undefined,
+		) =>
+			workdir
+				? buildWorkdirRailRows({
+						displaySpaces,
+						grouping: workdirGrouping,
+						repos: workdirRepoNames,
+						// A repo's main space that something selected (a highlight
+						// request) stays on screen.
+						mainsFolded:
+							mainsFolded && !(selected && isRepoMainSpace(selected)),
+						headers,
+					})
+				: buildRailRows({displaySpaces, groups: railGroups, headers}),
+		[workdir, workdirGrouping, workdirRepoNames, mainsFolded, railGroups],
+	);
 	const railNow = useCallback(() => {
 		if (!railGrouped || searchNow.current) return null;
 		const {spaces, selectedIndex} = currentSelection();
-		const rows = buildRailRows({
-			displaySpaces: [
-				...spaces,
-				...displaySpacesRef.current.filter(space => space.isPending),
-			],
-			groups: railGroups,
-			headers: !stackedLayout,
-		});
+		const rows = groupedRows(
+			[...spaces, ...displaySpacesRef.current.filter(space => space.isPending)],
+			!stackedLayout,
+			spaces[selectedIndex],
+		);
 		return {rows, cursor: resolveCursorRow(rows, spaces[selectedIndex])};
-	}, [railGrouped, railGroups, stackedLayout, currentSelection]);
+	}, [railGrouped, groupedRows, stackedLayout, currentSelection]);
 	const mainLabel = sousChefLaunch(configMemo)?.name;
+	// What a row is called: on a work dir's rail its key, or its repo for a
+	// repo's main space, in place of the `repo:KEY` it is named.
+	const rowLabel = useCallback(
+		(space: SpaceData | undefined) => {
+			if (!space) return undefined;
+			if (workdir) return workdirRowLabel(space, mainLabel);
+			return space.isMainWorktree ? mainLabel : undefined;
+		},
+		[workdir, mainLabel],
+	);
+	// Each repo's config, read once like the TUI's own above.
+	const repoConfigs = useMemo(
+		() =>
+			new Map(
+				workdir?.all.map(repo => [
+					repo.name,
+					validConfig(repo.context.readConfig()),
+				]),
+			),
+		[workdir],
+	);
+	const configOf = useCallback(
+		(space: SpaceData) =>
+			workdir ? (repoConfigs.get(space.repo ?? '') ?? null) : configMemo,
+		[workdir, repoConfigs, configMemo],
+	);
 
 	// Install the user's issue-status color overrides before anything renders,
 	// so the ticket rail's first paint already uses them (STA-2070). A useMemo
@@ -542,6 +647,13 @@ export default function App({
 	const watchlists = React.useMemo<ResolvedWatchlist[]>(() => {
 		if (!configMemo) return [];
 		const resolved = getResolvedWatchlists(configMemo);
+		// A watched issue names no repo, and a space needs one.
+		if (workdir) {
+			if (resolved.length > 0)
+				log.info('Issue watchlists are not polled on a work dir rail');
+			return [];
+		}
+
 		if (resolved.length === 0) {
 			log.debug('No issue_watchlist configured — watchlist polling disabled');
 		} else {
@@ -563,7 +675,16 @@ export default function App({
 		}
 
 		return resolved;
-	}, [configMemo]);
+	}, [configMemo, workdir]);
+
+	const helpKeybindings = useMemo(
+		() => (workdir ? [...keybindings, ...WORKDIR_HELP_KEYS] : keybindings),
+		[workdir, keybindings],
+	);
+	const openPromptFor = useCallback((repo: WorkdirRepo | null) => {
+		setNewSpaceRepo(repo);
+		setShowPromptDialog(true);
+	}, []);
 
 	// Build a lookup map: key char → keybinding config
 	const keybindingMap = React.useMemo(() => {
@@ -598,16 +719,20 @@ export default function App({
 		await renderer.suspend();
 		runUpdateScript({waitOnFailure: true});
 		// Reruns the TUI through the shim the installer just rewrote (which
-		// still points at the old build after a failed install).
+		// still points at the old build after a failed install). A work dir's
+		// TUI comes back as that work dir's.
+		const installed = installedLaunchCommand({
+			execPath: process.execPath,
+			cliPath: cliFilePath(),
+			home: homedir(),
+		});
 		restartOwnTui(
 			{
 				repoName,
 				paneId: process.env['TMUX_PANE'] ?? '',
-				command: installedLaunchCommand({
-					execPath: process.execPath,
-					cliPath: cliFilePath(),
-					home: homedir(),
-				}),
+				command: workdir
+					? workdirLaunchCommand(installed, workdir.root)
+					: installed,
 				paneLayout,
 			},
 			{
@@ -626,7 +751,7 @@ export default function App({
 		);
 		// eslint-disable-next-line unicorn/no-process-exit
 		process.exit(0);
-	}, [paneLayout, repoName, renderer]);
+	}, [paneLayout, repoName, renderer, workdir]);
 
 	// Tells `lasagna restart` which build came up in this pane. Written on
 	// first paint, after display metadata is available.
@@ -658,7 +783,9 @@ export default function App({
 	// space being closed. Cleared once the space leaves the list (effect below).
 	const closingSpacesRef = useRef(new Set<string>());
 	const closeTasks = useRef(new WorkspaceCloseTasks());
-	const workspaceRefresh = useRef<WorkspaceRefresh | null>(null);
+	const workspaceRefresh = useRef<WorkspaceRefresh | WorkdirRefresh | null>(
+		null,
+	);
 
 	const [paneDimensions, setPaneDimensions] = useState({
 		rows: stdout?.rows ?? 40,
@@ -686,7 +813,7 @@ export default function App({
 	}, [renderer]);
 
 	const railDialogState = {
-		showPromptDialog,
+		showPromptDialog: showPromptDialog || showRepoPicker,
 		showDeleteConfirm: deleteTarget !== null,
 		killDoneTargets,
 		showUpdateConfirm,
@@ -702,6 +829,8 @@ export default function App({
 
 	const earlyWorkspaces = useRef(initialWorkspaces);
 	useEffect(() => {
+		// A work dir's rail is listed by the effect below.
+		if (workdir) return;
 		const early = earlyWorkspaces.current;
 		earlyWorkspaces.current = undefined;
 		const refresh = new WorkspaceRefresh({
@@ -759,7 +888,69 @@ export default function App({
 			refresh.stop();
 			workspaceRefresh.current = null;
 		};
-	}, [configMemo, repoName, setSpaces, workspaceStatuses, firstRailPaint]);
+	}, [
+		configMemo,
+		repoName,
+		setSpaces,
+		workspaceStatuses,
+		firstRailPaint,
+		workdir,
+	]);
+
+	// A work dir's rail: every repo's spaces, each read from its own repo.
+	useEffect(() => {
+		if (!workdir) return;
+		const refresh = new WorkdirRefresh(workdir, {
+			detailReady: firstRailPaint,
+			statusReader: () => workspaceStatuses.reader(),
+			claudeStatus,
+			settle: {
+				closing: closeTasks.current,
+				liveSessions: () => liveInnerSessions(),
+			},
+			readWorktreePath: getWorktreePathAsync,
+			readMainWorktree: getMainWorktreeInfo,
+			readDirty: isWorktreeDirty,
+			readConfig: repo => repoConfigs.get(repo.name) ?? null,
+			readEmoji: (repo, config, issueKey, cachedIssue) =>
+				resolveSpaceEmoji({
+					config,
+					spaceState: repo.daos.spaceState,
+					issueKey,
+					cachedIssue,
+				}),
+			onSettleError(repo, error) {
+				log.warn(
+					`Could not settle unfinished spaces of ${repo.name}`,
+					error instanceof Error ? error : undefined,
+				);
+			},
+			setSpaces,
+			onLoaded: () => setLoading(false),
+			onError: err =>
+				log.error(
+					'Failed to refresh workspaces',
+					err instanceof Error ? err : undefined,
+				),
+		});
+		workspaceRefresh.current = refresh;
+		void refresh.refresh();
+		const interval = setInterval(() => {
+			void refresh.refresh();
+		}, 10_000);
+		return () => {
+			clearInterval(interval);
+			refresh.stop();
+			workspaceRefresh.current = null;
+		};
+	}, [
+		workdir,
+		repoConfigs,
+		claudeStatus,
+		setSpaces,
+		workspaceStatuses,
+		firstRailPaint,
+	]);
 
 	// Warm the skill list once the rail has painted, so the first new-session
 	// prompt can offer completions without waiting on a scan of its own.
@@ -1020,6 +1211,7 @@ export default function App({
 		: undefined;
 	const selectedIssueTitle =
 		selectedSpace?.trackerIssue?.title ?? selectedSpace?.linearIssue?.title;
+	const selectedLabel = rowLabel(selectedSpace);
 
 	// A space's own companion width applies only while that space is selected.
 	const appliedSpaceWidth = useRef<string | null>(null);
@@ -1181,10 +1373,7 @@ export default function App({
 					layout.listPaneId,
 					selectedWorktreePath,
 					selectedIssueTitle,
-					{
-						signal,
-						label: selectedSpace?.isMainWorktree ? mainLabel : undefined,
-					},
+					{signal, label: selectedLabel},
 				);
 				if (success && !signal.aborted) {
 					panesInitialized.current = true;
@@ -1207,7 +1396,7 @@ export default function App({
 		selectedSpace?.isMainWorktree,
 		selectedSpace?.isPending,
 		selectedIssueTitle,
-		mainLabel,
+		selectedLabel,
 		paneLayout,
 		attachmentTask,
 		attachmentRevision,
@@ -1314,14 +1503,15 @@ export default function App({
 			return;
 		}
 
+		const spaceConfig = configOf(space);
 		const profileName = resolveSpaceProfileName({
-			config: configMemo,
+			config: spaceConfig,
 			spaceState,
 			issueKey: space.name,
 			cachedIssue: space.trackerIssue ?? space.linearIssue ?? null,
 		});
-		const command = configMemo
-			? getIdeCommand(configMemo, profileName)
+		const command = spaceConfig
+			? getIdeCommand(spaceConfig, profileName)
 			: DEFAULT_IDE_COMMAND;
 
 		// An empty ide_command is the documented way to turn the key off.
@@ -1333,7 +1523,7 @@ export default function App({
 		const vars = buildWorkspaceTemplateVars(
 			spaceBareKey(space.name),
 			worktreePath,
-			configMemo,
+			spaceConfig,
 			space.trackerIssue?.title ?? space.linearIssue?.title,
 			profileName,
 			spaceRepoRoots(space.name),
@@ -1502,9 +1692,10 @@ export default function App({
 
 		const space = selectedSpaceNow();
 		if (kb.send_skill) {
-			if (!space || !configMemo) return;
+			const spaceConfig = space && configOf(space);
+			if (!space || !spaceConfig) return;
 			const agentProfile = runningAgentProfile(
-				configMemo,
+				spaceConfig,
 				space.name,
 				space.trackerIssue?.title ?? space.linearIssue?.title,
 			);
@@ -1529,7 +1720,7 @@ export default function App({
 		}
 
 		// Read fresh so profile vars edited since startup reach the command.
-		const load = readReportedConfig();
+		const load = spaceReportedConfig(space.name);
 		if (load.kind === 'invalid') {
 			setHeaderWithTimeout(`${kb.name} not run: the config is invalid`, 4000);
 			return;
@@ -1770,7 +1961,20 @@ export default function App({
 		} else if (isFocusAgentKey(event)) {
 			handleFocusAgent();
 		} else if (input === 'n') {
-			if (hasNoProfiles()) {
+			if (workdir) {
+				// A space is one repo's: with several, ask which. The repo picker
+				// of the next phase replaces this list.
+				if (workdir.repos.length === 0) {
+					setHeaderWithTimeout(
+						'No repos: list them under repos: in .lasagna/workdir.yml',
+						4000,
+					);
+				} else if (workdir.repos.length === 1) {
+					openPromptFor(workdir.repos[0]!);
+				} else {
+					setShowRepoPicker(true);
+				}
+			} else if (hasNoProfiles()) {
 				setHeaderWithTimeout(
 					'Add a profile to .pappardelle.yml to create spaces',
 					4000,
@@ -1837,7 +2041,7 @@ export default function App({
 						{
 							kind: 'help',
 							props: {
-								customKeybindings: keybindings,
+								customKeybindings: helpKeybindings,
 								commitSha,
 								installedVersion,
 								isDevBuild,
@@ -1895,7 +2099,24 @@ export default function App({
 					break;
 				}
 				case 's': {
-					focusSpaceAgent(MAIN_WORKTREE_KEY);
+					focusSpaceAgent(workdir?.rootMain ?? MAIN_WORKTREE_KEY);
+
+					break;
+				}
+				case 't': {
+					if (!workdir) break;
+					const next = nextWorkdirGrouping(workdirGrouping);
+					setWorkdirGrouping(next);
+					setHeaderWithTimeout(`Grouped by ${next}`, 2000);
+
+					break;
+				}
+				case 'r': {
+					if (!workdir) break;
+					// A hidden row can't hold the selection: it moves to the root.
+					if (!mainsFolded && selectedSpaceNow()?.isMainWorktree)
+						selectSpace(workdir.rootMain);
+					setMainsFolded(folded => !folded);
 
 					break;
 				}
@@ -1948,7 +2169,12 @@ export default function App({
 							agentProfileName: pending.agentProfileName,
 							inputIsIssueKey: pending.inputIsIssueKey,
 						}),
-						idowSpawnOptions(defaultRepoContext(), registry.keepsLifecycle),
+						idowSpawnOptions(
+							(pending.repo === undefined
+								? undefined
+								: workdir?.repo(pending.repo)?.context) ?? defaultRepoContext(),
+							registry.keepsLifecycle,
+						),
 					);
 					if (result.code !== 0) {
 						throw new Error(
@@ -1958,8 +2184,12 @@ export default function App({
 						);
 					}
 					// Description routes only acquire an issue key once idow creates it.
+					const createdKey = extractIssueKeyFromIdowOutput(result.stdout);
 					const spaceKey =
-						pending.name || extractIssueKeyFromIdowOutput(result.stdout);
+						pending.name ||
+						(createdKey && pending.repo !== undefined
+							? formatSpaceRef(pending.repo, createdKey)
+							: createdKey);
 					if (spaceKey && !pending.name) claimIssueInBackground(spaceKey);
 					if (spaceKey) await registry.add(spaceKey);
 					if (
@@ -2181,11 +2411,15 @@ export default function App({
 	// auto-remove-on-done flow.
 	const performDeleteSpace = useCallback(
 		async (space: SpaceData): Promise<boolean> => {
-			const deinit = await runCloseHooks({
-				name: space.name,
-				worktreePath: space.worktreePath,
-				trackerIssue: space.trackerIssue ?? space.linearIssue,
-			});
+			const scope = scopedSpace(space.name);
+			const deinit = await runCloseHooks(
+				{
+					name: scope?.key ?? space.name,
+					worktreePath: space.worktreePath,
+					trackerIssue: space.trackerIssue ?? space.linearIssue,
+				},
+				scope ? closeHooksDepsFor(scope.repo) : undefined,
+			);
 			if (deinit.kind === 'failed') {
 				setHeaderWithTimeout(
 					`Deinit failed: ${deinit.failedCommand ?? 'unknown'} — deletion aborted`,
@@ -2336,15 +2570,25 @@ export default function App({
 	const autoRemoveInFlightRef = useRef(new Set<string>());
 	const autoRemoveFailedRef = useRef(new Set<string>());
 	useEffect(() => {
-		const autoRemoveWhenDone = configMemo
-			? getAutoRemoveWhenDone(configMemo)
-			: false;
-		if (!autoRemoveWhenDone) return;
-		// Nobody asked for these closes, so they wait for a config that can say
-		// which deinit commands to run.
-		if (readReportedConfig().kind === 'invalid') return;
+		let candidates: SpaceData[];
+		if (workdir) {
+			// Each space answers for its own repo: the work dir's own setting
+			// says nothing of a repo's spaces.
+			candidates = findRepoSpacesToAutoRemove(spaces, {
+				configOf,
+				currentConfig: space => spaceReportedConfig(space.name),
+			});
+		} else {
+			const autoRemoveWhenDone = configMemo
+				? getAutoRemoveWhenDone(configMemo)
+				: false;
+			if (!autoRemoveWhenDone) return;
+			// Nobody asked for these closes, so they wait for a config that can
+			// say which deinit commands to run.
+			if (readReportedConfig().kind === 'invalid') return;
+			candidates = findSpacesToAutoRemove(spaces, true);
+		}
 
-		const candidates = findSpacesToAutoRemove(spaces, true);
 		for (const space of candidates) {
 			if (autoRemoveInFlightRef.current.has(space.name)) continue;
 			if (autoRemoveFailedRef.current.has(space.name)) continue;
@@ -2369,9 +2613,15 @@ export default function App({
 					autoRemoveInFlightRef.current.delete(space.name);
 				});
 		}
-	}, [spaces, configMemo, deleteSpace, setHeaderWithTimeout]);
+	}, [
+		spaces,
+		configMemo,
+		workdir,
+		configOf,
+		deleteSpace,
+		setHeaderWithTimeout,
+	]);
 
-	const vcs = useMemo(() => createVcsHost(), []);
 	const hasRailTargets = spaces.some(
 		s => !s.isMainWorktree && !s.isPending && s.name.length > 0,
 	);
@@ -2388,7 +2638,7 @@ export default function App({
 
 			// Single bulk GraphQL request for all workspaces — one API call
 			// instead of N parallel calls, avoiding GitHub rate-limit pressure.
-			const lookup = await vcs.getBulkRailStatus(
+			const lookup = await spacesRailStatus(
 				targets.map(t => t.name),
 				new Map(
 					targets
@@ -2468,7 +2718,7 @@ export default function App({
 			return;
 		}
 
-		if (readReportedConfig().kind === 'invalid') {
+		if (spaceReportedConfig(space.name).kind === 'invalid') {
 			setHeaderWithTimeout(
 				`${space.name} not opened: the config is invalid`,
 				4000,
@@ -2514,9 +2764,13 @@ export default function App({
 		agentProfileName: string | null,
 	) => {
 		setShowPromptDialog(false);
+		// On a work dir's rail the dialog was opened for one repo, and the
+		// space's key, profile and tracker are that repo's.
+		const repo = newSpaceRepoRef.current;
+		if (repo) lastSpaceRepo.current = repo.name;
 
 		// Try to normalize as an issue identifier (supports bare numbers like '400')
-		const load = readReportedConfig();
+		const load = repo ? repo.context.readConfig() : readReportedConfig();
 		if (load.kind === 'invalid') {
 			const message = 'New space not created: the config is invalid';
 			setHeaderWithTimeout(message, 5000);
@@ -2532,16 +2786,25 @@ export default function App({
 			: normalizeIssueIdentifier(
 					input,
 					teamPrefix,
-					createIssueTracker().name,
-					config ? getBeadsPrefixes(config, readBeadsIssuePrefix()) : [],
+					(repo ? issueTrackerFor(repo.name) : createIssueTracker()).name,
+					config
+						? getBeadsPrefixes(
+								config,
+								readBeadsIssuePrefix(repo?.context.mainRoot),
+							)
+						: [],
 				);
 
 		// Route the session: always pass just the issue key (or description) to idow.
 		// idow handles both new and existing issues correctly with a bare issue key.
 		const route = routeSession(normalizedIssueKey);
 		const pending: PendingSession = {
+			repo: repo?.name,
 			type: route.type,
-			name: route.issueKey ?? '',
+			name:
+				route.issueKey && repo
+					? formatSpaceRef(repo.name, route.issueKey)
+					: (route.issueKey ?? ''),
 			idowArg: route.issueKey ?? input,
 			inputIsIssueKey,
 			pendingTitle: route.pendingTitle,
@@ -2649,6 +2912,16 @@ export default function App({
 
 		const pendingRow: SpaceData = {
 			name: pendingSession.name,
+			...(pendingSession.repo === undefined
+				? {}
+				: {
+						repo: pendingSession.repo,
+						key: parseSpaceRef(pendingSession.name).key,
+						repoTag:
+							(workdir?.repos.length ?? 0) > 1
+								? workdir?.repo(pendingSession.repo)?.tag
+								: undefined,
+					}),
 			worktreePath: null,
 			isPending: true,
 			pendingTitle: pendingSession.pendingTitle,
@@ -2679,7 +2952,7 @@ export default function App({
 		const result = [...spaces];
 		result.splice(insertIdx, 0, pendingRow);
 		return {displaySpaces: result, pendingInsertIndex: insertIdx};
-	}, [spaces, pendingSession]);
+	}, [spaces, pendingSession, workdir]);
 
 	displaySpacesRef.current = displaySpaces;
 
@@ -2721,13 +2994,17 @@ export default function App({
 	const railRows = useMemo(
 		() =>
 			railGrouped && !isSearching
-				? buildRailRows({
-						displaySpaces,
-						groups: railGroups,
-						headers: !stackedLayout,
-					})
+				? groupedRows(displaySpaces, !stackedLayout, spaces[selectedIndex])
 				: null,
-		[railGrouped, isSearching, displaySpaces, railGroups, stackedLayout],
+		[
+			railGrouped,
+			isSearching,
+			displaySpaces,
+			groupedRows,
+			stackedLayout,
+			spaces,
+			selectedIndex,
+		],
 	);
 	const cursorRow = railRows
 		? resolveCursorRow(railRows, spaces[selectedIndex])
@@ -2780,6 +3057,12 @@ export default function App({
 		totalWorkspaces,
 	);
 	const agentCount = spaces.filter(space => isAgentSpace(space)).length;
+	// A work dir's main spaces are its repos', which the rail counts itself.
+	const workspaceBoxTrailing = workdir
+		? `${workdir.repos.length} repo${workdir.repos.length === 1 ? '' : 's'}`
+		: agentCount > 1
+			? `${agentCount} agents`
+			: undefined;
 	const matchCount = filteredDisplaySpaces.length;
 	// A dialog takes the list's place, so its count would describe rows nobody sees.
 	const isListShown = !railInputBlocked && !isZooming;
@@ -2830,7 +3113,8 @@ export default function App({
 				isSelected={isSelected}
 				width={termDimensions.cols}
 				layout={isAgentSpace(row.space) ? 'single_line' : listLayout}
-				label={row.space.isMainWorktree ? mainLabel : undefined}
+				label={rowLabel(row.space)}
+				tag={row.space.repoTag}
 			/>
 		);
 
@@ -2901,7 +3185,11 @@ export default function App({
 			</box>
 		</box>
 	);
-	const workspaceTitle = workspaceTitleRuns({repoName, inTmux, errorCount});
+	const workspaceTitle = workspaceTitleRuns({
+		repoName: workdir?.label ?? repoName,
+		inTmux,
+		errorCount,
+	});
 	const banner = updateInfo && (
 		<UpdateBanner info={updateInfo} onMeasure={setBannerHeight} />
 	);
@@ -2943,6 +3231,21 @@ export default function App({
 					}}
 					onCancel={() => setConfigMigrations(null)}
 				/>
+			) : showRepoPicker && workdir ? (
+				<RepoPicker
+					repos={workdir.repos}
+					initialIndex={defaultRepoIndex(
+						workdirRepoNames,
+						selectedSpace?.repo,
+						lastSpaceRepo.current,
+					)}
+					availableHeight={dialogHeight}
+					onPick={name => {
+						setShowRepoPicker(false);
+						openPromptFor(workdir.repo(name) ?? null);
+					}}
+					onCancel={() => setShowRepoPicker(false)}
+				/>
 			) : showPromptDialog ? (
 				<PromptDialog
 					onSubmit={handleNewSession}
@@ -2951,6 +3254,7 @@ export default function App({
 					availableWidth={termDimensions.cols}
 					availableHeight={dialogHeight}
 					isInTmux={inTmux}
+					repo={newSpaceRepo?.context}
 				/>
 			) : killDoneTargets !== null ? (
 				<ConfirmDialog
@@ -2974,7 +3278,7 @@ export default function App({
 			) : showHelp ? (
 				<HelpOverlay
 					onClose={() => setShowHelp(false)}
-					customKeybindings={keybindings}
+					customKeybindings={helpKeybindings}
 					commitSha={commitSha}
 					installedVersion={installedVersion}
 					isDevBuild={isDevBuild}
@@ -3014,7 +3318,7 @@ export default function App({
 		<box flexDirection="column" width="100%" height="100%">
 			<PaneFrame
 				title={workspaceTitle}
-				trailing={agentCount > 1 ? `${agentCount} agents` : undefined}
+				trailing={workspaceBoxTrailing}
 				isActive={isRailFocused}
 			>
 				{banner}

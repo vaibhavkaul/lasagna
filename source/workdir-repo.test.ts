@@ -20,7 +20,13 @@ import {
 } from './space-identity.ts';
 import {getRegistryPathForRepo, listKnownRepos} from './space-registry.ts';
 import {MAIN_WORKTREE_KEY} from './space-utils.ts';
-import {exactSessionTarget} from './tmux.ts';
+import {
+	exactSessionTarget,
+	getMainWorktreeInfo,
+	newOuterSessionArgs,
+	outerSessionName,
+} from './tmux.ts';
+import {tuiSessionNames} from './tui-sessions.ts';
 
 test('a work dir\u2019s pseudo-repo is its directory name behind an @', () => {
 	expect(workdirRepoName('/code/com.github.taptapsend')).toBe(
@@ -154,4 +160,37 @@ test('a directory in the work dir that is in no checkout belongs to its main spa
 
 test('a pseudo-repo\u2019s hook status key is one path segment', () => {
 	expect(hookStatusKey('@work', MAIN_WORKTREE_KEY)).toBe('@work-main');
+});
+
+test('a work dir\u2019s TUI runs in lasagna-wd-<workdir>, and a repo\u2019s where it always did', () => {
+	expect(outerSessionName('@taptapsend')).toBe('lasagna-wd-taptapsend');
+	expect(outerSessionName('@com.github.taptapsend')).toBe(
+		'lasagna-wd-com_github_taptapsend',
+	);
+	expect(outerSessionName('appian-server')).toBe('lasagna-appian-server');
+	expect(tuiSessionNames('@taptapsend')).toContain('lasagna-wd-taptapsend');
+	expect(tuiSessionNames('appian-server')).toEqual(['lasagna-appian-server']);
+});
+
+test('a work dir\u2019s terminal tab is titled with its directory name', () => {
+	const args = newOuterSessionArgs('@taptapsend', [], 'cmd');
+	expect(args.slice(0, 3)).toEqual([
+		'new-session',
+		'-s',
+		'lasagna-wd-taptapsend',
+	]);
+	expect(args.at(-1)).toBe('🍝 taptapsend');
+	expect(newOuterSessionArgs('appian-server', [], 'cmd').at(-1)).toBe(
+		'🍝 appian-server',
+	);
+});
+
+test('a repo\u2019s main checkout is read in that repo, whatever directory the process runs in', async () => {
+	const {repos} = workdirFixture({repos: {api: {}, web: {}}});
+	const info = await getMainWorktreeInfo(repos['web']!.root);
+	expect(info?.path).toBe(repos['web']!.root);
+	expect(info?.branch).toBeTruthy();
+	// The process's own checkout is still the default.
+	const own = await getMainWorktreeInfo();
+	expect(own?.path).not.toBe(repos['web']!.root);
 });

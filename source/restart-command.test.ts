@@ -39,6 +39,7 @@ function harness(
 		inTmux?: boolean;
 		isTTY?: boolean;
 		confirmAnswer?: boolean;
+		sessionPath?: Record<string, string>;
 	} = {},
 ): Harness {
 	const {repoStateRoot, tuiMarker} = tuiStateRoot(options.repos ?? []);
@@ -55,6 +56,7 @@ function harness(
 		tuiMarker,
 		sessions: options.sessions,
 		behavior: options.behavior,
+		sessionPath: options.sessionPath,
 	});
 	const tmux: OuterTmuxRunner = args => {
 		h.calls.push(`outer ${args.join(' ')}`);
@@ -118,6 +120,69 @@ function mutations(h: Harness): string[] {
 // ============================================================================
 // restart
 // ============================================================================
+
+const WORK_SESSION = 'lasagna-wd-work';
+const restartOfWorkdir = (pane: string, root: string) =>
+	`${restartOf(pane)} --workdir '${root}'`;
+
+test('a restart asked for from a repo on a work dir\u2019s rail restarts the work dir\u2019s TUI, as that work dir\u2019s', async () => {
+	const h = harness({
+		sessions: ['lasagna-other', WORK_SESSION],
+		repos: ['other', '@work', 'api'],
+		sessionPath: {[WORK_SESSION]: '/code/the work'},
+	});
+
+	expect(await restartRepo('api', h.deps, {workdirRepo: '@work'})).toBe(0);
+	// It comes back with its work dir named, whatever the directory or the
+	// session's environment would otherwise make of a bare start.
+	expect(mutations(h)).toStrictEqual([
+		restartOfWorkdir('%1', '/code/the work'),
+	]);
+	expect(h.printed).toStrictEqual([
+		`Restarting ${WORK_SESSION}`,
+		`${WORK_SESSION} is running ${FAKE_CLI_PATH} (${FAKE_SHA})`,
+	]);
+});
+
+test('a repo with a TUI of its own is restarted itself, work dir or not', async () => {
+	const h = harness({
+		sessions: [WORK_SESSION, 'lasagna-api'],
+		repos: ['@work', 'api'],
+		sessionPath: {[WORK_SESSION]: '/code/work'},
+	});
+
+	expect(await restartRepo('api', h.deps, {workdirRepo: '@work'})).toBe(0);
+	expect(mutations(h)).toStrictEqual([restartOf('%1')]);
+});
+
+test('a repo no work dir shows still has no TUI to restart', async () => {
+	const h = harness({
+		sessions: [WORK_SESSION],
+		repos: ['@work', 'api'],
+		sessionPath: {[WORK_SESSION]: '/code/work'},
+	});
+
+	expect(await restartRepo('api', h.deps)).toBe(0);
+	expect(mutations(h)).toStrictEqual([]);
+	expect(h.printed).toStrictEqual([
+		'No running Lasagna TUI for api. Start one with lasagna.',
+	]);
+});
+
+test('a hard restart from an agent pane brings a work dir\u2019s TUI back as that work dir\u2019s', async () => {
+	const h = harness({
+		sessions: [WORK_SESSION, 'lasagna-api'],
+		repos: ['@work', 'api'],
+		sessionPath: {[WORK_SESSION]: '/code/work'},
+		onInnerServer: true,
+	});
+
+	expect(await hardRestart(true, h.deps)).toBe(0);
+	expect(h.detached).toHaveLength(1);
+	const commands = h.detached[0]!.map(step => step.at(-1));
+	expect(commands).toContain(`${COMMAND} --workdir '/code/work'`);
+	expect(commands).toContain(COMMAND);
+});
 
 test("restart reruns only this repo's TUI, on the build that ran the command", async () => {
 	const h = harness({

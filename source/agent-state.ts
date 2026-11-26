@@ -27,6 +27,7 @@ import {
 	type OuterTmuxRunner,
 } from './tmux.ts';
 import type {SpaceIdentityDao} from './space-identity.ts';
+import {spaceNameIn} from './space-scope.ts';
 import {mergeProgramStatus} from './workspace-status.ts';
 
 export const AGENT_STATES = [
@@ -183,7 +184,10 @@ export async function readAgentStatus(
 	);
 }
 
-/** The keys of every space whose stored agent session is live. */
+/**
+ * Every space whose stored agent session is live, by the name it has in this
+ * process: its key, or `repo:KEY` where the stores are a whole work dir's.
+ */
 export function listAgentKeys(
 	identities: Pick<SpaceIdentityDao, 'list'>,
 	runner: OuterTmuxRunner,
@@ -197,7 +201,7 @@ export function listAgentKeys(
 	);
 	return listed.identities
 		.filter(identity => live.has(identity.tmux.agentSession))
-		.map(identity => identity.key);
+		.map(identity => spaceNameIn(identity.repo, identity.key));
 }
 
 // A window nobody is viewing keeps the size of whatever last showed it: a

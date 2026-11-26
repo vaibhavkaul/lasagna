@@ -131,6 +131,13 @@ def get_workspace_name(cwd: Optional[str] = None) -> Optional[str]:
     if issue_key:
         return _qualify(repo, issue_key) if repo else issue_key
 
+    # A work dir's root main space: its session carries the pseudo-repo
+    # @<workdir>. The rail reads it as main whatever git says here: the work
+    # dir is usually no checkout, and where its root is one, or the agent has
+    # stepped into a repo below it, that branch is not the space's name.
+    if repo.startswith("@"):
+        return _qualify(repo, "main")
+
     # No issue key found — likely the main worktree. Detect branch name via git
     # and qualify with repo name (e.g. "stardust-labs-master").
     try:

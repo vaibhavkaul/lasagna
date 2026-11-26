@@ -20,7 +20,8 @@ import {inlineConfigErrors} from '../config-errors.ts';
 import {readReportedConfig} from '../config-report.ts';
 import {truncateToWidth} from '../truncate-to-width.ts';
 import {useWidthMethod} from './use-width-method.ts';
-import {createIssueTracker} from '../providers/index.ts';
+import {createIssueTracker, issueTrackerFor} from '../providers/index.ts';
+import type {RepoContext} from '../repo-context.ts';
 import type {IssueTrackerProvider} from '../providers/types.ts';
 import {
 	applySkillCompletion,
@@ -82,6 +83,12 @@ interface Props {
 	availableHeight?: number;
 	/** The agent profile popup is a tmux popup, so the override needs tmux. */
 	isInTmux: boolean;
+	/**
+	 * The repo the space is made in, on a rail that shows more than one: its
+	 * config, profiles and tracker are the dialog's. Unset for the repo the TUI
+	 * runs in.
+	 */
+	repo?: Pick<RepoContext, 'name' | 'readConfig' | 'configPaths'>;
 }
 
 export default function PromptDialog({
@@ -91,6 +98,7 @@ export default function PromptDialog({
 	availableWidth,
 	availableHeight,
 	isInTmux,
+	repo,
 }: Props) {
 	const [prompt, setPrompt] = useState('');
 	// Both boxes are always on screen; this is purely which one has focus.
@@ -120,11 +128,11 @@ export default function PromptDialog({
 	// question about this one object, so it is the only place that has to ask.
 	const tracker = useMemo((): IssueTrackerProvider | null => {
 		try {
-			return createIssueTracker();
+			return repo ? issueTrackerFor(repo.name) : createIssueTracker();
 		} catch {
 			return null;
 		}
-	}, []);
+	}, [repo]);
 
 	const skills = useSkillSnapshot();
 
@@ -173,7 +181,10 @@ export default function PromptDialog({
 	};
 
 	// Load config once
-	const configLoad = useMemo(() => readReportedConfig(), []);
+	const configLoad = useMemo(
+		() => (repo ? repo.readConfig() : readReportedConfig()),
+		[repo],
+	);
 	const config = configLoad.kind === 'valid' ? configLoad.config : null;
 	const exampleKeys = useMemo(
 		() => (config ? exampleIssueKeys(config) : ['STA-123', '123']),
@@ -385,7 +396,7 @@ export default function PromptDialog({
 		const key = rowKey(option);
 		const agentProfiles = listAgentProfiles(
 			loadedConfig,
-			loadAgentProfileSources(),
+			loadAgentProfileSources(repo?.configPaths()),
 		);
 		// The deferred row's profile isn't known until idow fetches the issue, so
 		// it gets a row of its own, named '', that leaves the choice to idow.
@@ -506,7 +517,7 @@ export default function PromptDialog({
 	return (
 		<box flexDirection="column">
 			<TitledBox
-				title="+ New Session"
+				title={repo ? `+ New Session in ${repo.name}` : '+ New Session'}
 				borderColor="green"
 				titleColor="greenBright"
 				borderStyle={promptFrame.borderStyle}

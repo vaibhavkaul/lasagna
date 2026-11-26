@@ -302,11 +302,45 @@ test('a repo the work dir does not list is refused by name', () => {
 		expect(result.message).toContain('No repo nope in this work dir');
 });
 
-test('one command does not span two repos', () => {
+test('a watch of spaces in two repos runs for the work dir, each space by its full name', () => {
+	const {work, workRepo, repos, run, api, web} = fixture();
+	const toWorkdir = {root: work, mainRoot: work, name: workRepo};
+	expect(
+		run(repos['api']!.root, ['watch', `${api}:STA-1`, `${web}:STA-2`]),
+	).toEqual({
+		kind: 'retargeted',
+		repo: toWorkdir,
+		argv: ['watch', `${api}:STA-1`, `${web}:STA-2`],
+	});
+	// A bare key is spelled out with the repo it was found in.
+	expect(
+		run(
+			repos['api']!.root,
+			['watch', '--json', '--', 'STA-1', 'WEB-4', `${workRepo}:main`],
+			{[api]: ['STA-1'], [web]: ['WEB-4']},
+		),
+	).toEqual({
+		kind: 'retargeted',
+		repo: toWorkdir,
+		argv: [
+			'watch',
+			'--json',
+			'--',
+			`${api}:STA-1`,
+			`${web}:WEB-4`,
+			`${workRepo}:main`,
+		],
+	});
+});
+
+test('any other command still acts on one repo\u2019s spaces', () => {
 	const {repos, run, api, web} = fixture();
 	const result = run(repos['api']!.root, [
-		'watch',
+		'companion',
+		'list',
+		'--space',
 		`${api}:STA-1`,
+		'--space',
 		`${web}:STA-2`,
 	]);
 	expect(result.kind).toBe('error');
@@ -651,6 +685,17 @@ test('the CLI fires a timer at the work dir\u2019s root, and finds another repo\
 		stdout: '',
 		stderr: 'No scheduled job ffffffff',
 	});
+	// At the root the list is every repo's, each hold by its space's full name.
+	const listed = runCli(work, home, ['holds', '--json']);
+	expect(listed.stderr).toBe('');
+	expect(
+		(JSON.parse(listed.stdout) as Array<{id: string; key: string}>).map(
+			hold => `${hold.id} ${hold.key}`,
+		),
+	).toEqual([`h1234567 ${api}:STA-1`]);
+	expect(runCli(work, home, ['schedules']).stdout).toBe(
+		'No scheduled wake-ups',
+	);
 	// A hold of one of its repos is found by its id alone.
 	const dismissed = runCli(work, home, ['holds', 'dismiss', 'h1234567']);
 	expect(dismissed).toEqual({

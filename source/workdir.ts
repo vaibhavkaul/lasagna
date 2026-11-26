@@ -11,6 +11,7 @@ import {
 	findWorkdir,
 	workdirRepoName,
 } from './repo-config-files.ts';
+import {sameFile} from './same-file.ts';
 
 export type WorkdirRepo = {
 	/** The section's name, which is the repo's directory name. */
@@ -94,4 +95,22 @@ export function workdirAt(
 ): Workdir | undefined {
 	const root = findWorkdir(directory, env);
 	return root === undefined ? undefined : readWorkdir(root);
+}
+
+/**
+ * The pseudo-repo of the work dir whose rail shows the repo checked out at
+ * `mainRoot`: the one that lists it. A repo that is only under a work dir,
+ * with a config of its own, has its own TUI.
+ */
+export function workdirShowing(
+	mainRoot: string,
+	repoName: string,
+	env: NodeJS.ProcessEnv = process.env,
+): string | undefined {
+	const workdir = workdirAt(mainRoot, env);
+	return workdir?.repos.some(
+		repo => repo.name === repoName && sameFile(repo.root, mainRoot),
+	)
+		? workdir.repoName
+		: undefined;
 }

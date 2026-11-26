@@ -38,6 +38,13 @@ export interface SpaceData {
 	pendingTitle?: string; // Title text for pending rows (e.g., "Opening..." or "Starting new session...")
 	railStatus?: RailStatus; // Snapshot of PR pipeline state + unresolved comment count (from VcsHostProvider.getRailStatus)
 	profileEmoji?: string; // Optional emoji for the active profile, rendered to the left of the Claude status icon
+	/**
+	 * Set on a rail that shows a whole work dir, where `name` is `repo:KEY`:
+	 * the space's repo, its key within that repo, and the repo's short tag.
+	 */
+	repo?: string;
+	key?: string;
+	repoTag?: string;
 }
 
 /**

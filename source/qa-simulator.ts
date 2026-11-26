@@ -5,7 +5,7 @@ import {isSimctlUnavailableError} from './simctl-check.ts';
 
 const log = createLogger('qa-simulator');
 const execFileAsync = promisify(execFile);
-type SimctlRunner = (args: string[], timeout: number) => Promise<string>;
+export type SimctlRunner = (args: string[], timeout: number) => Promise<string>;
 const runSimctl: SimctlRunner = async (args, timeout) => {
 	const {stdout} = await execFileAsync('xcrun', ['simctl', ...args], {
 		encoding: 'utf-8',
@@ -24,6 +24,11 @@ export class QaSimulatorCleanup {
 		private readonly run: SimctlRunner = runSimctl,
 		private readonly shouldDelete?: (key: string) => boolean,
 		private readonly now: () => number = Date.now,
+		/**
+		 * What a space's simulator is named after (`QA-<key>`): the name the
+		 * space is asked for by, unless that carries more than its key.
+		 */
+		private readonly deviceKey: (key: string) => string = key => key,
 	) {}
 
 	async delete(issueKey: string): Promise<boolean> {
@@ -51,7 +56,8 @@ export class QaSimulatorCleanup {
 		try {
 			const devices = await this.listDevices();
 			for (const [key, resolve] of batch) {
-				const device = devices.find(item => item.name === `QA-${key}`);
+				const name = `QA-${this.deviceKey(key)}`;
+				const device = devices.find(item => item.name === name);
 				let success = true;
 				if (device && this.shouldDelete?.(key) !== false) {
 					try {

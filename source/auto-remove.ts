@@ -1,6 +1,11 @@
 // Auto-remove spaces from the ticket rail when their tracker issue
 // reaches a terminal state (completed or canceled). Triggered by the
 // top-level `auto_remove_when_done` config flag.
+import {
+	getAutoRemoveWhenDone,
+	type ConfigLoad,
+	type PappardelleConfig,
+} from './config.ts';
 import type {SpaceData} from './types.ts';
 
 /**
@@ -53,4 +58,37 @@ export function findSpacesToAutoRemove(
 ): SpaceData[] {
 	if (!autoRemoveWhenDone) return [];
 	return findDoneSpaces(spaces);
+}
+
+/**
+ * `findSpacesToAutoRemove` on a rail of several repos, where each space
+ * answers for its own repo: one repo's `auto_remove_when_done` says nothing
+ * of another's spaces, and neither does the work dir's.
+ *
+ * `configOf` is the config of the space's repo as the rail read it at
+ * startup (null when it had none that loads), which is where the flag is
+ * read, as a single repo's rail reads its own. `currentConfig` is that repo's
+ * config as it is on disk now: nobody asked for these closes, so a space
+ * waits while its repo's config can't say which deinit commands to run. It is
+ * read once per repo however many of the repo's spaces are done.
+ */
+export function findRepoSpacesToAutoRemove(
+	spaces: SpaceData[],
+	repo: {
+		configOf: (space: SpaceData) => PappardelleConfig | null;
+		currentConfig: (space: SpaceData) => ConfigLoad;
+	},
+): SpaceData[] {
+	const invalid = new Map<string | undefined, boolean>();
+	return findDoneSpaces(spaces).filter(space => {
+		const config = repo.configOf(space);
+		if (!config || !getAutoRemoveWhenDone(config)) return false;
+		let known = invalid.get(space.repo);
+		if (known === undefined) {
+			known = repo.currentConfig(space).kind === 'invalid';
+			invalid.set(space.repo, known);
+		}
+
+		return !known;
+	});
 }

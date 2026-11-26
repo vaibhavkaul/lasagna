@@ -44,7 +44,9 @@ export const FAKE_CLI_PATH = '/build/dist/cli.js';
 export const FAKE_SHA = 'abc1234';
 export const REFUSAL = "can't find pane: %9";
 
-const repoOf = (session: string) => session.replace(/^lasagna-/, '');
+// A work dir's TUI runs for its pseudo-repo: `lasagna-wd-x` is `@x`.
+const repoOf = (session: string) =>
+	session.replace(/^lasagna-wd-/, '@').replace(/^lasagna-/, '');
 
 // A default tmux server holding `sessions`. Each window lists pane %<index>
 // first; `tuiPane` names a later pane for a TUI whose panes were rearranged.
@@ -54,6 +56,8 @@ export function fakeTuiTmux(options: {
 	listFails?: boolean;
 	behavior?: Record<string, FakeTuiBehavior>;
 	tuiPane?: Record<string, string>;
+	/** The directory each session was started in. */
+	sessionPath?: Record<string, string>;
 }): {tmux: OuterTmuxRunner; calls: string[][]} {
 	const sessions = options.sessions ?? [];
 	const calls: string[][] = [];
@@ -105,6 +109,14 @@ export function fakeTuiTmux(options: {
 			}
 
 			case 'display-message': {
+				if (args[4] === '#{session_path}') {
+					const session = args[3]!.replace(/^=(.*):$/, '$1');
+					const started = options.sessionPath?.[session];
+					return started === undefined
+						? {status: 1, stdout: ''}
+						: {status: 0, stdout: `${started}\n`};
+				}
+
 				return {
 					status: 0,
 					stdout: behaviorOf(args[3]!) === 'exits' ? '1\n' : '0\n',

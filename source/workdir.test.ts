@@ -11,6 +11,7 @@ import {
 	workdirAt,
 	workdirRepoRoot,
 	workdirRepos,
+	workdirShowing,
 } from './workdir.ts';
 
 const PROFILES = 'version: 1\nprofiles:\n  t:\n    display_name: T\n';
@@ -111,4 +112,17 @@ test('a repo section\u2019s path must be a non-empty string', () => {
 	expect((error as ConfigValidationError).errors).toEqual([
 		'.lasagna/workdir.yml: repos.api.path must be a non-empty string',
 	]);
+});
+
+test('a repo is shown on the rail of the work dir that lists it, and on no other', () => {
+	const work = workdir(`${PROFILES}repos:\n  api:\n`, ['api', 'web']);
+	const api = path.join(work, 'api');
+	const web = path.join(work, 'web');
+	expect(workdirShowing(api, 'api', {})).toBe('@work');
+	// Under the work dir, but with no section: it has its own TUI.
+	expect(workdirShowing(web, 'web', {})).toBeUndefined();
+	// Another checkout that happens to carry a listed repo's name.
+	expect(workdirShowing(web, 'api', {})).toBeUndefined();
+	// And no work dir at all.
+	expect(workdirShowing(api, 'api', {LASAGNA_WORKDIR: ''})).toBeUndefined();
 });
