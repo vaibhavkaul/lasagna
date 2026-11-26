@@ -10,9 +10,11 @@ import type {
 	CompanionWidthDao,
 } from './companion-width.ts';
 import type {HighlightDao} from './highlight.ts';
+import type {HoldDao} from './holds.ts';
 import type {IssueMetaDao} from './issue-meta.ts';
 import type {PaneWidth} from './layout-sizing.ts';
 import type {ProgramStatusDao} from './program-status-monitor.ts';
+import type {ScheduleDao} from './schedule.ts';
 import type {
 	SpaceIdentity,
 	SpaceIdentityDao,
@@ -404,6 +406,71 @@ export function workdirStateDaos(
 		},
 	};
 
+	// Every repo's wake-ups and holds on one list, each under its space's
+	// full name. An id says nothing of its repo, so it is looked for in each.
+	const schedules: ScheduleDao = {
+		async save(job) {
+			const {stores, key} = route(job.key);
+			return stores.daos.schedules.save({...job, key});
+		},
+		load(id) {
+			for (const stores of all) {
+				const job = stores.daos.schedules.load(id);
+				if (job) return {...job, key: named(stores, job.key)};
+			}
+
+			return null;
+		},
+		list() {
+			return all.flatMap(stores =>
+				stores.daos.schedules
+					.list()
+					.map(job => ({...job, key: named(stores, job.key)})),
+			);
+		},
+		async delete(id) {
+			await Promise.all(
+				all
+					.filter(stores => stores.daos.schedules.load(id) !== null)
+					.map(async stores => stores.daos.schedules.delete(id)),
+			);
+		},
+		async queue(name, text) {
+			const {stores, key} = route(name);
+			return stores.daos.schedules.queue(key, text);
+		},
+		queued(name) {
+			const {stores, key} = route(name);
+			return stores.daos.schedules.queued(key);
+		},
+		async clearQueued(name) {
+			const {stores, key} = route(name);
+			return stores.daos.schedules.clearQueued(key);
+		},
+	};
+
+	const holds: HoldDao = {
+		async save(hold) {
+			const {stores, key} = route(hold.key);
+			return stores.daos.holds.save({...hold, key});
+		},
+		load(id) {
+			for (const stores of all) {
+				const hold = stores.daos.holds.load(id);
+				if (hold) return {...hold, key: named(stores, hold.key)};
+			}
+
+			return null;
+		},
+		list() {
+			return all.flatMap(stores =>
+				stores.daos.holds
+					.list()
+					.map(hold => ({...hold, key: named(stores, hold.key)})),
+			);
+		},
+	};
+
 	// Hook status is kept under repo-qualified keys in one place for every
 	// repo, so the work dir's own store reads any repo's.
 	const {claudeStatus}: {claudeStatus: ClaudeStatusDao} = own.daos;
@@ -419,8 +486,8 @@ export function workdirStateDaos(
 		agentSessions,
 		companionWidths,
 		companionRequests,
-		schedules: own.daos.schedules,
-		holds: own.daos.holds,
+		schedules,
+		holds,
 		prLinkStamp: own.daos.prLinkStamp,
 		programStatus,
 		tuiMarker: own.daos.tuiMarker,

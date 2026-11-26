@@ -24,7 +24,12 @@ import {
 import {findWorkdir, isAtOrBelow, workdirStoodIn} from './repo-config-files.ts';
 import {repoContextOf, type RepoContext} from './repo-context.ts';
 import {sameFile} from './same-file.ts';
-import {parseSpaceRef, resolveSpaceRef, spaceRefError} from './space-ref.ts';
+import {
+	formatSpaceRef,
+	parseSpaceRef,
+	resolveSpaceRef,
+	spaceRefError,
+} from './space-ref.ts';
 import {MAIN_WORKTREE_KEY} from './space-utils.ts';
 import {createStateDaos} from './state-daos.ts';
 import {SUPERVISE_VERBS} from './supervise-args.ts';
@@ -204,6 +209,8 @@ export type RetargetResult =
 	/**
 	 * `argv` has each `repo:KEY` cut down to its key. `repo` is the repo to
 	 * point the process at, unset when it is the checkout it already runs in.
+	 * A `watch` of spaces in several repos is pointed at the work dir itself,
+	 * with every space spelled `repo:KEY`.
 	 */
 	| {kind: 'retargeted'; repo?: RepoRoots; argv: string[]}
 	| {kind: 'error'; message: string};
@@ -426,11 +433,27 @@ export function retargetCli(
 		}
 	}
 
-	if (targets.size > 1)
+	if (targets.size > 1) {
+		// watch is the verb that takes several spaces. Across repos it runs
+		// for the work dir, which knows every repo's, each by its full name.
+		if (argv[0] === 'watch') {
+			const full = [...argv];
+			for (const {key, resolution} of resolutions) {
+				if (resolution.kind !== 'own' && resolution.kind !== 'other') continue;
+				const repo = resolution.kind === 'own' ? own.name : resolution.repo;
+				full[key.index] =
+					`${key.prefix}${formatSpaceRef(repo, resolution.key)}`;
+			}
+
+			return {kind: 'retargeted', repo: workdirRepo, argv: full};
+		}
+
 		return {
 			kind: 'error',
 			message: `One command acts on one repo's spaces; these are in ${[...targets].join(' and ')}`,
 		};
+	}
+
 	const [target = own.name] = targets;
 	const roots = rootsOf(target);
 	if (!roots)

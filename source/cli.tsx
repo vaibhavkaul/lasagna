@@ -270,15 +270,23 @@ if (process.argv[2] === 'companion') {
 // (--keys, --message) would otherwise be read as Pappardelle's own.
 if (isSuperviseVerb(process.argv[2])) {
 	checkConfig();
-	const {daos} = bootstrapRepo();
+	const own = bootstrapRepo();
 	const [{runSuperviseCommand}, {defaultSuperviseDeps}] = await Promise.all([
 		import('./supervise-command.ts'),
 		import('./supervise-runtime.ts'),
 	]);
+	const argv = process.argv.slice(2);
+	// At a work dir's root, watch and the lists of holds and wake-ups are
+	// about every repo's spaces, each by repo:KEY.
+	const workdirSupervise = isWorkdirRepoName(own.repoName)
+		? await import('./workdir-supervise.ts')
+		: undefined;
 	await exitAfterFlush(
 		await runSuperviseCommand(
-			process.argv.slice(2),
-			defaultSuperviseDeps(resolveCliSpaceKey, daos),
+			argv,
+			workdirSupervise?.spansWorkdir(argv)
+				? workdirSupervise.workdirSuperviseDeps(getRepoRoot(), own)
+				: defaultSuperviseDeps(resolveCliSpaceKey, own.daos),
 		),
 	);
 }

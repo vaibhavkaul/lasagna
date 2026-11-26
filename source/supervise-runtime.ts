@@ -11,7 +11,9 @@ import {newHoldId} from './holds.ts';
 import {MAIN_WORKTREE_KEY} from './space-utils.ts';
 import {spaceStatusKey} from './claude-status.ts';
 import {getMainRepoRoot, getRepoName} from './config.ts';
+import {isWorkdirRepoName} from './repo-config-files.ts';
 import {defaultRepoContext} from './repo-context.ts';
+import {scopedSpace} from './space-scope.ts';
 import {selfLaunchArgs} from './runtime.ts';
 import {rearmMissingTimers, type ScheduleDao} from './schedule.ts';
 import {
@@ -195,11 +197,23 @@ export function defaultSuperviseDeps(
 		repo: getRepoName,
 		identities: spaceIdentities,
 		resolveKey,
-		hookKey: async key =>
-			spaceStatusKey(claudeStatus, getRepoName(), key, async () => {
-				const main = await getMainWorktreeInfo();
-				return main?.branch;
-			}),
+		// By the space's own repo, where the stores are a whole work dir's.
+		async hookKey(name) {
+			const scope = scopedSpace(name);
+			const repo = scope?.repo.name ?? getRepoName();
+			return spaceStatusKey(
+				claudeStatus,
+				repo,
+				scope?.key ?? name,
+				async () => {
+					// A work dir's root main space reports as main, whatever
+					// branch a checkout at its root is on.
+					if (isWorkdirRepoName(repo)) return undefined;
+					const main = await getMainWorktreeInfo(scope?.repo.mainRoot);
+					return main?.branch;
+				},
+			);
+		},
 		readHook: async hookKey => claudeStatus.read(hookKey),
 		readHookState: async hookKey => claudeStatus.readState(hookKey),
 		readSnapshot: async (key, pane) => programStatus.read(key, pane),

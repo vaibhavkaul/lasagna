@@ -472,6 +472,10 @@ Started inside a configured repo, Lasagna shows that repo alone, as before. Issu
 
 Where a command takes a space, `repo:KEY` names one in another repo of the work dir: `lasagna send web-app:WEB-30 "rebase on main"`. A bare key is the repo the command runs in when that repo has the space, else the one repo that does. The work dir's own main space is `@<work dir>:main`.
 
+Run at the work dir's root, `spaces`, `watch` with no key, `holds` and `schedules` are about every repo's spaces, each shown as `repo:KEY`, so the agent in the root main space can supervise all of them. `watch` also takes spaces of several repos at once (`lasagna watch api-server:API-7 web-app:WEB-30`), and `unschedule` or `holds approve` finds its id in whichever repo has it. `lasagna restart` from a space of a repo on the work dir's rail restarts the work dir's TUI.
+
+A repo's `.envrc` is that repo's alone: its trackers, hooks and agents get it on top of what Lasagna itself was started with, and it wins where both set a variable.
+
 ### The setup
 
 Create a parent repository that serves as the orchestration hub:

@@ -4,6 +4,8 @@ import {testState, type TestState} from '../test/helpers/state.ts';
 import {teardown} from '../test/helpers/teardown.ts';
 import {tempDir} from '../test/helpers/temp-dir.ts';
 import type {HighlightRequest} from './highlight.ts';
+import type {Hold} from './holds.ts';
+import type {Job} from './schedule.ts';
 import {protectedSessionNames} from './space-identity.ts';
 import {createStateDaos, type StateDaos} from './state-daos.ts';
 import {workdirStateDaos} from './workdir-daos.ts';
@@ -199,6 +201,68 @@ test('agent sessions are listed across repos by repo:KEY', () => {
 	const {all} = fixture();
 	expect(all.agentSessions.keys()).toEqual([]);
 	expect(all.agentSessions.read('api:STA-1', 'claude')).toBeUndefined();
+});
+
+const hold = (id: string, key: string): Hold => ({
+	id,
+	key,
+	tool: 'Bash command',
+	command: 'git push origin main',
+	filePath: null,
+	cwd: null,
+	approvable: true,
+	reason: 'pushes to main',
+	state: 'open',
+	createdAt: '2026-11-26T08:00:00.000Z',
+	resolvedAt: null,
+});
+
+const wakeUp = (id: string, key: string): Job => ({
+	kind: 'at',
+	id,
+	key,
+	at: '2026-11-27T08:00:00.000Z',
+	message: 'carry on',
+	arm: 0,
+});
+
+test('every repo’s holds are on one list by repo:KEY, and an id is found in whichever repo has it', async () => {
+	const {all, own, api, web} = fixture();
+	await api.holds.save(hold('h-api', 'STA-1'));
+	await web.holds.save(hold('h-web', 'STA-1'));
+	await own.daos.holds.save(hold('h-own', 'main'));
+	expect(
+		new Set(all.holds.list().map(each => `${each.id} ${each.key}`)),
+	).toEqual(
+		new Set(['h-own @work:main', 'h-api api:STA-1', 'h-web web:STA-1']),
+	);
+	expect(all.holds.load('h-web')?.key).toBe('web:STA-1');
+	expect(all.holds.load('h-nobody')).toBeNull();
+	// Saved back under its full name, it lands in its own repo under its key.
+	await all.holds.save({...all.holds.load('h-web')!, state: 'dismissed'});
+	expect(web.holds.load('h-web')).toMatchObject({
+		key: 'STA-1',
+		state: 'dismissed',
+	});
+	expect(api.holds.load('h-web')).toBeNull();
+});
+
+test('every repo’s wake-ups are on one list by repo:KEY, and each is kept in its own repo', async () => {
+	const {all, own, api, web} = fixture();
+	await api.schedules.save(wakeUp('job-api', 'STA-1'));
+	await all.schedules.save(wakeUp('job-web', 'web:WEB-2'));
+	expect(web.schedules.load('job-web')?.key).toBe('WEB-2');
+	expect(own.daos.schedules.list()).toEqual([]);
+	expect(
+		new Set(all.schedules.list().map(job => `${job.id} ${job.key}`)),
+	).toEqual(new Set(['job-api api:STA-1', 'job-web web:WEB-2']));
+	expect(all.schedules.load('job-api')?.key).toBe('api:STA-1');
+	await all.schedules.queue('api:STA-1', 'and then this');
+	expect(api.schedules.queued('STA-1')).toBe('and then this');
+	expect(all.schedules.queued('api:STA-1')).toBe('and then this');
+	await all.schedules.delete('job-api');
+	expect(api.schedules.load('job-api')).toBeNull();
+	expect(all.schedules.load('job-web')).not.toBeNull();
 });
 
 test('the stores that are about the TUI itself are the work dir’s own', () => {
