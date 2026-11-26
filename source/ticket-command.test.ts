@@ -9,6 +9,7 @@ import {
 	ADD_REPO_DETACHED,
 	ADD_REPO_USAGE,
 	commandWorkdir,
+	readsOwnOutput,
 	runAddRepoCommand,
 } from './ticket-command.ts';
 import {resetRepoContexts} from './repo-context.ts';
@@ -282,4 +283,21 @@ test('what stops the background run is said where it is read, whatever it is', a
 	});
 	expect(await broken.run()).toBe(1);
 	expect(broken.err).toEqual(['the work dir could not be read']);
+});
+
+test('the agent that ran the command reads its output; the one a background run left behind is told', () => {
+	const lead = {LASAGNA_SPACE: KEY, LASAGNA_REPO: '@work'};
+	// A lead agent adding a repo to its own ticket is not also told in its pane.
+	expect(readsOwnOutput(lead, '@work', KEY)).toBe(true);
+	expect(readsOwnOutput(lead, '@work', 'B2B-9')).toBe(false);
+	expect(readsOwnOutput(lead, 'api', KEY)).toBe(false);
+	expect(readsOwnOutput({}, '@work', KEY)).toBe(false);
+	// A plain agent that converted its own space was told the command had
+	// left for the background. Whatever comes after, it can only hear in its
+	// pane: that the lead agent could not be started, and it carries on.
+	const plain = {LASAGNA_SPACE: KEY, LASAGNA_REPO: 'api'};
+	expect(readsOwnOutput(plain, 'api', KEY)).toBe(true);
+	expect(readsOwnOutput({...plain, [ADD_REPO_DETACHED]: '1'}, 'api', KEY)).toBe(
+		false,
+	);
 });

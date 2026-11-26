@@ -148,6 +148,24 @@ export type AddRepoDeps = {
 /** Set on the detached run, so that it does not detach again. */
 export const ADD_REPO_DETACHED = 'LASAGNA_ADD_REPO_DETACHED';
 
+/**
+ * Whether the agent a message is for is the one that ran this command: it
+ * reads the command's output, and is not also told in its pane. The detached
+ * run's output goes to the log, so the agent it left behind is told like any
+ * other, and hears it when the conversion it asked for could not be done.
+ */
+export function readsOwnOutput(
+	env: NodeJS.ProcessEnv,
+	repo: string,
+	key: string,
+): boolean {
+	return (
+		!env[ADD_REPO_DETACHED] &&
+		env['LASAGNA_SPACE']?.trim() === key &&
+		env['LASAGNA_REPO']?.trim() === repo
+	);
+}
+
 export function describeAddRepo(result: AddRepoResult, repo: string): string {
 	const {ticket} = result;
 	const lines = [

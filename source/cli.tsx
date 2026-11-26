@@ -231,10 +231,12 @@ function resolveCliSpaceKey(rawKey: string): string {
 // `space add-repo` is about a work dir, whichever of its repos, or of its
 // ticket folders, it is run from.
 if (process.argv[2] === 'space' && process.argv[3] === 'add-repo') {
-	const {runAddRepoCommand, workdirTicketEnv, ADD_REPO_DETACHED} =
-		await import('./ticket-command.ts');
-	const ownSpace = process.env['LASAGNA_SPACE'];
-	const ownRepo = process.env['LASAGNA_REPO'];
+	const {
+		runAddRepoCommand,
+		workdirTicketEnv,
+		readsOwnOutput,
+		ADD_REPO_DETACHED,
+	} = await import('./ticket-command.ts');
 	// The detached half of converting the caller's own space. Its stdio is
 	// ignored, so what it has to say goes to the log.
 	const detached = Boolean(process.env[ADD_REPO_DETACHED]);
@@ -246,8 +248,7 @@ if (process.argv[2] === 'space' && process.argv[3] === 'add-repo') {
 			ticketEnv: root =>
 				workdirTicketEnv(root, {
 					async tell(stores, repo, key, text) {
-						// The agent that ran this reads its output instead.
-						if (key === ownSpace && repo === ownRepo) return 'sent';
+						if (readsOwnOutput(process.env, repo, key)) return 'sent';
 						initTmuxState(stores);
 						return sendToSpaceAgent(key, text);
 					},
