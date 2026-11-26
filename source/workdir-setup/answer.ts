@@ -319,7 +319,7 @@ export function parseRepoAnswer(
 
 		values.push({
 			path: pathFor(spec, profile),
-			value,
+			value: key === 'post_workspace_init' ? forgivingSteps(value) : value,
 			source: source as string,
 			confidence: confidence as Confidence,
 		});
@@ -333,4 +333,18 @@ export function parseRepoAnswer(
 			...dropped.map(problem => `left out ${problem}`),
 		],
 	};
+}
+
+/**
+ * A setup step Claude worked out must not stop a space from opening: one
+ * run wrote a git-crypt unlock that fails in a locked checkout, without
+ * continue_on_error. A step keeps the flag it was given; the rest get it.
+ */
+function forgivingSteps(value: unknown): unknown {
+	if (!Array.isArray(value)) return value;
+	return value.map(step =>
+		isRecord(step) && step['continue_on_error'] === undefined
+			? {...step, continue_on_error: true}
+			: step,
+	);
 }

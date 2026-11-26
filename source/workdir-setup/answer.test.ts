@@ -65,7 +65,13 @@ describe('a repo answer', () => {
 				},
 				{
 					path: ['post_workspace_init'],
-					value: [{name: 'Install', run: 'yarn install --frozen-lockfile'}],
+					value: [
+						{
+							name: 'Install',
+							run: 'yarn install --frozen-lockfile',
+							continue_on_error: true,
+						},
+					],
 					source: 'CLAUDE.md:3',
 					confidence: 'high',
 				},
@@ -214,5 +220,24 @@ describe('the keys setup infers', () => {
 		expect(
 			mergeValues([from('scan', 'B2B'), other], [from('claude', 'PLAT')]),
 		).toStrictEqual([from('claude', 'PLAT'), other]);
+	});
+
+	test('inferred setup steps never block a space from opening unless they say so', () => {
+		const parsed = accepted(
+			answer([
+				value('post_workspace_init', [
+					{name: 'Unlock', run: 'git-crypt unlock; exit $?'},
+					{name: 'Must pass', run: 'make', continue_on_error: false},
+				]),
+			]),
+		);
+		expect(parsed.values[0]!.value).toStrictEqual([
+			{
+				name: 'Unlock',
+				run: 'git-crypt unlock; exit $?',
+				continue_on_error: true,
+			},
+			{name: 'Must pass', run: 'make', continue_on_error: false},
+		]);
 	});
 });
