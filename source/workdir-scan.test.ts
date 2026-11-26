@@ -7,7 +7,7 @@ import {
 	initRepo,
 	workdirFixture,
 	writeExecutable,
-} from '../test/helpers/workdir-fixture.ts';
+} from '../test/helpers/scan-fixture.ts';
 import {
 	WORKDIR_SCAN_FILE,
 	buildPrefixMap,
