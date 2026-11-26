@@ -14,10 +14,10 @@ A ticket that spans repos gets one lead agent that sees all of its repos. Gettin
 | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | What Lasagna runs on                 | The work dir. One TUI, one rail, all its repos.                                                                                                                                                                                              |
 | A ticket in one repo                 | A **plain space**, as today. The agent runs in the repo's worktree and loads that repo's `CLAUDE.md`, skills and hooks.                                                                                                                      |
-| A ticket in several repos            | A **ticket space** with one **lead agent**. It runs in a ticket folder that holds a symlink per repo worktree, so it sees the whole change.                                                                                                  |
+| A ticket in several repos            | A **ticket space** with one **lead agent**. It runs in a ticket folder that holds each repo's worktree as a real directory, so it sees the whole change.                                                                                     |
 | How a ticket gets its repos          | Suggested from the ticket prefix when you create the space, and you confirm. Repos can be added later: by key, by `lasagna space add-repo`, or by the agent through MCP. A plain space becomes a ticket space when its second repo is added. |
-| Worktrees                            | Always, for every repo (appian-server included), at `~/.lasagna/worktrees/<repo>/<KEY>/`, Pappardelle's existing default. There is no in-place mode.                                                                                         |
-| Ticket folders                       | `~/.lasagna/worktrees/_tickets/<KEY>/`                                                                                                                                                                                                       |
+| Worktrees                            | Always, for every repo (appian-server included). A plain space's worktree is at `~/.lasagna/worktrees/<repo>/<KEY>/`, Pappardelle's existing default; a ticket space's are inside its ticket folder. There is no in-place mode.              |
+| Ticket folders                       | `~/.lasagna/worktrees/_tickets/<KEY>/`, holding `<repo>/` worktrees                                                                                                                                                                          |
 | Root main space                      | The work dir gets a main space of its own, at the top of the rail. Its agent runs at the work dir root with its `CLAUDE.md` and `.claude/`, and the sous-chef lives there. Each repo's main space sits below it, collapsible.                |
 | Setup                                | A CLI command that runs `claude -p`, not a skill, so you can re-run it from a plain terminal.                                                                                                                                                |
 | Where learned config goes            | `<workdir>/.lasagna/workspace.yml`, untracked. Setup writes it only after you approve the changes.                                                                                                                                           |
@@ -73,7 +73,7 @@ From lowest priority to highest:
 <repo>/.lasagna.local.yml             local (falls back to .pappardelle.local.yml)
 ```
 
-- **Finding the workspace:** the nearest `.lasagna/workspace.yml` at or above the cwd, or the dir given with `--workspace <dir>`.
+- **Finding the workspace:** the nearest `.lasagna/workspace.yml` at or above the repo's **main checkout**, or the dir in `LASAGNA_WORKSPACE` (empty turns it off). Not from the cwd: a space's worktree lives under `~/.lasagna/worktrees`, outside the work dir. The TUI's `--workspace <dir>` flag comes with E.
 - **Per-repo sections.** `workspace.yml` has top-level settings for every repo, plus a `repos.<name>` section for each repo. When resolving config for repo X, the order is: home, then workspace top level, then `workspace.repos.X`, then the repo's file, then its local file.
 - **Inferred values live apart from yours.** Setup writes `repos.<name>.inferred`, with a source and a confidence on each value. Your own edits go beside it and win. Re-running setup rewrites only `inferred`, so your edits survive.
 - **One merge implementation.** `idow` stops merging with `yq` and asks the binary for the merged config instead (`lasagna state merged-config --project-root … --main-root …`). It already calls `pappardelle_state check-config` the same way.
@@ -155,21 +155,37 @@ A ticket space is a ticket with two or more repos and one lead agent.
 - **Layout on disk:**
 
   ```
-  ~/.lasagna/worktrees/appian-server/B2B-123/     repo worktree, created as for a plain space
-  ~/.lasagna/worktrees/tts-business/B2B-123/      repo worktree
   ~/.lasagna/worktrees/_tickets/B2B-123/
-    appian-server -> ~/.lasagna/worktrees/appian-server/B2B-123
-    tts-business  -> ~/.lasagna/worktrees/tts-business/B2B-123
-    CLAUDE.md                             generated
+    appian-server/     git worktree of appian-server, branch B2B-123
+    tts-business/      git worktree of tts-business, branch B2B-123
+    CLAUDE.md          generated
+    .claude/           generated settings for the lead agent
   ```
 
-- **The generated `CLAUDE.md`** imports the work dir's `CLAUDE.md` and each repo's `CLAUDE.md` with `@` imports, and lists the repos with their default branch and PR rules. It is regenerated whenever a repo is added.
-- **The lead agent** starts in the ticket folder, so it sees every repo as a subfolder and nothing else from the work dir.
+  The worktrees are real directories, made with `git worktree add` (or moved there with `git worktree move`), not symlinks. The test below is why.
+
+- **What the lead agent sees** (tested 2026-11-25, table below): Grep and Glob search every repo without being told a path. Each repo's `CLAUDE.md` and `.claude/skills` load when the agent first reads a file in that repo, as Claude Code loads nested `CLAUDE.md` files.
+- **The generated `CLAUDE.md`** says it is a ticket folder, lists the repos with their default branch and PR rules, and repeats the work dir's rules. It doesn't `@`-import the work dir's `CLAUDE.md`: an import from outside the folder is skipped when Claude runs headless, and asks for approval otherwise. It is regenerated whenever a repo is added.
+- **Repo settings don't load.** Only the `.claude/settings.json` of the folder Claude starts in applies, so the repos' env, permissions and hooks don't reach the lead agent. G generates the ticket folder's `.claude/settings.json`: the permissions of every repo merged, and the Pappardelle hooks. Repo hooks and env stay out until a repo needs them.
 - **Each repo keeps its own PR.** The branch and PR are per repo, and the rail row lists each repo's PR. `link_pr` takes a repo.
 - **Companion pane:** one companion per repo worktree, using the existing companion splits. By default that's one gitui per repo.
-- **Adding a repo** to a ticket space creates the worktree (with that repo's setup commands), adds the symlink, regenerates `CLAUDE.md`, and tells the lead agent. It can be done from a key on the rail, from `lasagna space add-repo <KEY> <repo>`, or by the agent through an MCP tool.
-- **A plain space becomes a ticket space** when its second repo is added. Its worktree stays where it is. Its agent's conversation can't move with it, because Claude Code resumes conversations per directory, so the lead agent starts a new conversation in the ticket folder. Its first prompt carries a handoff: the issue, the plain agent's last few turns (`lasagna read`), and the branch's diff so far. The plain agent's session ends after the handoff.
-- **Closing** a ticket space runs each repo's `pre_workspace_deinit` hooks and removes the ticket folder. The worktrees stay on disk, as they do today.
+- **Adding a repo** to a ticket space creates its worktree inside the ticket folder (with that repo's setup commands), regenerates `CLAUDE.md` and the settings, and tells the lead agent. It can be done from a key on the rail, from `lasagna space add-repo <KEY> <repo>`, or by the agent through an MCP tool.
+- **A plain space becomes a ticket space** when its second repo is added. Its agent's conversation can't move with it, because Claude Code resumes conversations per directory, so the lead agent starts a new conversation in the ticket folder. Its first prompt carries a handoff: the issue, the plain agent's last few turns (`lasagna read`), and the branch's diff so far. The plain agent's session ends after the handoff, and then its worktree moves into the ticket folder with `git worktree move`. Moving it earlier would pull the directory out from under a running agent. The space's identity records the new worktree path.
+- **Closing** a ticket space runs each repo's `pre_workspace_deinit` hooks. The worktrees stay on disk, as they do today, so the ticket folder stays too, minus the generated files.
+
+#### Why real directories: the symlink test
+
+Run 2026-11-25 with headless Claude Code in a folder holding two small repos. Each repo had a marker in a `.ts` file, a rule in its `CLAUDE.md`, a skill, and an env var in `.claude/settings.json`. The tool results were read from the stream log, not from the agent's own summary.
+
+| Lead agent's folder                | Grep/Glob, no path                      | Grep, explicit path | Repo `CLAUDE.md`                                           | Repo skills         | Repo settings |
+| ---------------------------------- | --------------------------------------- | ------------------- | ---------------------------------------------------------- | ------------------- | ------------- |
+| Symlink per repo                   | none found (also Glob `alpha/src/*.ts`) | –                   | `@` imports skipped                                        | no                  | no            |
+| `@` imports by real path           | none found                              | found               | imports skipped                                            | no                  | no            |
+| `--add-dir` per repo               | only the start folder                   | found               | only with `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1` | yes                 | no            |
+| Real directories inside the folder | both repos found                        | found               | loads on first read in the repo                            | loads on first read | no            |
+
+- ripgrep itself doesn't follow symlinks (`rg` finds nothing without `-L`), and Claude Code's Grep and Glob behave the same way.
+- `CLAUDE.md` doesn't load at all when Claude runs under `/private/tmp`, so a test of what loads has to run from a folder in the home dir.
 
 ### State for spaces that aren't in one repo
 
@@ -206,10 +222,11 @@ These ranges cover writing the code and getting CI green. They don't cover fixin
 - **D:** the existing suite unchanged. Plus two-repo tests for the provider maps, env isolation (two `.envrc` files with different keys) and `repo:KEY` resolution.
 - **E–F:** TUI tests in the existing style (`frame-input`, `rail-groups`), with a two-repo fixture and the root main space.
 - **G:**
-  - The ticket folder layout and the generated `CLAUDE.md` imports.
+  - The ticket folder layout, with real worktrees, the generated `CLAUDE.md` and the generated settings.
   - Adding a repo through the CLI and through MCP.
   - The plain-to-ticket handoff prompt.
-  - Closing, which runs each repo's deinit hooks and removes only the ticket folder.
+  - Moving a plain space's worktree into the ticket folder after the handoff, and the identity following it.
+  - Closing, which runs each repo's deinit hooks and leaves the worktrees.
 - **By hand:**
   1. Run `scan` and `setup` on `~/code/com.github.taptapsend`, and check the prefix map against what you know (PLAT, B2B, PAYM).
   2. Open the workspace rail.
@@ -220,6 +237,6 @@ These ranges cover writing the code and getting CI green. They don't cover fixin
 - **Merge conflicts with upstream.** D and E change `app.tsx` (3.1k lines) and `tmux.ts` (4.5k lines). New logic goes in new modules, and edits to those two files stay at call sites.
 - **Cost of setup.** About 25 `claude -p` runs. Each run is limited to the files it needs, and `--repo` exists for re-runs. Measure it on the real work dir in C.
 - **Noise in ticket keys.** Commit text has false keys. Requiring a branch or PR match, plus the Jira check, should catch most of them. Check against the real work dir.
-- **`CLAUDE.md` through symlinks.** Check that Claude Code follows the ticket folder's `@` imports and symlinked repo folders. If it doesn't, the generated `CLAUDE.md` inlines the repos' files instead. The repos' `.claude` skills, settings and hooks don't load for the lead agent. Decide in G whether it needs any of them, and which.
+- **Repo hooks and env for the lead agent.** Settled for search, `CLAUDE.md` and skills (section 7). Still open: whether a repo's own hooks or env vars matter enough to merge them into the ticket folder's settings.
 - **Branch names (open).** New branches are named after the key exactly (`B2B-123`), but your branches look like `B2B-123__slug`. Should Lasagna add a slug, either from the issue title or one you type?
 - **The word "workspace" (open).** The code already says "workspace" for a single space ("Workspace STE-5 is ready", `workspace_aware_agents`), and this plan uses it for the work dir. Pick a different name for the work dir before A adds `workspace.yml` and `--workspace`.
