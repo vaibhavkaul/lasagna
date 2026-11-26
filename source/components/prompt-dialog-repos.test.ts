@@ -5,6 +5,7 @@ import React from 'react';
 import {render, until} from '../../test/helpers/render.ts';
 import {teardown} from '../../test/helpers/teardown.ts';
 import {listRepos, workdirFixture} from '../../test/helpers/workdir-fixture.ts';
+import {issueTrackerFor, setRepoProviderSources} from '../providers/index.ts';
 import {repoContext} from '../repo-context.ts';
 import {repoChoices} from '../repo-picker.ts';
 import {parseScanSuggestions} from '../scan-suggestions.ts';
@@ -46,8 +47,22 @@ function workdir() {
 
 type Submission = {input: string; profile: string | null; repos?: string[]};
 
-async function renderDialog(last?: 'api' | 'web' | 'data') {
+/** The ready work a repo's tracker lists, as a tracker that can list it does. */
+type Ready = Partial<Record<'api' | 'web' | 'data', string[]>>;
+
+async function renderDialog(last?: 'api' | 'web' | 'data', ready: Ready = {}) {
 	const repos = workdir();
+	for (const [label, identifiers] of Object.entries(ready)) {
+		const {name} = repos[label as keyof Ready];
+		setRepoProviderSources(name, {});
+		issueTrackerFor(name).listReadyIssues = async () =>
+			identifiers.map(identifier => ({
+				identifier,
+				title: `Ready ${identifier}`,
+				state: {name: 'Open', type: 'unstarted', color: '#00ff00'},
+			}));
+	}
+
 	const {suggestions, all} = repos;
 	const names = all.map(repo => repo.name);
 	const lastUsed = last === undefined ? undefined : repos[last].name;
@@ -184,4 +199,63 @@ test('ticking two repos makes it a ticket space in both', async () => {
 	await view.stdin.write('\r');
 	await until(() => submitted.length === 1);
 	expect(submitted[0]!.repos).toEqual([web.name, api.name]);
+});
+
+test('a ready row moves the dialog to the repo its key belongs in, as a typed key does', async () => {
+	const {view, submitted, shows, api, data} = await renderDialog('api', {
+		api: ['DATA-7'],
+	});
+	await shows('DATA-7 Ready DATA-7');
+	expect(view.lastFrame()).toContain(`+ New Session in ${api.name}`);
+	await view.stdin.write('\u001B[B');
+	await shows(`+ New Session in ${data.name}`);
+	// The list is still the tracker's, with the cursor on its row.
+	expect(view.lastFrame()).toContain('❯ DATA-7 Ready DATA-7');
+	await view.stdin.write('\r');
+	await until(() => submitted.length === 1);
+	expect(submitted[0]).toEqual({
+		input: 'DATA-7',
+		profile: null,
+		repos: [data.name],
+	});
+});
+
+test('Enter on a ready row whose key is worked on in several repos asks which', async () => {
+	const {view, submitted, shows, api, web} = await renderDialog('api', {
+		api: ['B2B-9'],
+	});
+	await shows('B2B-9 Ready B2B-9');
+	await view.stdin.write('\u001B[B');
+	await shows(`+ New Session in ${web.name}`);
+	await view.stdin.write('\r');
+	await shows(`❯ 1 [ ] ${web.name}  60% of B2B`);
+	expect(submitted).toEqual([]);
+	// The other repo it is worked on in is the one whose tracker listed it.
+	await view.stdin.write('j');
+	await view.stdin.write('\r');
+	await until(() => submitted.length === 1);
+	expect(submitted[0]).toEqual({
+		input: 'B2B-9',
+		profile: null,
+		repos: [api.name],
+	});
+});
+
+test('a ready row whose prefix nothing knows stays in the repo whose tracker listed it', async () => {
+	const {view, submitted, shows, data} = await renderDialog('api', {
+		data: ['misc-12'],
+	});
+	// The typed key moves the dialog, and the list, to its repo.
+	await view.stdin.write('DATA-41');
+	await shows('misc-12 Ready misc-12');
+	await view.stdin.write('\u001B[B');
+	await shows('❯ misc-12');
+	expect(view.lastFrame()).toContain(`+ New Session in ${data.name}`);
+	await view.stdin.write('\r');
+	await until(() => submitted.length === 1);
+	expect(submitted[0]).toEqual({
+		input: 'misc-12',
+		profile: null,
+		repos: [data.name],
+	});
 });

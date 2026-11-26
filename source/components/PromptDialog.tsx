@@ -136,13 +136,17 @@ export default function PromptDialog({
 	const [repoStage, setRepoStage] = useState<'closed' | 'open' | 'confirming'>(
 		'closed',
 	);
-	const choices = useMemo(() => repos?.choicesFor(prompt), [repos, prompt]);
-	const suggestedRepo = choices?.rows[choices.defaultIndex]?.name;
-	const chosenRepos = useMemo(
-		() => pickedRepos ?? (suggestedRepo === undefined ? [] : [suggestedRepo]),
-		[pickedRepos, suggestedRepo],
+	// The repos confirmed for one ready row. They are that row's alone: the
+	// list stays its tracker's, and another row or typed text is asked afresh.
+	const [rowRepos, setRowRepos] = useState<{
+		key: string;
+		names: string[];
+	} | null>(null);
+	const typedChoices = useMemo(
+		() => repos?.choicesFor(prompt),
+		[repos, prompt],
 	);
-	const leadRepo = chosenRepos[0];
+	const typedRepo = typedChoices?.rows[typedChoices.defaultIndex]?.name;
 	// Whose config, profiles and tracker the dialog reads for these repos.
 	const contextFor = (names: readonly string[]) =>
 		repos
@@ -150,10 +154,14 @@ export default function PromptDialog({
 				? undefined
 				: repos.contextOf(names[0])
 			: fixedRepo;
-	const repo = useMemo(
-		() => contextFor(chosenRepos),
+	// The repo whose tracker lists the ready work: the one typed text or a pick
+	// names. A highlighted row does not move it, or the list would change
+	// under the cursor that is on it.
+	const listRepo = useMemo(
+		() =>
+			contextFor(pickedRepos ?? (typedRepo === undefined ? [] : [typedRepo])),
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-		[repos, chosenRepos, fixedRepo],
+		[repos, pickedRepos, typedRepo, fixedRepo],
 	);
 	// Both boxes are always on screen; this is purely which one has focus.
 	const [isPicking, setIsPicking] = useState(false);
@@ -182,11 +190,11 @@ export default function PromptDialog({
 	// question about this one object, so it is the only place that has to ask.
 	const tracker = useMemo((): IssueTrackerProvider | null => {
 		try {
-			return repo ? issueTrackerFor(repo.name) : createIssueTracker();
+			return listRepo ? issueTrackerFor(listRepo.name) : createIssueTracker();
 		} catch {
 			return null;
 		}
-	}, [repo]);
+	}, [listRepo]);
 
 	const skills = useSkillSnapshot();
 
@@ -234,6 +242,39 @@ export default function PromptDialog({
 		setIsPickingSkill(false);
 	};
 
+	const ready = useReadyWork(
+		tracker,
+		!isPicking && !isCompleting && !isSkillFocused && repoStage === 'closed',
+	);
+	const effectiveInput =
+		resolveSubmission(prompt, ready.identifiers, ready.index) ?? '';
+
+	// A highlighted ready row is an issue key as much as a typed one, so its
+	// prefix says which repos it belongs in. A row whose prefix nothing knows
+	// stays in the repo whose tracker listed it.
+	const choices = useMemo(() => {
+		if (!repos || !ready.onRow) return typedChoices;
+		const forRow = repos.choicesFor(effectiveInput);
+		return forRow.rows.some(row => row.suggested) ? forRow : typedChoices;
+	}, [repos, ready.onRow, effectiveInput, typedChoices]);
+	const suggestedRepo = choices?.rows[choices.defaultIndex]?.name;
+	const chosenRepos = useMemo(
+		() =>
+			pickedRepos ??
+			(ready.onRow && rowRepos?.key === effectiveInput
+				? rowRepos.names
+				: suggestedRepo === undefined
+					? []
+					: [suggestedRepo]),
+		[pickedRepos, ready.onRow, rowRepos, effectiveInput, suggestedRepo],
+	);
+	const leadRepo = chosenRepos[0];
+	const repo = useMemo(
+		() => contextFor(chosenRepos),
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[repos, chosenRepos, fixedRepo],
+	);
+
 	// Load config once
 	const configLoad = useMemo(
 		() => (repo ? repo.readConfig() : readReportedConfig()),
@@ -250,10 +291,6 @@ export default function PromptDialog({
 		[exampleKeys],
 	);
 
-	const ready = useReadyWork(
-		tracker,
-		!isPicking && !isCompleting && !isSkillFocused && repoStage === 'closed',
-	);
 	const widthMethod = useWidthMethod();
 	const errorMessage =
 		configLoad.kind === 'invalid'
@@ -267,9 +304,6 @@ export default function PromptDialog({
 	// stands down while it is up.
 	const isPromptStage =
 		!isPicking && ready.closeTarget === null && repoStage === 'closed';
-
-	const effectiveInput =
-		resolveSubmission(prompt, ready.identifiers, ready.index) ?? '';
 
 	// Live preview of what the first Enter will do. Deferred inputs (issue keys)
 	// still say so and still spawn on that one Enter; everything else advertises
@@ -510,10 +544,10 @@ export default function PromptDialog({
 		if (resolved === null) return;
 
 		// A key worked on in several repos is asked about once, on the repo its
-		// prefix defaults to. A ready row is its tracker's, so its repo is known.
+		// prefix defaults to, whether it was typed or is a ready row's.
 		if (
 			pickedRepos === null &&
-			!ready.onRow &&
+			!(ready.onRow && rowRepos?.key === resolved) &&
 			(choices?.rows.filter(row => row.suggested).length ?? 0) > 1
 		) {
 			setRepoStage('confirming');
@@ -562,11 +596,15 @@ export default function PromptDialog({
 	 */
 	const pickRepos = (names: string[]) => {
 		const wasConfirming = repoStage === 'confirming';
-		setPickedRepos(names);
+		const resolved = resolveSubmission(prompt, ready.identifiers, ready.index);
 		setRepoStage('closed');
-		if (!wasConfirming) return;
-		const resolved = resolveSubmission(prompt, ready.identifiers, INPUT_INDEX);
-		if (resolved === null) return;
+		// Repos confirmed for a ready row are that row's: picking them for the
+		// whole dialog would swap the list for another tracker's while the
+		// cursor is on one of its rows.
+		if (wasConfirming && ready.onRow && resolved !== null)
+			setRowRepos({key: resolved, names});
+		else setPickedRepos(names);
+		if (!wasConfirming || resolved === null) return;
 		const picked = contextFor(names);
 		const load = picked ? picked.readConfig() : configLoad;
 		startOrPick(
