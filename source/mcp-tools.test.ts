@@ -306,6 +306,13 @@ test('space_add_repo maps onto space add-repo, for the caller\u2019s own space u
 	});
 });
 
+test('the tools that end a session say they are destructive', () => {
+	// space_add_repo ends the agent of the plain space it converts.
+	expect(
+		MCP_TOOLS.filter(tool => tool.destructive).map(tool => tool.name),
+	).toEqual(['companion_close', 'space_add_repo', 'space_close']);
+});
+
 test('tui_restart is the soft restart', () => {
 	const {positional, flags} = cli('tui_restart', {});
 	expect(positional).toStrictEqual(['restart']);
