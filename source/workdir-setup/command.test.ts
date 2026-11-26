@@ -192,6 +192,30 @@ describe('lasagna setup', () => {
 		expect(out).toContain('left out post_workspace_init');
 	});
 
+	test("the top level gets a profile and the repos' shared tracker once, for the work dir's own spaces", async () => {
+		const {run, workdirYml, written} = setup({});
+
+		const {exit, out} = await run(['--yes']);
+
+		expect(exit, out).toBe(0);
+		expect(written().version).toBe(1);
+		expect(Object.keys(written().profiles)).toStrictEqual(['work']);
+		expect(written().issue_tracker).toStrictEqual({
+			provider: 'jira',
+			base_url: 'https://example.atlassian.net',
+		});
+		fs.writeFileSync(
+			workdirYml,
+			fs
+				.readFileSync(workdirYml, 'utf8')
+				.replace(/^profiles:\n {2}work:\n.*\n/m, 'profiles:\n  mine: {}\n'),
+		);
+
+		await run(['--yes']);
+
+		expect(Object.keys(written().profiles)).toStrictEqual(['mine']);
+	});
+
 	test('an answer that is not JSON is reported and leaves the repo as it was', async () => {
 		const {run, workdirYml} = setup({}, {FAKE_CLAUDE_MODE: 'invalid'});
 

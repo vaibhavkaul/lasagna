@@ -869,6 +869,78 @@ function parseWorkdirDocument(text: string | undefined): Document {
 	return parseDocument(text);
 }
 
+/**
+ * Give the work dir's own spaces (its root main space and ticket spaces)
+ * the config every space needs, once: they read only the home config and
+ * the file's top level, and with no profile there a ticket space is
+ * refused. Added only when the top level has no profiles, and never
+ * changed afterwards. `tracker` is the issue tracker every repo's proposal
+ * agrees on, if any. Returns what was added.
+ */
+export function scaffoldTopLevel(
+	document: Document,
+	workdir: string,
+	tracker?: Record<string, unknown>,
+): string[] {
+	if (!isMap(document.contents)) document.contents = document.createNode({});
+	if (document.has('profiles')) return [];
+	const added: string[] = [];
+	if (!document.has('version')) {
+		document.set('version', 1);
+		added.push('version: 1');
+	}
+
+	const name = path.basename(workdir);
+	document.set('profiles', document.createNode({work: {display_name: name}}));
+	added.push(`profiles.work.display_name: ${JSON.stringify(name)}`);
+	if (tracker && !document.has('issue_tracker')) {
+		document.set('issue_tracker', document.createNode(tracker));
+		added.push(`issue_tracker: ${JSON.stringify(tracker)}`);
+	}
+
+	const {contents} = document;
+	if (isMap(contents)) {
+		const pair = contents.items.find(
+			item => isScalarKey(item.key) === 'profiles',
+		);
+		if (pair?.key && typeof pair.key === 'object')
+			(pair.key as {commentBefore?: string}).commentBefore =
+				" Written once by setup for the work dir's own spaces. Yours to edit.";
+	}
+
+	return added;
+}
+
+/** The issue tracker every usable proposal names, when they all name the same. */
+function sharedIssueTracker(
+	proposals: RepoProposal[],
+): Record<string, unknown> | undefined {
+	const trackers = proposals
+		.filter(({problems}) => problems.length === 0)
+		.map(proposal => {
+			const tracker: Record<string, unknown> = {};
+			for (const value of proposedValues(proposal)) {
+				if (value.path[0] === 'issue_tracker' && value.path.length === 2)
+					tracker[value.path[1]!] = value.value;
+			}
+
+			return tracker;
+		});
+	const [first] = trackers;
+	if (!first || Object.keys(first).length === 0) return undefined;
+	const text = (tracker: Record<string, unknown>) =>
+		JSON.stringify(tracker, Object.keys(tracker).sort());
+	return trackers.every(tracker => text(tracker) === text(first))
+		? first
+		: undefined;
+}
+
+function isScalarKey(key: unknown): unknown {
+	return key && typeof key === 'object' && 'value' in key
+		? (key as {value: unknown}).value
+		: key;
+}
+
 /** Replace one repo's `inferred` section, leaving the rest of the file be. */
 export function setInferred(
 	document: Document,
@@ -1468,13 +1540,22 @@ export async function runSetupCommand(
 		return reported.length > 0 ? 3 : 0;
 	};
 
-	const write = (text: string) => {
+	const sharedTracker = sharedIssueTracker(proposals);
+	const write = (written: Document) => {
+		scaffoldTopLevel(written, workdir, sharedTracker);
 		fs.mkdirSync(path.dirname(configFile), {recursive: true});
-		fs.writeFileSync(configFile, text);
+		fs.writeFileSync(configFile, documentText(written));
 		return finish(`Wrote ${configFile}`);
 	};
 
 	deps.out(`\nProposed for ${configFile}:`);
+	const topLevel = scaffoldTopLevel(candidate.clone(), workdir, sharedTracker);
+	if (topLevel.length > 0) {
+		deps.out(
+			`\ntop level, for the work dir's own spaces (its root and ticket spaces); yours to edit, never rewritten:\n${topLevel.map(line => `  + ${line}`).join('\n')}`,
+		);
+	}
+
 	for (const change of changes) deps.out(`\n${formatChange(change)}`);
 	const summary = prefixSummary(scan, changes);
 	if (summary.length > 0) deps.out(summary.join('\n'));
@@ -1482,7 +1563,7 @@ export async function runSetupCommand(
 
 	if (options.dryRun) return finish('Dry run: nothing written');
 	if (pending.length === 0) return finish('Nothing to change');
-	if (options.yes) return write(documentText(candidate));
+	if (options.yes) return write(candidate);
 	if (!deps.interactive) {
 		return finish(
 			'Not a terminal, so nothing was written. Run it from a terminal to choose, or with --yes to accept the high-confidence values.',
@@ -1500,7 +1581,7 @@ export async function runSetupCommand(
 			`\nWrite ${pending.length === 1 ? 'this' : `these ${pending.length} repos`}? [a]ccept all, go [r]epo by repo, [e]dit the file first, [q]uit: `,
 		);
 		if (answer === 'q' || answer === '') return finish('Nothing written');
-		if (answer === 'a') return write(documentText(candidate));
+		if (answer === 'a') return write(candidate);
 		if (answer === 'r') {
 			const accepted = document.clone();
 			let any = false;
@@ -1515,7 +1596,7 @@ export async function runSetupCommand(
 				}
 			}
 
-			return any ? write(documentText(accepted)) : finish('Nothing written');
+			return any ? write(accepted) : finish('Nothing written');
 		}
 
 		if (answer === 'e') {
@@ -1545,7 +1626,7 @@ export async function runSetupCommand(
 					continue;
 				}
 
-				return write(edited);
+				return write(parseDocument(edited));
 			} finally {
 				fs.rmSync(scratch, {recursive: true, force: true});
 			}
