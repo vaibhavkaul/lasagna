@@ -342,8 +342,13 @@ export function retargetCli(
 		checkout = undefined;
 	const workdir = deps.readWorkdir(workdirRoot);
 	const workdirRepo = workdirRepoRoots(workdir.root);
-	// Outside every checkout the command is about the work dir itself.
-	const own = checkout ?? workdirRepo;
+	// Outside every checkout the command is about the work dir itself. So is
+	// one run in a ticket space's session, whose agent may be standing in one
+	// of the ticket's repos: the space it runs in is the work dir's own.
+	const inTicketSpace =
+		deps.env['LASAGNA_REPO'] === workdirRepo.name &&
+		Boolean(deps.env['LASAGNA_SPACE']?.trim());
+	const own = inTicketSpace ? workdirRepo : (checkout ?? workdirRepo);
 	const rootsOf = (name: string): RepoRoots | undefined => {
 		if (name === own.name) return own;
 		if (name === workdirRepo.name) return workdirRepo;

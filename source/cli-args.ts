@@ -13,6 +13,7 @@ const helpText = `
 	  $ lasagna spaces [--json]
 	  $ lasagna space get [issue-key] [--json] [--field <name>]...
 	  $ lasagna space list [--json]
+	  $ lasagna space add-repo [space] <repo>
 	  $ lasagna agent-profile list [--json]
 	  $ lasagna read <issue-key> [--turns N] [--json]
 	  $ lasagna companion <command...>
@@ -58,6 +59,10 @@ const helpText = `
 	                   profile, tmux sessions and panes, PR and status. With
 	                   no key, the space this runs in. See lasagna space --help
 	  space list       The main space and every open space, as space get
+	  space add-repo [space] <repo>
+	                   Add a repo of the work dir to a space. A ticket space
+	                   gains its worktree; a plain space becomes a ticket
+	                   space. See lasagna space add-repo --help
 	  agent-profile list
 	                   The agent profiles a space can be opened on with
 	                   --agent-profile (--json with the files defining each)
@@ -131,12 +136,14 @@ const helpText = `
 `;
 
 export const SPACE_USAGE = `Usage: lasagna space get [issue-key] [--json] [--field <name>]...
-       lasagna space list [--json]`;
+       lasagna space list [--json]
+       lasagna space add-repo [space] <repo>`;
 
 export const SPACE_HELP = `
 	Usage
 	  $ lasagna space get [issue-key] [--json] [--field <name>]...
 	  $ lasagna space list [--json]
+	  $ lasagna space add-repo [space] <repo>
 
 	space get prints what Lasagna knows about a space, from its stores:
 	repo, key, phase (starting, open, closing or closed), title, worktreePath,
@@ -148,6 +155,9 @@ export const SPACE_HELP = `
 	dir, repo:KEY names a space of another of its repos.
 
 	space list prints the main space, then every open space in the rail's order.
+
+	space add-repo adds a repo of the work dir to a space, which makes a plain
+	space a ticket space: see lasagna space add-repo --help.
 
 	Options
 	  --json          Print the record as JSON

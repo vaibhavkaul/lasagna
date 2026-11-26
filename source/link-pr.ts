@@ -43,6 +43,13 @@ export async function linkPr(
 		) => Pick<StateDaos, 'spaceState' | 'prLinkStamp'>;
 		run?: LinkExecutor;
 		gitlabHost?: string;
+		/**
+		 * The space the workspace is, when it is no checkout to read that off:
+		 * a ticket folder, which is a space of its work dir. The link is then
+		 * recorded for the repo it is in as well, whose own status is read by
+		 * that repo's worktree.
+		 */
+		space?: {repoName: string; issueKey: string; memberRepo: string};
 	},
 ) {
 	const {run = execute} = options;
@@ -136,7 +143,8 @@ export async function linkPr(
 	const localBranch = await readCurrentBranch(async args =>
 		run('git', args, directory),
 	);
-	const {repoName, issueKey} = await workspaceIdentity(workspace, run);
+	const {repoName, issueKey} =
+		options.space ?? (await workspaceIdentity(workspace, run));
 	const link = {
 		host,
 		project,
@@ -147,6 +155,10 @@ export async function linkPr(
 	};
 	const {spaceState, prLinkStamp} = options.daosFor(repoName);
 	await spaceState.addPrLink(issueKey, link);
+	if (options.space)
+		await options
+			.daosFor(options.space.memberRepo)
+			.spaceState.addPrLink(issueKey, link);
 	await prLinkStamp.touch();
 	return {file: spaceState.file(issueKey), link};
 }

@@ -562,6 +562,42 @@ test('a session in a worktree outside the work dir finds it through its main che
 	expect(result.kind === 'retargeted' && result.repo?.name).toBe(web);
 });
 
+test('a ticket space\u2019s session is about the work dir, even standing in one of its repos', () => {
+	const {run, work, workRepo, repos, api} = fixture();
+	// The lead agent has gone into the ticket's worktree of one repo.
+	const worktree = path.join(tempDir('lasagna-ticket-'), api);
+	git(repos['api']!.root, 'worktree', 'add', '-q', '-b', 'B2B-5', worktree);
+	const session = {
+		LASAGNA_REPO: workRepo,
+		LASAGNA_SPACE: 'B2B-5',
+		LASAGNA_MAIN_REPO_ROOT: work,
+	};
+	const result = run(
+		worktree,
+		['state', 'B2B-5'],
+		{[workRepo]: ['B2B-5']},
+		session,
+	);
+	expect(result.kind === 'retargeted' && result.repo?.name).toBe(workRepo);
+	// A verb that names no space is the session's own too.
+	const own = run(worktree, ['companion', 'list'], {}, session);
+	expect(own.kind === 'retargeted' && own.repo?.name).toBe(workRepo);
+	// Without that session it is the repo's, as any worktree of it is.
+	expect(run(worktree, ['companion', 'list']).kind).toBe('unchanged');
+	// The work dir's main space has no key of its own: a repo under it wins.
+	expect(
+		run(
+			repos['api']!.root,
+			['companion', 'list'],
+			{},
+			{
+				LASAGNA_REPO: workRepo,
+				LASAGNA_MAIN_REPO_ROOT: work,
+			},
+		).kind,
+	).toBe('unchanged');
+});
+
 test('a repo has a space it has open, its main space, and no other', async () => {
 	const {repos, api} = fixture();
 	const repo = repoContext(repos['api']!.root);

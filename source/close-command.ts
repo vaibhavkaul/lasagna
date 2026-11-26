@@ -1,15 +1,21 @@
 import {legacyAgentSession, type SpaceSessionNames} from './space-identity.ts';
 import {spawn} from 'node:child_process';
 import {selfLaunchArgs} from './runtime.ts';
-import {getMainRepoRoot} from './config.ts';
+import {getMainRepoRoot, getRepoName, repoRootsAt} from './config.ts';
 import {formatConfigErrors} from './config-errors.ts';
 import {confirm} from './confirm.ts';
 import {
 	deinitSkipped,
 	runCloseHooks,
+	runTicketCloseHooks,
 	type CloseHooksOutcome,
 	type ClosingSpace,
 } from './close-space.ts';
+import {isWorkdirRepoName} from './repo-config-files.ts';
+import {repoContextOf} from './repo-context.ts';
+import {removeTicketFiles} from './ticket-files.ts';
+import {ticketStore} from './ticket-space.ts';
+import {readWorkdir} from './workdir.ts';
 import {createLogger} from './logger.ts';
 import type {TrackerIssue} from './providers/types.ts';
 import type {SpaceRegistryDao} from './space-registry.ts';
@@ -203,18 +209,61 @@ async function tearDown(key: string, deps: CloseCommandDeps): Promise<boolean> {
 	return false;
 }
 
+/**
+ * The ticket space a key names when the command is about a work dir itself:
+ * its folder, and its repos with what their hooks run on.
+ */
+function ticketSpace(key: string) {
+	let repoName: string;
+	let root: string;
+	try {
+		repoName = getRepoName();
+		root = getMainRepoRoot();
+	} catch {
+		return undefined;
+	}
+
+	if (!isWorkdirRepoName(repoName)) return undefined;
+	const ticket = ticketStore(repoName).read(key);
+	if (!ticket) return undefined;
+	const listed = readWorkdir(root).repos;
+	return {
+		ticket,
+		members: ticket.repos.flatMap(member => {
+			const repo = listed.find(each => each.name === member.name);
+			if (!repo) return [];
+			try {
+				return [
+					{
+						repo: repoContextOf(repoRootsAt(repo.root)),
+						worktreePath: member.worktreePath,
+					},
+				];
+			} catch {
+				return [];
+			}
+		}),
+	};
+}
+
 export function defaultCloseCommandDeps(daos: StateDaos): CloseCommandDeps {
 	return {
 		registry: daos.registry,
 		getIssue,
 		worktreePath: getWorktreePath,
 		async runHooks(space) {
-			return runCloseHooks(space);
+			// A ticket space has no hooks of its own: each of its repos has.
+			const ticket = ticketSpace(space.name);
+			return ticket
+				? runTicketCloseHooks(space, ticket.members)
+				: runCloseHooks(space);
 		},
 		async killSpaceSessions(key) {
 			return killSpaceSessions(key);
 		},
 		async cleanup(key) {
+			const ticket = ticketSpace(key);
+			if (ticket) removeTicketFiles(ticket.ticket.folder);
 			await daos.programStatus.remove(key);
 			return deleteQaSimulator(key);
 		},

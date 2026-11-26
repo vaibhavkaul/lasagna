@@ -292,6 +292,20 @@ test('space_close confirms for the agent, which has no terminal', () => {
 	});
 });
 
+test('space_add_repo maps onto space add-repo, for the caller\u2019s own space unless one is named', () => {
+	expect(call('space_add_repo', {repo: 'appian-server'})).toEqual({
+		args: ['space', 'add-repo', 'appian-server'],
+	});
+	expect(
+		call('space_add_repo', {
+			repo: 'appian-server',
+			space: 'tts-business:B2B-1',
+		}),
+	).toEqual({
+		args: ['space', 'add-repo', 'tts-business:B2B-1', 'appian-server'],
+	});
+});
+
 test('tui_restart is the soft restart', () => {
 	const {positional, flags} = cli('tui_restart', {});
 	expect(positional).toStrictEqual(['restart']);
@@ -326,6 +340,8 @@ const ASKS_FIRST = new Set([
 	'space_press_keys',
 	'space_open',
 	'space_close',
+	// It can end the session of the space it is asked to change.
+	'space_add_repo',
 	'link_pr',
 	'tui_restart',
 	// Approving a hold is the chef's word, so its prompt is where they give it.

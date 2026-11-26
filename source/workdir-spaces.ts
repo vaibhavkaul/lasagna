@@ -1,6 +1,6 @@
-// `lasagna spaces` at a work dir's root: the open spaces of every repo
-// the work dir lists, each named `repo:KEY`, which is the name every other
-// command takes for it from there.
+// `lasagna spaces` at a work dir's root: its ticket spaces, then the open
+// spaces of every repo the work dir lists, each named `repo:KEY`, which is the
+// name every other command takes for it from there.
 
 import {issueTrackerFor, recordIssueTitles} from './providers/index.ts';
 import {formatSpaceRef} from './space-ref.ts';
@@ -57,7 +57,8 @@ export async function runWorkdirSpacesCommand(options: {
 }): Promise<number> {
 	const workdir = startWorkdir(options.root, options.own);
 	const report = await gatherWorkdirSpaces(
-		workdir.repos.map(repo => ({
+		// The work dir's own spaces are its ticket spaces, each in several repos.
+		workdir.all.map(repo => ({
 			repoName: repo.name,
 			registry: repo.daos.registry,
 			spaceIdentities: repo.daos.spaceIdentities,
@@ -72,7 +73,8 @@ export async function runWorkdirSpacesCommand(options: {
 					[...issues].map(([key, issue]) => [key, issue?.title ?? null]),
 				);
 			},
-			gitSummary: worktreeGitSummary,
+			// A ticket folder is no checkout to summarize: its repos each are.
+			gitSummary: repo.isWorkdir ? async () => null : worktreeGitSummary,
 		})),
 	);
 	options.out(
