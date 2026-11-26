@@ -190,6 +190,8 @@ export function scanDefaults(
 		});
 	}
 
+	values.push(...prefixProfiles(repo, own));
+
 	const jira = env['JIRA_BASE_URL']?.trim().replace(/\/+$/, '');
 	if (jira && prefixes.length > 0) {
 		const found = {
@@ -212,6 +214,88 @@ export function scanDefaults(
 	}
 
 	return values;
+}
+
+/**
+ * One profile for each prefix your own branches use in the repo, when there
+ * are two or more, so a new ticket from free text can be filed in any of
+ * them (the new-space dialog picks the profile). Prefixes only other people
+ * work on stay in the repo profile's tracker_projects. A prefix the repo's
+ * own config already has a profile for is left to it.
+ */
+export function prefixProfiles(
+	repo: RepoScan,
+	own: OwnConfig | undefined,
+): InferredValue[] {
+	const mine = Object.entries(repo.tickets.prefixes)
+		.filter(([, counts]) => counts.localKeys > 0)
+		.sort(([, a], [, b]) => b.localKeys - a.localKeys);
+	if (mine.length < 2) return [];
+	const ownProfiles = own?.config['profiles'];
+	const ownPrefixes = new Set(
+		isRecord(ownProfiles)
+			? Object.values(ownProfiles).flatMap(profile =>
+					isRecord(profile)
+						? [
+								profile['team_prefix'],
+								...(Array.isArray(profile['tracker_projects'])
+									? profile['tracker_projects']
+									: []),
+							]
+						: [],
+				)
+			: [],
+	);
+	return mine
+		.filter(([prefix]) => !ownPrefixes.has(prefix))
+		.flatMap(([prefix, counts]) => {
+			const name = prefix.toLowerCase();
+			const found = {
+				source: `scan: ${counts.localKeys} of your local branches in this repo are ${prefix}`,
+				confidence: counts.localKeys >= 3 ? 'high' : 'medium',
+			} as const;
+			return [
+				{path: ['profiles', name, 'display_name'], value: prefix, ...found},
+				{path: ['profiles', name, 'team_prefix'], value: prefix, ...found},
+				{
+					path: ['profiles', name, 'tracker_projects'],
+					value: [prefix],
+					...found,
+				},
+			];
+		});
+}
+
+/**
+ * A prefix with a profile of its own leaves the other profiles'
+ * tracker_projects, so a key matches one profile.
+ */
+function withoutClaimedPrefixes(values: InferredValue[]): InferredValue[] {
+	const claimed = new Map<string, string>();
+	for (const value of values) {
+		const [section, profile, field] = value.path;
+		if (
+			section === 'profiles' &&
+			field === 'team_prefix' &&
+			typeof value.value === 'string' &&
+			value.path.length === 3
+		)
+			claimed.set(value.value, profile!);
+	}
+
+	return values.flatMap(value => {
+		const [section, profile, field] = value.path;
+		if (
+			section !== 'profiles' ||
+			field !== 'tracker_projects' ||
+			!Array.isArray(value.value)
+		)
+			return [value];
+		const kept = value.value.filter(
+			prefix => (claimed.get(prefix as string) ?? profile) === profile,
+		);
+		return kept.length > 0 ? [{...value, value: kept}] : [];
+	});
 }
 
 // ============================================================================
@@ -795,7 +879,9 @@ function formatTable(rows: string[][]): string {
 
 /** Everything proposed for a repo: Claude's values over the scan's. */
 export function proposedValues(proposal: RepoProposal): InferredValue[] {
-	return mergeValues(proposal.defaults, proposal.learned);
+	return withoutClaimedPrefixes(
+		mergeValues(proposal.defaults, proposal.learned),
+	);
 }
 
 const TRACKER = 'issue_tracker';
@@ -819,7 +905,11 @@ export function highConfidenceValues(proposal: RepoProposal): {
 	const sure = (values: InferredValue[]) =>
 		values.filter(({confidence}) => confidence === 'high');
 	const all = proposedValues(proposal);
-	const high = mergeValues(sure(proposal.defaults), sure(proposal.learned));
+	// A prefix leaves the repo profile only for a profile of its own that is
+	// kept too.
+	const high = withoutClaimedPrefixes(
+		mergeValues(sure(proposal.defaults), sure(proposal.learned)),
+	);
 	const find = (key: string) => high.find(value => keyOf(value) === key);
 	const provider = find(TRACKER_PROVIDER);
 	const trackerStands = all.some(value => keyOf(value) === TRACKER_PROVIDER)
