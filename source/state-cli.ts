@@ -3,6 +3,7 @@
 
 import {homedir} from 'node:os';
 import {parseArgs} from 'node:util';
+import {stringify} from 'yaml';
 import {statusSocket} from './program-status-monitor.ts';
 import {
 	mainIdentity,
@@ -11,13 +12,18 @@ import {
 } from './space-identity.ts';
 import {
 	checkAgentProfile,
-	getDefaultHomeConfigDir,
 	loadConfigFromPaths,
+	loadRawMergedConfig,
+	rootConfigPaths,
 	readConfig,
 	unknownAgentProfileMessage,
 	type ConfigPaths,
 } from './config.ts';
-import {formatConfigErrors} from './config-errors.ts';
+import {
+	ConfigNotFoundError,
+	ConfigValidationError,
+	formatConfigErrors,
+} from './config-errors.ts';
 import {createStateDaos} from './state-daos.ts';
 import {openStateDb} from './state-db.ts';
 
@@ -54,11 +60,7 @@ function idowConfigPaths(args: string[]): {
 	return {
 		paths:
 			projectDir && mainRoot
-				? {
-						homeConfigDir: getDefaultHomeConfigDir(),
-						projectDir,
-						fallbackProjectDir: () => mainRoot,
-					}
+				? rootConfigPaths(projectDir, mainRoot)
 				: undefined,
 		positionals,
 	};
@@ -245,6 +247,38 @@ const verbs: Record<string, Verb> = {
 		if (load.kind !== 'invalid') return 0;
 		console.error(`Error: ${formatConfigErrors(load.errors)}`);
 		return 1;
+	},
+
+	/**
+	 * The merged config idow reads, as YAML on stdout: every layer that applies
+	 * to the repo (home, workdir, project, local), checked as `check-config`
+	 * checks them, without the defaults validation fills in. Fails, naming the
+	 * problem, when the repo has no config or the config is invalid.
+	 */
+	'merged-config'(args) {
+		const {paths, positionals} = idowConfigPaths(args);
+		if (!paths || positionals.length > 0)
+			return usage(
+				'merged-config needs --project-root <dir> and --main-root <dir>',
+			);
+		try {
+			process.stdout.write(stringify(loadRawMergedConfig(paths)));
+			return 0;
+		} catch (error) {
+			if (error instanceof ConfigNotFoundError) {
+				console.error(
+					`Error: no config for this repo. Add .pappardelle.yml at ${paths.projectDir}, or a repos.${paths.repoName?.()} section to the workdir config.`,
+				);
+				return 1;
+			}
+
+			if (error instanceof ConfigValidationError) {
+				console.error(`Error: ${formatConfigErrors(error.errors)}`);
+				return 1;
+			}
+
+			throw error;
+		}
 	},
 
 	/** Create or upgrade the database at a path, for the hooks' tests. */

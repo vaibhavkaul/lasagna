@@ -222,6 +222,50 @@ test('check-config passes a valid or missing config and fails an invalid one wit
 	);
 });
 
+test('merged-config prints every layer that applies, a workdir one included, and fails without a config', () => {
+	const home = tempDir('papp-state-cli-');
+	const work = path.join(home, 'work');
+	const repo = path.join(work, 'api');
+	fs.mkdirSync(repo, {recursive: true});
+	const merged = () =>
+		pappardelleState(
+			['merged-config', '--project-root', repo, '--main-root', repo],
+			home,
+		);
+
+	const missing = merged();
+	expect(missing.status).toBe(1);
+	expect(missing.stderr).toContain('no config for this repo');
+
+	fs.mkdirSync(path.join(home, '.lasagna'));
+	fs.writeFileSync(
+		path.join(home, '.lasagna', '.pappardelle.yml'),
+		'version: 1\nteam_prefix: HOME\ndefault_emoji: x\n',
+	);
+	fs.mkdirSync(path.join(work, '.lasagna'));
+	fs.writeFileSync(
+		path.join(work, '.lasagna', 'workdir.yml'),
+		'repos:\n  api:\n    team_prefix: API\n    profiles:\n      t:\n        display_name: T\n',
+	);
+	fs.writeFileSync(
+		path.join(repo, '.pappardelle.local.yml'),
+		'max_inf: .inf\n',
+	);
+	const valid = merged();
+	expect(valid.status, `stderr: ${valid.stderr}`).toBe(0);
+	expect(valid.stdout).toBe(
+		'version: 1\nteam_prefix: API\ndefault_emoji: x\nprofiles:\n  t:\n    display_name: T\nmax_inf: .inf\n',
+	);
+
+	fs.writeFileSync(
+		path.join(work, '.lasagna', 'workdir.yml'),
+		'repos:\n  api:\n    default_emoji: [1]\n',
+	);
+	const invalid = merged();
+	expect(invalid.status).toBe(1);
+	expect(invalid.stderr).toContain('default_emoji: must be a string');
+});
+
 test('migrate takes one database path and nothing else', () => {
 	const dir = tempDir('papp-state-cli-');
 	const migrate = (...args: string[]) =>

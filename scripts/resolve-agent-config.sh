@@ -130,12 +130,14 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ -z "$CONFIG_PATH" ]]; then
+# With --merged, the layers only name the file a deprecation warning is about,
+# and a repo configured only in its workspace config has no project file.
+if [[ -z "$CONFIG_PATH" && -z "$MERGED_CONFIG_PATH" ]]; then
     echo "Error: --config is required" >&2
     exit 1
 fi
 
-if [[ ! -f "$CONFIG_PATH" ]]; then
+if [[ -n "$CONFIG_PATH" && ! -f "$CONFIG_PATH" ]]; then
     echo "Error: Config file not found: $CONFIG_PATH" >&2
     exit 1
 fi

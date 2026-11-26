@@ -16,11 +16,11 @@ function stateCli(fixture: ReturnType<typeof setup>, exitCode: number) {
 	const executable = path.join(fixture.bin, 'pappardelle-state-stub');
 	writeScript(
 		executable,
-		`if [[ "$2" != space && "$2" != worktree-path && "$2" != check-config ]]; then
+		`if [[ "$2" != space && "$2" != worktree-path && "$2" != check-config && "$2" != merged-config ]]; then
     test ! -f "$IDOW_TEST_LAUNCH_ARGS" || echo "after sessions" >> ${JSON.stringify(calls)}
     printf '%s\\n' "$*" >> ${JSON.stringify(calls)}
 fi
-${exitCode === 0 ? '' : `if [[ "$2" != space && "$2" != worktree-path && "$2" != check-config ]]; then\n    echo "no state for you" >&2\n    exit ${exitCode}\nfi\n`}exec ${JSON.stringify(path.join(fixture.bin, 'pappardelle-state'))} "$@"`,
+${exitCode === 0 ? '' : `if [[ "$2" != space && "$2" != worktree-path && "$2" != check-config && "$2" != merged-config ]]; then\n    echo "no state for you" >&2\n    exit ${exitCode}\nfi\n`}exec ${JSON.stringify(path.join(fixture.bin, 'pappardelle-state'))} "$@"`,
 	);
 	return {
 		calls: () => fs.readFileSync(calls, 'utf8').trim().split('\n'),

@@ -8,11 +8,12 @@ import {parse, stringify} from 'yaml';
 import {sqliteRun} from '../test/helpers/state.ts';
 import {setup} from '../test/helpers/idow-fixture.ts';
 
-test('setup merges config once and does not resolve the terminal', async () => {
+test('setup leaves merging config to the binary and does not resolve the terminal', async () => {
 	const fixture = setup();
 	await fixture.run();
 	const calls = fs.readFileSync(fixture.configCalls, 'utf8').split('\n');
-	expect(calls.filter(call => call === 'eval-all').length).toBe(1);
+	// The binary merges every layer (state-cli merged-config); yq only reads the result.
+	expect(calls.filter(call => call === 'eval-all').length).toBe(0);
 	expect(calls.some(call => call.includes('.terminal.app'))).toBe(false);
 });
 
