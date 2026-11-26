@@ -195,6 +195,15 @@ if (process.argv[2] === 'scan') {
 	);
 }
 
+// Like scan: it runs on a work dir, so it needs no repo and no config.
+if (process.argv[2] === 'setup') {
+	const {runSetupCommand, defaultSetupCommandDeps} =
+		await import('./workdir-setup/command.ts');
+	await exitAfterFlush(
+		await runSetupCommand(process.argv.slice(3), defaultSetupCommandDeps()),
+	);
+}
+
 // Dispatched before meow, which would read the wrapped command's flags
 // (including --help) as Pappardelle's own.
 if (process.argv[2] === 'companion') {
