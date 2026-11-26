@@ -145,3 +145,39 @@ export async function runCloseHooks(
 		? {kind: 'ran'}
 		: {kind: 'failed', failedCommand: result.failedCommand};
 }
+
+/**
+ * The hooks of a ticket space: each repo's own `pre_workspace_deinit`, run
+ * in that repo's worktree with that repo's config, one repo after the other
+ * in the ticket's order. The first that fails stops the close, as a plain
+ * space's does; a repo whose config is invalid is skipped and reported.
+ */
+export async function runTicketCloseHooks(
+	space: Omit<ClosingSpace, 'worktreePath'>,
+	members: ReadonlyArray<{
+		repo: Parameters<typeof closeHooksDepsFor>[0];
+		worktreePath: string;
+	}>,
+	depsFor: (
+		repo: Parameters<typeof closeHooksDepsFor>[0],
+	) => CloseHooksDeps = closeHooksDepsFor,
+): Promise<CloseHooksOutcome> {
+	const invalid: string[] = [];
+	for (const {repo, worktreePath} of members) {
+		const outcome = await runCloseHooks(
+			{...space, worktreePath},
+			depsFor(repo),
+		);
+		if (outcome.kind === 'failed')
+			return {
+				kind: 'failed',
+				failedCommand: `${repo.name}: ${outcome.failedCommand ?? 'unknown'}`,
+			};
+		if (outcome.kind === 'config-invalid')
+			invalid.push(...outcome.errors.map(error => `${repo.name}: ${error}`));
+	}
+
+	return invalid.length > 0
+		? {kind: 'config-invalid', errors: invalid}
+		: {kind: 'ran'};
+}

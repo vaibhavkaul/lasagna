@@ -14,8 +14,10 @@ import {resetRepoContexts} from './repo-context.ts';
 import {
 	scopedSpace,
 	setSpaceScopes,
+	setTicketMembers,
 	spaceBareKey,
 	spaceNameIn,
+	ticketMembers,
 } from './space-scope.ts';
 import {newSpaceIdentity} from './space-identity.ts';
 import {
@@ -44,6 +46,7 @@ function started(
 	// Back to one repo for the tests after this one.
 	teardown(() => {
 		setSpaceScopes(undefined);
+		setTicketMembers(undefined);
 		initTmuxState(own.daos);
 	});
 	const runtime = startWorkdir(made.work, {
@@ -132,6 +135,7 @@ test('a listed directory inside another checkout is not a repo of its own', () =
 	const own = testState({repo: made.workRepo, mainRoot: () => made.work});
 	teardown(() => {
 		setSpaceScopes(undefined);
+		setTicketMembers(undefined);
 		initTmuxState(own.daos);
 	});
 	expect(
@@ -272,4 +276,37 @@ test('a repo\u2019s linked worktree elsewhere is still that repo\u2019s, not a r
 		repos['api']!.name,
 		repos['web']!.name,
 	]);
+});
+
+test('a space of the work dir that has a ticket folder is a ticket space, and says which repos it holds', () => {
+	const {runtime, repos, workRepo} = started();
+	const api = runtime.repo(repos['api']!.name)!;
+	const web = runtime.repo(repos['web']!.name)!;
+	runtime.tickets.write({
+		key: 'B2B-5',
+		folder: '/tickets/B2B-5',
+		repos: [
+			{name: web.name, worktreePath: `/tickets/B2B-5/${web.name}`},
+			{name: api.name, worktreePath: `/tickets/B2B-5/${api.name}`},
+			// A repo the work dir no longer lists has nothing to answer for it.
+			{name: 'gone', worktreePath: '/tickets/B2B-5/gone'},
+		],
+	});
+	teardown(() => runtime.tickets.remove('B2B-5'));
+
+	const members = [
+		{repo: web.context, worktreePath: `/tickets/B2B-5/${web.name}`},
+		{repo: api.context, worktreePath: `/tickets/B2B-5/${api.name}`},
+	];
+	expect(runtime.ticketMembers(`${workRepo}:B2B-5`)).toEqual(members);
+	// Everything handed a space name can ask.
+	expect(ticketMembers(`${workRepo}:B2B-5`)).toEqual(members);
+	// Its own repo is still the work dir: that is whose agent and config it has.
+	expect(scopedSpace(`${workRepo}:B2B-5`)?.repo.name).toBe(workRepo);
+
+	// The work dir's main space, a space no folder was made for, and a repo's
+	// own space with the same key are none.
+	expect(ticketMembers(runtime.rootMain)).toBeUndefined();
+	expect(ticketMembers(`${workRepo}:NOPE-1`)).toBeUndefined();
+	expect(ticketMembers(`${api.name}:B2B-5`)).toBeUndefined();
 });

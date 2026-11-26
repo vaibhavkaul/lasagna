@@ -17,7 +17,9 @@ import {
 	defaultCloseHooksDeps,
 	resolveDeinitCommands,
 	runCloseHooks,
+	runTicketCloseHooks,
 	shouldAttach,
+	type CloseHooksDeps,
 } from './close-space.ts';
 
 const config: PappardelleConfig = {
@@ -222,4 +224,97 @@ test('registered, main, and pending rows attach, as does an unreadable registry'
 	expect(shouldAttach({name: 'main', isMainWorktree: true}, [])).toBe(true);
 	expect(shouldAttach({name: 'STA-3', isPending: true}, [])).toBe(true);
 	expect(shouldAttach({name: 'STA-1'}, null)).toBe(true);
+});
+
+/** A repo of a ticket whose one deinit command succeeds, fails, or whose config is invalid. */
+function ticketRepo(name: string, outcome: 'ok' | 'fails' | 'invalid') {
+	return {
+		repo: {
+			name,
+			root: `/work/${name}`,
+			mainRoot: `/work/${name}`,
+			readConfig: () => readConfig(),
+		},
+		worktreePath: `/tickets/B2B-5/${name}`,
+		outcome,
+	};
+}
+
+function ticketHooks(members: Array<ReturnType<typeof ticketRepo>>) {
+	const ran: string[] = [];
+	const depsFor = (repo: {name: string}): CloseHooksDeps => {
+		const {outcome} = members.find(member => member.repo.name === repo.name)!;
+		return {
+			readConfig: () =>
+				outcome === 'invalid'
+					? {kind: 'invalid', errors: ['profiles: required object field']}
+					: {
+							kind: 'valid',
+							config: {
+								version: 1,
+								profiles: {},
+								pre_workspace_deinit: [
+									{name: `stop ${repo.name}`, run: 'true'},
+								],
+							},
+						},
+			async runDeinit(commands, worktreePath, context) {
+				ran.push(
+					`${context.repoName} ${context.issueKey} ${worktreePath} ${names(commands as Array<{name: string}>).join(',')}`,
+				);
+				return outcome === 'fails'
+					? {success: false, failedCommand: commands[0]!.name}
+					: {success: true};
+			},
+			context: () => ({
+				repoRoot: `/work/${repo.name}`,
+				mainRepoRoot: `/work/${repo.name}`,
+				repoName: repo.name,
+			}),
+		};
+	};
+
+	return {
+		ran,
+		run: async () =>
+			runTicketCloseHooks(
+				{name: 'B2B-5', trackerIssue: null},
+				members,
+				depsFor as Parameters<typeof runTicketCloseHooks>[2],
+			),
+	};
+}
+
+test("a ticket space's close runs each repo's own hooks, in that repo's worktree", async () => {
+	const hooks = ticketHooks([ticketRepo('api', 'ok'), ticketRepo('web', 'ok')]);
+	expect(await hooks.run()).toStrictEqual({kind: 'ran'});
+	expect(hooks.ran).toStrictEqual([
+		'api B2B-5 /tickets/B2B-5/api stop api',
+		'web B2B-5 /tickets/B2B-5/web stop web',
+	]);
+});
+
+test("a repo's hook that fails stops the close, naming the repo, before the repos after it", async () => {
+	const hooks = ticketHooks([
+		ticketRepo('api', 'ok'),
+		ticketRepo('web', 'fails'),
+		ticketRepo('data', 'ok'),
+	]);
+	expect(await hooks.run()).toStrictEqual({
+		kind: 'failed',
+		failedCommand: 'web: stop web',
+	});
+	expect(hooks.ran).toHaveLength(2);
+});
+
+test('a repo whose config is invalid is skipped and reported, and the others still run', async () => {
+	const hooks = ticketHooks([
+		ticketRepo('api', 'invalid'),
+		ticketRepo('web', 'ok'),
+	]);
+	expect(await hooks.run()).toStrictEqual({
+		kind: 'config-invalid',
+		errors: ['api: profiles: required object field'],
+	});
+	expect(hooks.ran).toStrictEqual(['web B2B-5 /tickets/B2B-5/web stop web']);
 });
