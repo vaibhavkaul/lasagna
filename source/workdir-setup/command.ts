@@ -873,7 +873,7 @@ function parseWorkdirDocument(text: string | undefined): Document {
  * Give the work dir's own spaces (its root main space and ticket spaces)
  * the config every space needs, once: they read only the home config and
  * the file's top level, and with no profile there a ticket space is
- * refused. Added only when the top level has no profiles, and never
+ * refused. Each key is added only while the top level lacks it, and never
  * changed afterwards. `tracker` is the issue tracker every repo's proposal
  * agrees on, if any. Returns what was added.
  */
@@ -883,23 +883,25 @@ export function scaffoldTopLevel(
 	tracker?: Record<string, unknown>,
 ): string[] {
 	if (!isMap(document.contents)) document.contents = document.createNode({});
-	if (document.has('profiles')) return [];
 	const added: string[] = [];
 	if (!document.has('version')) {
 		document.set('version', 1);
 		added.push('version: 1');
 	}
 
-	const name = path.basename(workdir);
-	document.set('profiles', document.createNode({work: {display_name: name}}));
-	added.push(`profiles.work.display_name: ${JSON.stringify(name)}`);
+	if (!document.has('profiles')) {
+		const name = path.basename(workdir);
+		document.set('profiles', document.createNode({work: {display_name: name}}));
+		added.push(`profiles.work.display_name: ${JSON.stringify(name)}`);
+	}
+
 	if (tracker && !document.has('issue_tracker')) {
 		document.set('issue_tracker', document.createNode(tracker));
 		added.push(`issue_tracker: ${JSON.stringify(tracker)}`);
 	}
 
 	const {contents} = document;
-	if (isMap(contents)) {
+	if (isMap(contents) && added.some(line => line.startsWith('profiles.'))) {
 		const pair = contents.items.find(
 			item => isScalarKey(item.key) === 'profiles',
 		);
@@ -919,9 +921,15 @@ function sharedIssueTracker(
 		.filter(({problems}) => problems.length === 0)
 		.map(proposal => {
 			const tracker: Record<string, unknown> = {};
+			// Which tracker, not how each repo files its issues.
 			for (const value of proposedValues(proposal)) {
-				if (value.path[0] === 'issue_tracker' && value.path.length === 2)
-					tracker[value.path[1]!] = value.value;
+				const [section, field] = value.path;
+				if (
+					section === 'issue_tracker' &&
+					value.path.length === 2 &&
+					(field === 'provider' || field === 'base_url')
+				)
+					tracker[field] = value.value;
 			}
 
 			return tracker;
