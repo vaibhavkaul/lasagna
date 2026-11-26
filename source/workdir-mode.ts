@@ -3,6 +3,11 @@
 // in none of its configured repos: at its root, in a plain directory below
 // it, or in a checkout the work dir does not list. Started in a configured
 // repo the TUI is that repo's, as it always was.
+//
+// A work dir's root can be a git checkout of its own, or sit inside one. That
+// checkout is not one of the work dir's repos, so there the TUI is the work
+// dir's too, which is how a CLI command run there reads it
+// (cli-repo-target.ts).
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -12,6 +17,7 @@ import {
 	WORKDIR_CONFIG_FILE,
 	findWorkdir,
 	workdirListsRepo,
+	workdirStoodIn,
 } from './repo-config-files.ts';
 
 /** Flags whose next argument is their value, not a verb or a prompt. */
@@ -84,6 +90,11 @@ export function workdirMode(
 
 	if (!startsTui(argv)) return {kind: 'repo'};
 	const checkout = deps.checkoutAt(deps.cwd);
+	// From the directory itself first: its checkout may hold the work dir,
+	// and then looking up from that checkout would walk right past it.
+	const stoodIn = workdirStoodIn(deps.cwd, checkout?.root, deps.env);
+	if (stoodIn !== undefined)
+		return {kind: 'workdir', root: stoodIn, argv: [...argv]};
 	const root = findWorkdir(checkout?.mainRoot ?? deps.cwd, deps.env);
 	if (root === undefined) return {kind: 'repo'};
 	const configured =

@@ -18,6 +18,7 @@ import {
 	listSessionNames,
 	plural,
 	restartAndVerifyTui,
+	restartCommandFor,
 	restartTuiArgs,
 	restartTuis,
 	type RestartTiming,
@@ -55,10 +56,21 @@ export type RestartCommandDeps = {
 export async function restartRepo(
 	repoName: string,
 	deps: RestartCommandDeps,
+	options: {
+		/**
+		 * The pseudo-repo of the work dir whose rail shows this repo. A repo
+		 * shown there has no TUI of its own, so a restart asked for from one of
+		 * its spaces is for the work dir's.
+		 */
+		workdirRepo?: string;
+	} = {},
 ): Promise<number> {
-	const tui = listRunningTuis(deps.tmux, deps.repoStateRoot).find(
-		running => running.repo === repoName,
-	);
+	const running = listRunningTuis(deps.tmux, deps.repoStateRoot);
+	const tui =
+		running.find(candidate => candidate.repo === repoName) ??
+		(options.workdirRepo === undefined
+			? undefined
+			: running.find(candidate => candidate.repo === options.workdirRepo));
 	if (!tui) {
 		deps.print(
 			`No running Lasagna TUI for ${repoName}. Start one with lasagna.`,
@@ -116,7 +128,12 @@ export async function hardRestart(
 				deps.tuiMarker(tui.repo).read()?.paneId,
 			);
 			if (pane.ok) {
-				restarts.push(restartTuiArgs(pane.paneId, deps.launchCommand));
+				restarts.push(
+					restartTuiArgs(
+						pane.paneId,
+						restartCommandFor(tui, deps.launchCommand, deps.tmux),
+					),
+				);
 			} else {
 				deps.print(`Couldn't restart ${tui.session}: ${pane.reason}`);
 			}

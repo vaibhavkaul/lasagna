@@ -94,6 +94,40 @@ test('started in a checkout the work dir does not configure, the TUI is the work
 	});
 });
 
+test('a work dir whose root is a checkout of its own is still the work dir there, configured or not', () => {
+	const {work, repos} = fixture();
+	git(work, 'init', '-q');
+	git(work, 'commit', '-q', '--allow-empty', '-m', 'the work dir is a repo');
+	expect(mode([], work)).toEqual({kind: 'workdir', root: work, argv: []});
+	// A config file at its root does not make it a repo of itself: a command
+	// run here is about the work dir, and so is the TUI.
+	writeFiles(work, {'.pappardelle.yml': PROFILES, 'notes/todo.md': ''});
+	expect(mode([], work)).toEqual({kind: 'workdir', root: work, argv: []});
+	expect(mode([], path.join(work, 'notes'))).toEqual({
+		kind: 'workdir',
+		root: work,
+		argv: [],
+	});
+	// The repos it lists are still theirs.
+	expect(mode([], repos['api']!.root)).toEqual({kind: 'repo'});
+});
+
+test('a work dir inside a checkout is the work dir at its root, not that checkout', () => {
+	const outer = tempDir('lasagna-outer-');
+	git(outer, 'init', '-q');
+	git(outer, 'commit', '-q', '--allow-empty', '-m', 'outer');
+	writeFiles(outer, {
+		'.pappardelle.yml': PROFILES,
+		'work/.lasagna/workdir.yml': PROFILES,
+		'elsewhere/readme.md': '',
+	});
+	const work = path.join(outer, 'work');
+	expect(mode([], work)).toEqual({kind: 'workdir', root: work, argv: []});
+	// The rest of the outer checkout is that repo's.
+	expect(mode([], outer)).toEqual({kind: 'repo'});
+	expect(mode([], path.join(outer, 'elsewhere'))).toEqual({kind: 'repo'});
+});
+
 test('outside every work dir nothing changes', () => {
 	const outside = tempDir('lasagna-outside-');
 	expect(mode([], outside)).toEqual({kind: 'repo'});

@@ -444,7 +444,14 @@ const {repoName, daos} = bootstrapRepo();
 bootstrapDone?.();
 
 if (isRestart) {
-	process.exit(await restartRepo(repoName, defaultRestartCommandDeps()));
+	const {workdirShowing} = await import('./workdir.ts');
+	process.exit(
+		await restartRepo(repoName, defaultRestartCommandDeps(), {
+			workdirRepo: isWorkdirRepoName(repoName)
+				? undefined
+				: workdirShowing(getMainRepoRoot(), repoName),
+		}),
+	);
 }
 
 // Handle `lasagna highlight STA-XXX`: record the request and exit

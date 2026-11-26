@@ -116,6 +116,21 @@ class TestGetWorkspaceName:
         monkeypatch.delenv("LASAGNA_SPACE", raising=False)
         assert get_workspace_name(str(tmp_path)) == "@taptapsend-main"
 
+    def test_work_dir_root_that_is_a_checkout_still_reports_as_main(self, monkeypatch):
+        # The work dir's root can be a git repo of its own, or the agent can
+        # have stepped into a repo below it. The rail reads the root main
+        # space as main either way, never under that checkout's branch.
+        monkeypatch.setenv("LASAGNA_REPO", "@taptapsend")
+        monkeypatch.delenv("LASAGNA_SPACE", raising=False)
+
+        def mock_run(cmd, **kwargs):
+            if "--abbrev-ref" in cmd:
+                return type("Result", (), {"returncode": 0, "stdout": "trunk\n"})()
+            return type("Result", (), {"returncode": 1, "stdout": ""})()
+
+        with patch("subprocess.run", side_effect=mock_run):
+            assert get_workspace_name("/Users/charlie/code/taptapsend") == "@taptapsend-main"
+
     def test_a_directory_in_no_checkout_stays_unknown_without_a_work_dir(self, monkeypatch, tmp_path):
         monkeypatch.setenv("LASAGNA_REPO", "some-repo")
         monkeypatch.delenv("LASAGNA_SPACE", raising=False)

@@ -34,6 +34,7 @@ import {
 	paneRespawned,
 	installedLaunchCommand,
 	restartOwnTui,
+	workdirLaunchCommand,
 } from './tui-sessions.ts';
 import {DEFAULT_REPO_STATE_ROOT, clearDeadRestartLock} from './tui-marker.ts';
 import {
@@ -718,16 +719,20 @@ export default function App({
 		await renderer.suspend();
 		runUpdateScript({waitOnFailure: true});
 		// Reruns the TUI through the shim the installer just rewrote (which
-		// still points at the old build after a failed install).
+		// still points at the old build after a failed install). A work dir's
+		// TUI comes back as that work dir's.
+		const installed = installedLaunchCommand({
+			execPath: process.execPath,
+			cliPath: cliFilePath(),
+			home: homedir(),
+		});
 		restartOwnTui(
 			{
 				repoName,
 				paneId: process.env['TMUX_PANE'] ?? '',
-				command: installedLaunchCommand({
-					execPath: process.execPath,
-					cliPath: cliFilePath(),
-					home: homedir(),
-				}),
+				command: workdir
+					? workdirLaunchCommand(installed, workdir.root)
+					: installed,
 				paneLayout,
 			},
 			{
@@ -746,7 +751,7 @@ export default function App({
 		);
 		// eslint-disable-next-line unicorn/no-process-exit
 		process.exit(0);
-	}, [paneLayout, repoName, renderer]);
+	}, [paneLayout, repoName, renderer, workdir]);
 
 	// Tells `lasagna restart` which build came up in this pane. Written on
 	// first paint, after display metadata is available.

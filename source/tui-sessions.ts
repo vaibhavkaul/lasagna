@@ -3,9 +3,11 @@ import {existsSync, readdirSync} from 'node:fs';
 import {sameFile} from './same-file.ts';
 import path from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
+import {isWorkdirRepoName} from './repo-config-files.ts';
 import {
 	clearSousChefKeyArgs,
 	defaultServerTmuxRunner,
+	exactSessionTarget,
 	OUTER_SESSION_PREFIX,
 	outerSessionName,
 	tmuxFailure,
@@ -142,6 +144,35 @@ export function restartTuiArgs(
 		...(start.envArgs ?? []),
 		command,
 	];
+}
+
+/** The command that starts the TUI of the work dir at `root`. */
+export function workdirLaunchCommand(command: string, root: string): string {
+	return `${command} --workdir ${shellQuote(root)}`;
+}
+
+/**
+ * The command that reruns `tui` in its pane. A work dir's TUI is told its
+ * work dir outright, which is the directory its session was started in. The
+ * pane restarts in that directory, but the directory alone does not always
+ * say "work dir": LASAGNA_WORKDIR can name another one or turn them off,
+ * and the TUI may have been started with `--workdir` in the first place.
+ */
+export function restartCommandFor(
+	tui: RunningTui,
+	command: string,
+	tmux: OuterTmuxRunner,
+): string {
+	if (!isWorkdirRepoName(tui.repo)) return command;
+	const result = tmux([
+		'display-message',
+		'-p',
+		'-t',
+		exactSessionTarget(tui.session),
+		'#{session_path}',
+	]);
+	const root = result.error || result.status !== 0 ? '' : result.stdout.trim();
+	return root ? workdirLaunchCommand(command, root) : command;
 }
 
 function restartPane(
@@ -284,7 +315,11 @@ export async function restartAndVerifyTui(
 			deps.tuiMarker(tui.repo).read()?.paneId,
 		);
 		const restarted = pane.ok
-			? restartPane(pane.paneId, command, deps.tmux)
+			? restartPane(
+					pane.paneId,
+					restartCommandFor(tui, command, deps.tmux),
+					deps.tmux,
+				)
 			: pane;
 		if (!restarted.ok) {
 			deps.print(`Couldn't restart ${tui.session}: ${restarted.reason}`);
