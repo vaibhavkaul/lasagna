@@ -1731,7 +1731,7 @@ export function migrateLegacyAgentSessions(
 			if (existing.has(target)) {
 				runner(['kill-session', '-t', exactSessionTarget(name)]);
 				log.warn(
-					`Killed legacy session ${name}: ${target} already exists and is the one pappardelle attaches`,
+					`Killed legacy session ${name}: ${target} already exists and is the one lasagna attaches`,
 				);
 				continue;
 			}
@@ -2406,7 +2406,7 @@ export async function setupPappardellLayout(): Promise<PaneLayout | null> {
 				: `Horizontal layout: list=${layout.listWidth}, agent=${layout.agentWidth}, companion=${layout.companionWidth}`,
 		);
 		log.info(
-			`Set up pappardelle layout: list=${listPaneId}, agent=${agentViewerPaneId}, companion=${
+			`Set up lasagna layout: list=${listPaneId}, agent=${agentViewerPaneId}, companion=${
 				companionViewerPaneId || '(none)'
 			}`,
 		);
@@ -2431,7 +2431,7 @@ export async function setupPappardellLayout(): Promise<PaneLayout | null> {
 		return {listPaneId, agentViewerPaneId, companionViewerPaneId};
 	} catch (err) {
 		log.error(
-			'Failed to set up pappardelle layout',
+			'Failed to set up lasagna layout',
 			err instanceof Error ? err : undefined,
 		);
 		done?.('failed');

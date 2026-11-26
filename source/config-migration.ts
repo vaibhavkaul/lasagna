@@ -868,7 +868,7 @@ export function buildConfigFixPrompt(
 		return layer ? deprecationWarnings(layer, file.label, agentProfiles) : [];
 	});
 	return [
-		`My pappardelle config still uses deprecated settings, and pappardelle couldn't rewrite it automatically: ${reason}.`,
+		`My pappardelle config still uses deprecated settings, and lasagna couldn't rewrite it automatically: ${reason}.`,
 		'',
 		[
 			'Config files, lowest priority first; they deep-merge in this order',
@@ -883,7 +883,7 @@ export function buildConfigFixPrompt(
 		'',
 		'Rewrite them so no claude.initialization_command, claude.model, claude.effort or claude.extra_args remain, no initialization_command starts with /, and every profile launches with exactly the same command, args, model, effort and initial prompt as today:',
 		'- claude.initialization_command becomes initialization_command at the same level',
-		"- initialization_command names a skill without its prefix (`/idow` becomes `idow`); pappardelle adds the agent profile's skill_prefix at launch",
+		"- initialization_command names a skill without its prefix (`/idow` becomes `idow`); lasagna adds the agent profile's skill_prefix at launch",
 		'- a space launches the agent profile its profile selects (profiles.<name>.agent_profile, else the top-level agent_profile, else the built-in claude agent profile `command: claude`)',
 		"- an agent profile's own model/effort always win, an empty string included; claude.model/effort only fill in for claude agent profiles (command claude, or is_claude: true) that leave them unset, and other CLIs never read them",
 		"- profiles.<name>.claude.* beat the top-level claude.* for that profile; extra_args (profile list over top-level list) are appended after the agent profile's args and after the flags rendered from model/effort, so an extra arg repeating --model or --effort wins today; keep that value",

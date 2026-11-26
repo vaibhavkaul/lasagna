@@ -1607,7 +1607,7 @@ export default function App({
 					const exitCode = await runConfigFix(reason, command =>
 						runCommandPopup(command, {
 							cwd: process.cwd(),
-							title: ' Fix pappardelle config ',
+							title: ' Fix lasagna config ',
 						}),
 					);
 					if (exitCode !== 0) {

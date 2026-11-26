@@ -1126,7 +1126,7 @@ workspace_aware_agents?: boolean;
 ```
 
 - **On:**
-  - the pappardelle MCP server serves its tools (`companion_*`, `space_*`, `spaces_list`, `link_pr` and the rest) in this repo
+  - the lasagna MCP server serves its tools (`companion_*`, `space_*`, `spaces_list`, `link_pr` and the rest) in this repo
   - the server's instructions tell each agent which space it's in, to keep the companion showing its work, and how to message other spaces
   - Codex and Pi get the same companion rules at launch, and agy gets them in a rule file in its worktree
 - **Off:** the server serves nothing in this repo, as if it weren't a Pappardelle repo, and agents launch without the rules. The `lasagna` CLI verbs work either way
@@ -1146,7 +1146,7 @@ sous_chef?: boolean;
 
 - The main checkout's Claude agent launches as `sous-chef` with `/sous-chef` as its first prompt, so it opens on the board. A resumed conversation gets the prompt too
 - The rail and the agent pane's frame show the main space as `sous-chef`. The CLI and MCP tools still take the key `main`
-- The pappardelle MCP server tells a session in the repo but outside any space to keep the other spaces moving: watch them with `space_watch`, bring each prompt and question to you, and answer on your word
+- The lasagna MCP server tells a session in the repo but outside any space to keep the other spaces moving: watch them with `space_watch`, bring each prompt and question to you, and answer on your word
 - It tells agents inside a space they can reach the coordinator with SendMessage to `sous-chef`
 - The launch applies when the TUI next starts the main checkout's agent session. To apply it now, end that session (`/exit`, then `exit` in the shell left behind) and select the main row again
 - Put your own instructions for the sous-chef in `SOUS-CHEF.md` at the main checkout's root, such as which spaces to prioritize, what it may approve without asking, or how to report. `/sous-chef` reads it first and follows it over its own routine, and the MCP instructions point the sous-chef at it so it still applies after the conversation is compacted. Commit it to share it, or leave it untracked to keep it to yourself

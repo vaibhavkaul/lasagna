@@ -8,7 +8,22 @@ Where Pappardelle is one wide noodle, Lasagna stacks many layers. This fork is w
 - **Cloud workspaces**: sessions that run on remote boxes as well as your machine.
 - **A server for client agents**: so other agents and clients can drive and watch workspaces.
 
-This is early work. Everything below is still Pappardelle's documentation and is being adapted as the fork changes. Pappardelle is MIT licensed and its copyright notice is kept in [LICENSE](LICENSE).
+**Lasagna installs beside Pappardelle, and the two can run at the same time.** Everything they could share has Lasagna's own name:
+
+| What                  | Lasagna                                                  | Pappardelle                         |
+| --------------------- | -------------------------------------------------------- | ----------------------------------- |
+| Command               | `lasagna` (`idow` is not linked into `~/.local/bin`)     | `pappardelle`, `idow`               |
+| Install, state, logs  | `~/.lasagna/`                                            | `~/.pappardelle/`                   |
+| Worktrees             | `~/.lasagna/worktrees/<repo>/<KEY>`                      | `~/.worktrees/<repo>/<KEY>`         |
+| tmux                  | socket `lasagna_inner`, sessions `lasagna-<repo>`        | `pappardelle_inner`, `pappardelle-` |
+| Plugin and MCP server | `lasagna` in `lasagna-marketplace`                       | `pappardelle`                       |
+| Skills                | `/init-lasagna`, `/update-lasagna`, `/configure-lasagna` | `/init-pappardelle`, …              |
+| Environment variables | `LASAGNA_*`                                              | `PAPPARDELLE_*`                     |
+| Workspace setup logs  | `~/Library/Logs/lasagna/`                                | `~/Library/Logs/stardust-workspace` |
+
+The config files keep Pappardelle's names and format: a repo's `.pappardelle.yml` and `.pappardelle.local.yml` are read as they are, and the home config is `~/.lasagna/.pappardelle.yml`.
+
+This is early work. Everything below is still Pappardelle's documentation and is being adapted as the fork changes: the commands, paths and names in it are Lasagna's, the prose still says Pappardelle. Pappardelle is MIT licensed and its copyright notice is kept in [LICENSE](LICENSE).
 
 ---
 
@@ -340,7 +355,7 @@ Pappardelle is configured via a `.pappardelle.yml` file at your repo root. The k
 
 - **Issue watchlist** — Auto-discover issues assigned to you and spawn workspaces for them. Pappardelle polls your issue tracker and creates workspaces for new matching issues. Filter by status, labels, or `key_prefixes` (e.g. watch `STA-*` but not `WAB-*` when one account spans multiple workspaces), and cap how many workspaces a watchlist keeps open with `max_workspaces`. A profile can also declare its own `issue_watchlist`, polled _in addition_ to the top-level one and auto-scoped to that profile's `team_prefix` — so you can watch one status everywhere and a bespoke status (e.g. "For Pappardelle") for a single project.
 - **Auto-remove when done** — Opt-in flag (`auto_remove_when_done: true`) that drops a space from the rail as soon as the tracker reports its issue as completed or canceled. Same teardown as pressing `d`; the on-disk worktree is left untouched. Leave the flag off and press `K` instead to clear the finished spaces on demand, behind a confirm dialog.
-- **Workspace-aware agents** — Opt-in flag (`workspace_aware_agents: true`) that gives agents the pappardelle MCP tools and the rules for keeping the companion showing their work. Off, the MCP server serves nothing in the repo.
+- **Workspace-aware agents** — Opt-in flag (`workspace_aware_agents: true`) that gives agents the lasagna MCP tools and the rules for keeping the companion showing their work. Off, the MCP server serves nothing in the repo.
 - **Sous-chef mode** — Opt-in flag (`sous_chef: true`, needs `workspace_aware_agents`) that runs the main checkout's agent as the sous-chef: it launches as `sous-chef` with `/sous-chef` as its first prompt, the rail shows it as sous-chef, and it watches the other spaces and brings their prompts and questions to you. Give it house rules in a `SOUS-CHEF.md` at the repo root.
 - **Issue status colors** — Optional `state_colors:` map that overrides the ticket-rail color for named issue statuses (hex or an ANSI color name). Off by default, so the rail keeps the tracker's own colors. Most useful on Jira, where one color often covers both "In Progress" and "In Review". In Review is purple by default on every tracker.
 - **Status groups** — Optional `list_view.group_by: status` groups the rail under status headers below the agent spaces: In Progress, In Review and Done, or groups of your own from `list_view.groups`.
