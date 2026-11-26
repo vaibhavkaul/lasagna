@@ -20,6 +20,7 @@ import {
 	createCompanionSplit,
 	defaultInnerTmuxRunner,
 	exactSessionTarget,
+	SERVER_GONE,
 	type OuterTmuxRunner,
 } from './tmux.ts';
 import {runWorkspaceSetup} from './workspace-startup.ts';
@@ -33,15 +34,26 @@ const HANDOFF_TURNS = 5;
 /**
  * End every session a space's identity names: its agent's (under the old
  * name too), its companion's and the companion's splits. A space with no
- * session running has none to end, which is not a failure.
+ * session running has none to end, which is not a failure. Whether it is
+ * true is what lets the space's worktree be moved, so a tmux that did not
+ * answer counts as sessions still running.
  */
 export function endIdentitySessions(
 	identity: SpaceIdentity,
 	run: OuterTmuxRunner = defaultInnerTmuxRunner,
 ): boolean {
 	const listed = run(['list-sessions', '-F', '#{session_name}']);
-	// No server answers when no session is running on it.
-	if (listed.error || listed.status !== 0) return true;
+	if (listed.error || listed.status !== 0) {
+		// With no session running there is no server, and tmux says so. Any
+		// other failure (it could not be run, it timed out) says nothing of
+		// what is running.
+		return (
+			!listed.error &&
+			listed.status !== null &&
+			SERVER_GONE.test(listed.stderr ?? '')
+		);
+	}
+
 	const {agentSession, companionSession} = identity.tmux;
 	const own = new Set([
 		agentSession,

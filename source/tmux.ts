@@ -975,7 +975,7 @@ async function awaitViewerClientTty(
 // What tmux prints when no server is behind the socket. A server exits when
 // its last session is killed, and a command that reaches it on its way out
 // gets the third.
-const SERVER_GONE =
+export const SERVER_GONE =
 	/^(?:no server running on |error connecting to .* \(No such file or directory\)|server exited unexpectedly)/m;
 
 /**
