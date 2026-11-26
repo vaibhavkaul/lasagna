@@ -12,6 +12,7 @@ import {
 	renderTicketClaudeMd,
 	repoPrRules,
 	rerootRule,
+	unsharedModes,
 	writeTicketFiles,
 	type TicketRepoFacts,
 } from './ticket-files.ts';
@@ -140,6 +141,25 @@ test('a repo whose worktree could not be moved in is listed where it is', () => 
 	);
 });
 
+test('a mode a repo sets for itself and the folder leaves out is said, by repo', () => {
+	const ticket = {
+		key: 'B2B-9',
+		folder,
+		workdir: {name: 'work', root: '/code/work'},
+		repos,
+		otherRepos: [],
+	};
+	expect(renderTicketClaudeMd(ticket)).not.toContain('Permission mode');
+	expect(
+		renderTicketClaudeMd({
+			...ticket,
+			unsharedModes: [{repo: 'tts-business', mode: 'bypassPermissions'}],
+		}),
+	).toContain(
+		"- Permission mode: tts-business's own settings start its agent in `bypassPermissions`. This folder does not: a mode set here would cover every repo in it, and not every repo sets that one.",
+	);
+});
+
 test('inlined rules keep code blocks and URLs as they are', () => {
 	const text = [
 		'## Setup',
@@ -223,6 +243,7 @@ test("a file rule anchored at the repo gains the repo's directory; other rules a
 test("the lead agent's settings are every repo's permissions, and no repo's hooks or env", () => {
 	const merged = mergeRepoSettings([
 		{
+			name: 'tts-business',
 			dir: 'tts-business',
 			worktreePath: '/t/tts-business',
 			settings: [
@@ -245,6 +266,7 @@ test("the lead agent's settings are every repo's permissions, and no repo's hook
 			],
 		},
 		{
+			name: 'appian-server',
 			dir: 'appian-server',
 			worktreePath: '/t/appian-server',
 			settings: [
@@ -272,7 +294,7 @@ test("the lead agent's settings are every repo's permissions, and no repo's hook
 			deny: ['Read(./tts-business/.env)'],
 			ask: ['Bash(git push:*)'],
 			additionalDirectories: ['/t/shared'],
-			// Every repo that chose a mode chose this one.
+			// Every repo chose this mode.
 			defaultMode: 'acceptEdits',
 		},
 		enabledPlugins: {'lasagna@lasagna-marketplace': true},
@@ -281,18 +303,40 @@ test("the lead agent's settings are every repo's permissions, and no repo's hook
 	expect(JSON.stringify(merged)).not.toContain('SECRET');
 });
 
-test('repos that disagree on a mode leave it unset, and repos with no settings merge to empty lists', () => {
-	const mode = (defaultMode: string) => ({
-		dir: defaultMode,
-		worktreePath: '/t',
-		settings: [{permissions: {defaultMode}}],
+test('a mode is the ticket\u2019s only when every repo sets it, and repos with no settings merge to empty lists', () => {
+	const repo = (name: string, ...modes: string[]) => ({
+		name,
+		dir: name,
+		worktreePath: `/t/${name}`,
+		settings: modes.map(defaultMode => ({permissions: {defaultMode}})),
 	});
-	expect(
-		mergeRepoSettings([mode('acceptEdits'), mode('bypassPermissions')]),
-	).toEqual({permissions: {allow: [], deny: [], ask: []}});
-	expect(mergeRepoSettings([])).toEqual({
-		permissions: {allow: [], deny: [], ask: []},
+	const none = {permissions: {allow: [], deny: [], ask: []}};
+	const disagree = [
+		repo('api', 'acceptEdits'),
+		repo('web', 'bypassPermissions'),
+	];
+	expect(mergeRepoSettings(disagree)).toEqual(none);
+	expect(unsharedModes(disagree)).toEqual([
+		{repo: 'api', mode: 'acceptEdits'},
+		{repo: 'web', mode: 'bypassPermissions'},
+	]);
+	// One repo that skips every prompt does not make the others skip theirs.
+	const one = [repo('api', 'bypassPermissions'), repo('web')];
+	expect(mergeRepoSettings(one)).toEqual(none);
+	expect(unsharedModes(one)).toEqual([
+		{repo: 'api', mode: 'bypassPermissions'},
+	]);
+	// A repo's personal file has the last word on its own mode.
+	const personal = [
+		repo('api', 'default', 'acceptEdits'),
+		repo('web', 'acceptEdits'),
+	];
+	expect(mergeRepoSettings(personal)).toEqual({
+		permissions: {...none.permissions, defaultMode: 'acceptEdits'},
 	});
+	expect(unsharedModes(personal)).toEqual([]);
+	expect(mergeRepoSettings([])).toEqual(none);
+	expect(unsharedModes([repo('api'), repo('web')])).toEqual([]);
 });
 
 test("a repo's settings are read from its worktree: shared, then personal", () => {
@@ -309,6 +353,7 @@ test("a repo's settings are read from its worktree: shared, then personal", () =
 			worktreePath: path.join(ticket, 'api'),
 		}),
 	).toEqual({
+		name: 'api',
 		dir: 'api',
 		worktreePath: path.join(ticket, 'api'),
 		settings: [

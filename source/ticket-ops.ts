@@ -16,6 +16,7 @@ import {
 	renderTicketClaudeMd,
 	repoPrRules,
 	TICKET_HANDOFF,
+	unsharedModes,
 	writeTicketFiles,
 	type TicketRepoFacts,
 } from './ticket-files.ts';
@@ -272,6 +273,9 @@ export async function writeTicketFolder(
 	const facts = known.flatMap(each => each ?? []);
 	const names = new Set(ticket.repos.map(repo => repo.name));
 	const rules = workdirRules(env.workdir.root);
+	const settings = ticket.repos.map(member =>
+		readRepoSettings(ticket.folder, member),
+	);
 	writeTicketFiles(ticket.folder, {
 		claudeMd: renderTicketClaudeMd({
 			key: ticket.key,
@@ -285,10 +289,9 @@ export async function writeTicketFolder(
 				.filter(name => !names.has(name)),
 			...(rules === undefined ? {} : {rules}),
 			hasHandoff: fs.existsSync(path.join(ticket.folder, TICKET_HANDOFF)),
+			unsharedModes: unsharedModes(settings),
 		}),
-		settings: mergeRepoSettings(
-			ticket.repos.map(member => readRepoSettings(ticket.folder, member)),
-		),
+		settings: mergeRepoSettings(settings),
 	});
 }
 

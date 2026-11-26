@@ -152,6 +152,11 @@ export type TicketClaudeMd = {
 	rules?: {file: string; text: string};
 	/** Set while a plain space's agent hands over to the lead agent. */
 	hasHandoff?: boolean;
+	/**
+	 * The permission modes repos set for themselves that the folder's settings
+	 * leave out, because not every repo sets the same.
+	 */
+	unsharedModes?: ReadonlyArray<{repo: string; mode: string}>;
 };
 
 export function renderTicketClaudeMd(ticket: TicketClaudeMd): string {
@@ -183,6 +188,18 @@ export function renderTicketClaudeMd(ticket: TicketClaudeMd): string {
 		...(ticket.hasHandoff
 			? [
 					`- \`${TICKET_HANDOFF}\` in this folder is what the agent that worked on ${key} before left for you: the issue, its last turns and its diff. Read it first.`,
+				]
+			: []),
+		...((ticket.unsharedModes ?? []).length > 0
+			? [
+					`- Permission mode: ${ticket
+						.unsharedModes!.map(
+							({repo, mode}) =>
+								`${repo}'s own settings start its agent in \`${mode}\``,
+						)
+						.join(
+							'; ',
+						)}. This folder does not: a mode set here would cover every repo in it, and not every repo sets that one. Expect to be asked here for what that mode would have let through.`,
 				]
 			: []),
 		'',
@@ -270,6 +287,8 @@ export function rerootRule(rule: string, dir: string): string {
 }
 
 export type RepoSettings = {
+	/** The repo's name in the work dir. */
+	name: string;
 	/** The repo's directory in the ticket folder. */
 	dir: string;
 	/** Where the repo's worktree is, for the directories it adds by path. */
@@ -285,6 +304,39 @@ function lasagnaPlugins(enabled: unknown): Record<string, unknown> {
 				Object.entries(enabled).filter(([name]) => name.startsWith('lasagna@')),
 			)
 		: {};
+}
+
+/** The mode a repo's own settings start its agent in: the personal file's, else the shared one's. */
+function defaultModeOf(repo: RepoSettings): string | undefined {
+	let mode: string | undefined;
+	for (const file of repo.settings) {
+		const permissions = isRecord(file) ? file['permissions'] : undefined;
+		if (isRecord(permissions) && typeof permissions['defaultMode'] === 'string')
+			mode = permissions['defaultMode'];
+	}
+
+	return mode;
+}
+
+/**
+ * The one mode every repo starts its agent in, if there is one. A mode set
+ * in the folder covers every repo in it, so one that only some repos chose
+ * (`bypassPermissions` in a single repo) is no mode for the ticket.
+ */
+function sharedMode(repos: readonly RepoSettings[]): string | undefined {
+	const [first, ...rest] = repos.map(repo => defaultModeOf(repo));
+	return rest.every(mode => mode === first) ? first : undefined;
+}
+
+/** The modes repos set for themselves that the ticket's settings leave out. */
+export function unsharedModes(
+	repos: readonly RepoSettings[],
+): Array<{repo: string; mode: string}> {
+	if (sharedMode(repos) !== undefined) return [];
+	return repos.flatMap(repo => {
+		const mode = defaultModeOf(repo);
+		return mode === undefined ? [] : [{repo: repo.name, mode}];
+	});
 }
 
 /**
@@ -304,7 +356,6 @@ export function mergeRepoSettings(
 		ask: [],
 	};
 	const directories: string[] = [];
-	const modes = new Set<string>();
 	const plugins: Record<string, unknown> = {};
 	const add = (list: string[], value: string) => {
 		if (!list.includes(value)) list.push(value);
@@ -324,16 +375,13 @@ export function mergeRepoSettings(
 
 				for (const directory of strings(permissions['additionalDirectories']))
 					add(directories, path.resolve(repo.worktreePath, directory));
-				if (typeof permissions['defaultMode'] === 'string')
-					modes.add(permissions['defaultMode']);
 			}
 
 			Object.assign(plugins, lasagnaPlugins(enabledPlugins));
 		}
 	}
 
-	// A mode only some repos chose is nobody's choice for the whole ticket.
-	const [mode] = modes.size === 1 ? [...modes] : [];
+	const mode = sharedMode(repos);
 	return {
 		permissions: {
 			allow: merged.allow,
@@ -361,6 +409,7 @@ export function readRepoSettings(
 ): RepoSettings {
 	const relative = path.relative(folder, repo.worktreePath);
 	return {
+		name: repo.name,
 		dir:
 			relative.startsWith('..') || path.isAbsolute(relative)
 				? repo.name
