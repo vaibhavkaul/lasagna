@@ -18,7 +18,7 @@ assert.ok(
 	process.argv.includes('--live'),
 	'Pass --live to run interactive Codex',
 );
-const binary = process.env['PAPPARDELLE_CODEX_BIN'] ?? 'codex';
+const binary = process.env['LASAGNA_CODEX_BIN'] ?? 'codex';
 const version = execFileSync(binary, ['--version'], {encoding: 'utf8'}).trim();
 const auth = path.join(
 	process.env['CODEX_HOME'] ?? path.join(homedir(), '.codex'),

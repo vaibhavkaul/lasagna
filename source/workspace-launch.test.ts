@@ -93,7 +93,7 @@ fi
 					...process.env,
 					HOME: root,
 					PATH: `${bin}:${process.env.PATH!}`,
-					PAPPARDELLE_TMUX_SOCKET: 'lasagna_inner',
+					LASAGNA_TMUX_SOCKET: 'lasagna_inner',
 					CLAUDE_TEST_LOG: log,
 					CLAUDE_TEST_RESUME_EXIT: scenario.resume ? '0' : '1',
 				},

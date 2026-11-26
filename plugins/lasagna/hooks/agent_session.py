@@ -8,8 +8,8 @@ the id is what keeps each space on its own conversation. The ids get a file of
 their own, beside the space-state file the TUI rewrites after every rail poll,
 so neither writer can drop the other's update.
 
-The space is the one the tmux session's PAPPARDELLE_REPO and PAPPARDELLE_SPACE
-name. The main space's sessions have no PAPPARDELLE_SPACE (buildSessionEnvArgs
+The space is the one the tmux session's LASAGNA_REPO and LASAGNA_SPACE
+name. The main space's sessions have no LASAGNA_SPACE (buildSessionEnvArgs
 in source/spawn-env.ts), so a repo without a space is main. The space's record
 says which agent profile its agent session was last started with and whether
 it is a claude one (SpaceState.agentProfile in source/space-state.ts), and the
@@ -111,10 +111,10 @@ class PaneSession(NamedTuple):
 
 
 def env_space(environ: Mapping[str, str]) -> Optional[Space]:
-    repo = environ.get("PAPPARDELLE_REPO", "").strip()
+    repo = environ.get("LASAGNA_REPO", "").strip()
     if not repo:
         return None
-    return Space(repo, environ.get("PAPPARDELLE_SPACE", "").strip() or MAIN_KEY)
+    return Space(repo, environ.get("LASAGNA_SPACE", "").strip() or MAIN_KEY)
 
 
 class Stores:
@@ -260,7 +260,7 @@ def tmux_agent_pane(cwd: str) -> Optional[AgentPane]:
     tmux = shutil.which("tmux")
     if not tmux:
         return None
-    socket = os.environ.get("PAPPARDELLE_TMUX_SOCKET") or "lasagna_inner"
+    socket = os.environ.get("LASAGNA_TMUX_SOCKET") or "lasagna_inner"
 
     def run(*args: str) -> Optional[str]:
         result = subprocess.run(

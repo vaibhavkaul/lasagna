@@ -17,7 +17,7 @@ function pappardelleState(args: string[], home: string) {
 		['-c', 'source "$0"; pappardelle_state "$@"', helper, ...args],
 		{
 			encoding: 'utf8',
-			// No PAPPARDELLE_EXECUTABLE: the helper has to find the binary itself,
+			// No LASAGNA_EXECUTABLE: the helper has to find the binary itself,
 			// as it does when idow is run by hand.
 			env: {
 				PATH: process.env['PATH'],
@@ -144,7 +144,7 @@ test('prepare-space stores an issue title that starts with a dash', () => {
 			env: {
 				...process.env,
 				HOME: home,
-				PAPPARDELLE_STATE_DB: path.join(stateDir, 'state.db'),
+				LASAGNA_STATE_DB: path.join(stateDir, 'state.db'),
 			},
 		},
 	);
@@ -172,7 +172,7 @@ test("launch-agent records the agent profile a space's agent session starts with
 				env: {
 					...process.env,
 					HOME: home,
-					PAPPARDELLE_STATE_DB: path.join(stateDir, 'state.db'),
+					LASAGNA_STATE_DB: path.join(stateDir, 'state.db'),
 				},
 			},
 		);
@@ -268,7 +268,7 @@ test('prepare-space --register without an owner records nothing', () => {
 			env: {
 				...process.env,
 				HOME: home,
-				PAPPARDELLE_STATE_DB: path.join(stateDir, 'state.db'),
+				LASAGNA_STATE_DB: path.join(stateDir, 'state.db'),
 			},
 		},
 	);

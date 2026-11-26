@@ -38,7 +38,7 @@ try {
 		compile: nativeCompileOptions(destination),
 		bytecode: true,
 		define: {
-			PAPPARDELLE_COMPILED: 'true',
+			LASAGNA_COMPILED: 'true',
 			'process.env.NODE_ENV': JSON.stringify('production'),
 			...(process.platform === 'linux'
 				? {'process.env.OPENTUI_LIBC': JSON.stringify('glibc')}

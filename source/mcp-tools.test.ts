@@ -165,7 +165,7 @@ test('space_get maps onto space get, and all onto space list', async () => {
 				checkout: {repoName: state.repo, mainRoot: '/repo'},
 			}),
 			daos: () => state.daos,
-			env: {PAPPARDELLE_SPACE: 'STA-1'},
+			env: {LASAGNA_SPACE: 'STA-1'},
 			cwd: '/',
 			runner: () => ({status: 1, stdout: ''}),
 			gitBranch: async () => null,

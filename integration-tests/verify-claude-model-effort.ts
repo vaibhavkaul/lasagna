@@ -274,7 +274,7 @@ function main() {
 					// real claude ahead of the shim, and keeps the pre-trust write out
 					// of the real ~/.claude.json.
 					HOME: shimHome,
-					PAPPARDELLE_TMUX_SOCKET: socket,
+					LASAGNA_TMUX_SOCKET: socket,
 				},
 			},
 		);
@@ -372,7 +372,7 @@ function main() {
 			],
 			{
 				encoding: 'utf-8',
-				env: {...process.env, PAPPARDELLE_TMUX_SOCKET: innerSocket},
+				env: {...process.env, LASAGNA_TMUX_SOCKET: innerSocket},
 			},
 		)
 			.split('\n')[0]!
@@ -438,11 +438,11 @@ function main() {
 					'--effort',
 					'low',
 					'--print',
-					'Reply with exactly: PAPPARDELLE_OK',
+					'Reply with exactly: LASAGNA_OK',
 				],
 				{encoding: 'utf-8', timeout: 120_000},
 			);
-			if (out.includes('PAPPARDELLE_OK')) {
+			if (out.includes('LASAGNA_OK')) {
 				pass(`claude --model sonnet --effort low → ${out.trim().slice(0, 60)}`);
 			} else {
 				fail(`unexpected reply from live claude: ${out.trim().slice(0, 200)}`);

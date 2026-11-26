@@ -226,8 +226,8 @@ def agent_session_name(key: str) -> str:
 def launch(key: str = "STA-1", agent_profile: str = "codex", is_claude: bool = False) -> None:
     """Store what Pappardelle stores when it starts the space's agent session,
     in this run's mode: the space's identity and the agent profile it started."""
-    if os.environ.get("PAPPARDELLE_SQLITE_STATE") == "1":
-        connection = sqlite3.connect(os.environ["PAPPARDELLE_STATE_DB"])
+    if os.environ.get("LASAGNA_SQLITE_STATE") == "1":
+        connection = sqlite3.connect(os.environ["LASAGNA_STATE_DB"])
         try:
             connection.execute(
                 """INSERT OR IGNORE INTO space_identities
@@ -253,11 +253,11 @@ def launch(key: str = "STA-1", agent_profile: str = "codex", is_claude: bool = F
 
 def env_for(key: str = "STA-1") -> dict[str, str]:
     """The space variables of a space's sessions. Main's name no space."""
-    return {"PAPPARDELLE_REPO": "repo", **({} if key == "main" else {"PAPPARDELLE_SPACE": key})}
+    return {"LASAGNA_REPO": "repo", **({} if key == "main" else {"LASAGNA_SPACE": key})}
 
 
 def in_agent_pane(environ) -> PaneSession:
-    return PaneSession(agent_session_name(environ.get("PAPPARDELLE_SPACE") or "main"), True)
+    return PaneSession(agent_session_name(environ.get("LASAGNA_SPACE") or "main"), True)
 
 
 def record(payload, is_claude: bool, env, table, pane_for_cwd=None, session=None, **kwargs) -> bool:
@@ -723,7 +723,7 @@ def tmux_server(monkeypatch: pytest.MonkeyPatch):
     tmpdir = tempfile.mkdtemp(prefix="pt-tmux-", dir="/tmp")
     monkeypatch.setenv("TMUX_TMPDIR", tmpdir)
     monkeypatch.delenv("TMUX", raising=False)
-    monkeypatch.setenv("PAPPARDELLE_TMUX_SOCKET", "agent-session-test")
+    monkeypatch.setenv("LASAGNA_TMUX_SOCKET", "agent-session-test")
 
     def tmux(*args: str) -> None:
         subprocess.run(["tmux", "-L", "agent-session-test", *args], check=True, capture_output=True)
@@ -738,15 +738,15 @@ def test_the_space_comes_from_the_agent_session_holding_the_cwd(
 ):
     # Without the database the space is the one named by the agent session
     # started nearest cwd.
-    monkeypatch.setenv("PAPPARDELLE_SQLITE_STATE", "0")
+    monkeypatch.setenv("LASAGNA_SQLITE_STATE", "0")
     for key in ("STA-1", "STA-12", "main"):
         worktree = tmp_path / key
         (worktree / "sub").mkdir(parents=True)
         for kind in ("agent", "companion"):
-            space = [] if key == "main" else ["-e", f"PAPPARDELLE_SPACE={key}"]
+            space = [] if key == "main" else ["-e", f"LASAGNA_SPACE={key}"]
             tmux_server(
                 "new-session", "-d", "-s", f"{kind}-repo-{key}", "-c", str(worktree),
-                "-e", "PAPPARDELLE_REPO=repo", *space,
+                "-e", "LASAGNA_REPO=repo", *space,
             )  # fmt: skip
 
     pane = agent_session.tmux_agent_pane(str(tmp_path / "STA-1" / "sub"))
@@ -904,7 +904,7 @@ def test_a_locked_database_still_gets_the_file_written(state_db: Path, sessions_
 def test_with_the_flag_off_the_database_is_left_alone(
     state_db: Path, sessions_file: Path, monkeypatch: pytest.MonkeyPatch
 ):
-    monkeypatch.setenv("PAPPARDELLE_SQLITE_STATE", "0")
+    monkeypatch.setenv("LASAGNA_SQLITE_STATE", "0")
     launch()
     assert record(payload(), False, env_for(), lambda: TOP_LEVEL_CODEX)
     assert recorded(sessions_file) == {"codex": "01a117bd-5978"}

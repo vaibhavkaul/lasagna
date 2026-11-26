@@ -232,7 +232,7 @@ export function setDefaultStateDbPathForTests(
 
 /**
  * Where the database lives. An explicit state directory (a test's temp
- * directory) always holds its own; PAPPARDELLE_STATE_DB moves the default one.
+ * directory) always holds its own; LASAGNA_STATE_DB moves the default one.
  */
 export function stateDbPath(
 	stateDir?: string,
@@ -252,8 +252,8 @@ const STATUS_SOCKET_NAME = 'status-1.sock';
 
 /**
  * Where the status daemon listens: beside the database, so whatever moves the
- * database (a test's temp directory, PAPPARDELLE_STATE_DB) moves the daemon
- * with it. PAPPARDELLE_STATUS_SOCKET names another place, except that an
+ * database (a test's temp directory, LASAGNA_STATE_DB) moves the daemon
+ * with it. LASAGNA_STATUS_SOCKET names another place, except that an
  * explicit state directory always holds its own socket, as it does its own
  * database.
  */

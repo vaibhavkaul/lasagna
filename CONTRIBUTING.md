@@ -51,11 +51,11 @@ pip install pytest
 pytest plugins/lasagna/hooks/ -v
 ```
 
-State can live in JSON files or, with `experimental.sqliteState`, in SQLite with the files kept beside it. With the flag on, hook status and program status are stored nowhere: they go through the status daemon, which keeps them in memory. CI runs every suite both ways. `PAPPARDELLE_SQLITE_STATE=1` selects the second for a run, and each test process then gets a database and a status socket of its own, never yours:
+State can live in JSON files or, with `experimental.sqliteState`, in SQLite with the files kept beside it. With the flag on, hook status and program status are stored nowhere: they go through the status daemon, which keeps them in memory. CI runs every suite both ways. `LASAGNA_SQLITE_STATE=1` selects the second for a run, and each test process then gets a database and a status socket of its own, never yours:
 
 ```bash
-PAPPARDELLE_SQLITE_STATE=1 bun run test:unit
-PAPPARDELLE_SQLITE_STATE=1 pytest plugins/lasagna/hooks/ -v
+LASAGNA_SQLITE_STATE=1 bun run test:unit
+LASAGNA_SQLITE_STATE=1 pytest plugins/lasagna/hooks/ -v
 ```
 
 The hook tests need `bun` on `PATH` for that run: the CLI creates the database they write to.

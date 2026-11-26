@@ -266,7 +266,7 @@ test('session names and targets encode dots and underscores, and name main', asy
 });
 
 test('a socket path is passed with -S', async () => {
-	const state = stateOf({env: {PAPPARDELLE_TMUX_SOCKET: '/tmp/inner.sock'}});
+	const state = stateOf({env: {LASAGNA_TMUX_SOCKET: '/tmp/inner.sock'}});
 	await openSpace(state, 'STA-1', {socket: '/tmp/inner.sock'});
 	const result = await run(
 		['get', 'STA-1', '--field', 'tmux.socketFlag', '--field', 'tmux.socket'],
@@ -386,7 +386,7 @@ contractTest(
 	},
 );
 
-test('a space named by PAPPARDELLE_SPACE belongs to PAPPARDELLE_REPO, not the nested checkout', async () => {
+test('a space named by LASAGNA_SPACE belongs to LASAGNA_REPO, not the nested checkout', async () => {
 	const outer = stateOf({repo: 'repo'});
 	const nested = stateOf({repo: 'nested'});
 	await openSpace(outer, 'STA-1');
@@ -399,7 +399,7 @@ test('a space named by PAPPARDELLE_SPACE belongs to PAPPARDELLE_REPO, not the ne
 				checkout: {repoName: 'nested', mainRoot: MAIN_ROOT},
 			}),
 			daos: repo => (repo === 'repo' ? outer.daos : nested.daos),
-			env: {PAPPARDELLE_SPACE: 'STA-1', PAPPARDELLE_REPO: 'repo'},
+			env: {LASAGNA_SPACE: 'STA-1', LASAGNA_REPO: 'repo'},
 		}),
 	);
 	expect(JSON.parse(result.stdout)).toStrictEqual({
@@ -409,7 +409,7 @@ test('a space named by PAPPARDELLE_SPACE belongs to PAPPARDELLE_REPO, not the ne
 	});
 });
 
-test('with no key and no PAPPARDELLE_SPACE, the space is the worktree the caller is in', async () => {
+test('with no key and no LASAGNA_SPACE, the space is the worktree the caller is in', async () => {
 	const home = fs.realpathSync(
 		fs.mkdtempSync(path.join(os.tmpdir(), 'space-home-')),
 	);
@@ -496,7 +496,7 @@ test('a space closed before identities were stored has no names', async () => {
 	});
 });
 
-test('outside a git checkout, get with a key or PAPPARDELLE_SPACE and list exit 1 with one line', async () => {
+test('outside a git checkout, get with a key or LASAGNA_SPACE and list exit 1 with one line', async () => {
 	const state = stateOf();
 	await openSpace(state, 'STA-1');
 	const outside = {checkout: () => ({kind: 'not-in-a-repo'}) as const};
@@ -512,7 +512,7 @@ test('outside a git checkout, get with a key or PAPPARDELLE_SPACE and list exit 
 	expect(
 		await run(
 			['get'],
-			deps(state, {...outside, env: {PAPPARDELLE_SPACE: 'STA-1'}}),
+			deps(state, {...outside, env: {LASAGNA_SPACE: 'STA-1'}}),
 		),
 	).toStrictEqual(expected);
 	expect(await run(['list'], deps(state, outside))).toStrictEqual(expected);
@@ -759,8 +759,8 @@ profiles:
 					env: {
 						...process.env,
 						HOME: home,
-						PAPPARDELLE_PROJECT_ROOT: repo,
-						PAPPARDELLE_MAIN_REPO_ROOT: repo,
+						LASAGNA_PROJECT_ROOT: repo,
+						LASAGNA_MAIN_REPO_ROOT: repo,
 					},
 					stdio: ['ignore', 'pipe', 'pipe'],
 				},

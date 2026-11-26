@@ -48,9 +48,9 @@ profiles:
 	const inherited = Object.fromEntries(
 		Object.entries(process.env).filter(
 			([name]) =>
-				name === 'PAPPARDELLE_SQLITE_STATE' ||
-				name === 'PAPPARDELLE_STATUS_SOCKET' ||
-				!/^(TMUX|PAPPARDELLE_)/.test(name),
+				name === 'LASAGNA_SQLITE_STATE' ||
+				name === 'LASAGNA_STATUS_SOCKET' ||
+				!/^(TMUX|LASAGNA_)/.test(name),
 		),
 	) as Record<string, string>;
 	const env: Record<string, string> = {
@@ -146,7 +146,7 @@ test('spaces_list answers from the CLI in a configured repo', async () => {
 	).toStrictEqual([['STE-1', 'agent-project-STE-1']]);
 });
 
-test('with no PAPPARDELLE_SPACE, the worktree path names the space for the server and the CLI', async () => {
+test('with no LASAGNA_SPACE, the worktree path names the space for the server and the CLI', async () => {
 	const f = fixture();
 	const git = (...args: string[]) =>
 		spawnSync(
@@ -273,7 +273,7 @@ tmuxTest(
 
 		tmux('new-session', '-d', '-s', 'agent-project-KEY-1', '-x', '200', 'cat');
 		prepareSpace(f, 'KEY-1');
-		const client = await connect(f, {PAPPARDELLE_SPACE: 'KEY-1'});
+		const client = await connect(f, {LASAGNA_SPACE: 'KEY-1'});
 		expect(client.getInstructions() ?? '').toMatch(
 			/space KEY-1 \(repo project\)/,
 		);
@@ -400,7 +400,7 @@ tmuxTest(
 		await delay(500);
 		// The sous-chef, which answers for the spaces.
 		const client = await connect(f, {
-			PAPPARDELLE_SPACE: 'main',
+			LASAGNA_SPACE: 'main',
 			PATH: `${bin}:${f.env['PATH'] ?? ''}`,
 		});
 		const call = async (name: string, args: Record<string, unknown>) =>

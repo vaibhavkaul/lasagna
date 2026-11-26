@@ -40,14 +40,10 @@ test('the recorded flag follows the config on, then off', () => {
 test('the override wins for the process that has it and is never recorded', () => {
 	const dir = stateDir();
 	recordSqliteState(false, dir);
-	expect(readResolvedSqliteState(dir, {PAPPARDELLE_SQLITE_STATE: '1'})).toBe(
-		true,
-	);
+	expect(readResolvedSqliteState(dir, {LASAGNA_SQLITE_STATE: '1'})).toBe(true);
 	expect(fs.existsSync(path.join(dir, 'state-flag.json'))).toBe(false);
 
 	recordSqliteState(true, dir);
-	expect(readResolvedSqliteState(dir, {PAPPARDELLE_SQLITE_STATE: '0'})).toBe(
-		false,
-	);
+	expect(readResolvedSqliteState(dir, {LASAGNA_SQLITE_STATE: '0'})).toBe(false);
 	expect(recorded(dir).sqliteState).toBe(true);
 });

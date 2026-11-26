@@ -4,7 +4,7 @@
 #
 # Usage: open-default-terminal-agent.sh --worktree <path> --issue-key <key> --repo-name <name> --agent-session <name> --companion-session <name> [options]
 #
-# The session names and PAPPARDELLE_TMUX_SOCKET are the ones `lasagna space
+# The session names and LASAGNA_TMUX_SOCKET are the ones `lasagna space
 # get` reports for the space.
 #
 # The last rung of idow's step 9, reached when the terminal is one Pappardelle
@@ -79,8 +79,8 @@ if [[ -z "$TMUX_SESSION" || -z "$COMPANION_SESSION" ]]; then
     exit 1
 fi
 
-if [[ -z "${PAPPARDELLE_TMUX_SOCKET:-}" ]]; then
-    echo "Error: PAPPARDELLE_TMUX_SOCKET is required: idow exports the space's socket from lasagna space get" >&2
+if [[ -z "${LASAGNA_TMUX_SOCKET:-}" ]]; then
+    echo "Error: LASAGNA_TMUX_SOCKET is required: idow exports the space's socket from lasagna space get" >&2
     exit 1
 fi
 
@@ -143,7 +143,7 @@ if [[ "$PRINT_LAUNCH_FLAGS" == true ]]; then
     exit 0
 fi
 
-TMUX_L="tmux -L ${PAPPARDELLE_TMUX_SOCKET}"
+TMUX_L="tmux -L ${LASAGNA_TMUX_SOCKET}"
 
 # $AGENT_CMD, $AGENT_FLAGS, $AGENT_NAME and $AGENT_RESUME stay literal here: the
 # pane shell expands them after the values have crossed this script unparsed,

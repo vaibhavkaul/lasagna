@@ -25,7 +25,7 @@ import type {StateDaos} from './state-daos.ts';
 import {processIsAlive, type TuiMarkerDao} from './tui-marker.ts';
 
 export interface CompanionCommandDeps {
-	/** Resolves --space (or $PAPPARDELLE_SPACE when undefined) to a key. */
+	/** Resolves --space (or $LASAGNA_SPACE when undefined) to a key. */
 	resolveSpace: (flag: string | undefined) => string;
 	/** The repo's stores, built once they are used so --help works outside a repo. */
 	daos: () => Pick<

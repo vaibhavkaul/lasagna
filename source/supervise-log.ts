@@ -49,12 +49,12 @@ export type Caller = string;
 
 /**
  * Who is acting, from the session's environment. The main space's session
- * has no PAPPARDELLE_SPACE, since its checkout changes branch, but every
- * space's session carries PAPPARDELLE_REPO.
+ * has no LASAGNA_SPACE, since its checkout changes branch, but every
+ * space's session carries LASAGNA_REPO.
  */
 export function callerFromEnv(env: NodeJS.ProcessEnv): Caller {
-	if (env['PAPPARDELLE_SPACE']) return env['PAPPARDELLE_SPACE'];
-	return env['PAPPARDELLE_REPO'] ? MAIN_WORKTREE_KEY : 'user';
+	if (env['LASAGNA_SPACE']) return env['LASAGNA_SPACE'];
+	return env['LASAGNA_REPO'] ? MAIN_WORKTREE_KEY : 'user';
 }
 
 export function superviseLogPath(

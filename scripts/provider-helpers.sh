@@ -67,8 +67,8 @@ get_issue_tracker_provider() {
 # instead of whatever copy its branch happens to carry.
 beads_repo_root() {
     local common_dir
-    if [[ -n "${PAPPARDELLE_MAIN_REPO_ROOT:-}" ]]; then
-        echo "$PAPPARDELLE_MAIN_REPO_ROOT"
+    if [[ -n "${LASAGNA_MAIN_REPO_ROOT:-}" ]]; then
+        echo "$LASAGNA_MAIN_REPO_ROOT"
         return
     fi
     common_dir=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || {

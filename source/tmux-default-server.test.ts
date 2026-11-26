@@ -41,7 +41,7 @@ test('inner identity uses the selected named or absolute socket from its supplie
 			TMUX: `${socket},1,0`,
 			TMUX_PANE: '%7',
 			TMUX_TMPDIR: root,
-			PAPPARDELLE_TMUX_SOCKET: selected,
+			LASAGNA_TMUX_SOCKET: selected,
 		};
 		expect(isOnInnerServer(env)).toBe(true);
 		expect(
@@ -50,7 +50,7 @@ test('inner identity uses the selected named or absolute socket from its supplie
 				stdout: 'agent-repo-TEST-1\n',
 			})),
 		).toBe('agent-repo-TEST-1');
-		expect(isOnInnerServer({...env, PAPPARDELLE_TMUX_SOCKET: 'another'})).toBe(
+		expect(isOnInnerServer({...env, LASAGNA_TMUX_SOCKET: 'another'})).toBe(
 			false,
 		);
 	}

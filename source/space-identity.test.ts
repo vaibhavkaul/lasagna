@@ -28,7 +28,7 @@ function fixture(sqlite?: boolean, repo?: string) {
 		sqlite,
 		...(repo === undefined ? {} : {repo}),
 		home,
-		env: {PAPPARDELLE_TMUX_SOCKET: SOCKET},
+		env: {LASAGNA_TMUX_SOCKET: SOCKET},
 		mainRoot: () => mainRoot,
 	});
 	const identity = (key: string): SpaceIdentity =>
@@ -162,9 +162,9 @@ test('a space whose worktree is not where idow puts them is found where it is', 
 			encoding: 'utf8',
 			env: {
 				...process.env,
-				PAPPARDELLE_SQLITE_STATE: '1',
-				PAPPARDELLE_STATE_DB: stateDbPath(f.state.stateDir),
-				PAPPARDELLE_TMUX_SOCKET: SOCKET,
+				LASAGNA_SQLITE_STATE: '1',
+				LASAGNA_STATE_DB: stateDbPath(f.state.stateDir),
+				LASAGNA_TMUX_SOCKET: SOCKET,
 			},
 		},
 	);
@@ -231,7 +231,7 @@ test('importing another repo from an unrelated checkout does not seed main with 
 		repo: 'target-repo',
 		sqlite: true,
 		home,
-		env: {PAPPARDELLE_TMUX_SOCKET: SOCKET},
+		env: {LASAGNA_TMUX_SOCKET: SOCKET},
 		mainRoot: () => otherRepo,
 	});
 	fs.writeFileSync(state.registryFile, JSON.stringify(['STA-1']));
@@ -254,7 +254,7 @@ test('importing open-spaces outside a git checkout still seeds main on a later r
 		repo: 'repo',
 		sqlite: true,
 		home,
-		env: {PAPPARDELLE_TMUX_SOCKET: SOCKET},
+		env: {LASAGNA_TMUX_SOCKET: SOCKET},
 		mainRoot() {
 			if (!inCheckout) throw new Error('Not in a git repository');
 			return mainRoot;

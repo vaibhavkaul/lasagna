@@ -50,8 +50,8 @@ REPO_URL="https://github.com/vaibhavkaul/lasagna.git"
 MIN_BUN_VERSION=1.4.4
 BUN_VERSION=1.4.4
 PRIVATE_BUN_DIR="$LASAGNA_DIR/bun"
-BUN_DIST_URL="${PAPPARDELLE_BUN_DIST_URL:-https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}}"
-REPO_URL="${PAPPARDELLE_REPO_URL:-$REPO_URL}"
+BUN_DIST_URL="${LASAGNA_BUN_DIST_URL:-https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}}"
+REPO_URL="${LASAGNA_REPO_URL:-$REPO_URL}"
 
 bun_supported() {
     local version major minor patch min_major min_minor min_patch
@@ -67,7 +67,7 @@ bun_supported() {
 # private runtime. This works from tmux's non-interactive environment too.
 find_bun() {
     local candidate
-    for candidate in "${PAPPARDELLE_BUN:-}" "$(command -v bun 2>/dev/null || true)" \
+    for candidate in "${LASAGNA_BUN:-}" "$(command -v bun 2>/dev/null || true)" \
         "$HOME/.bun/bin/bun" "$PRIVATE_BUN_DIR/current/bun"; do
         [[ -x "$candidate" ]] || continue
         if bun_supported "$candidate"; then
@@ -285,7 +285,7 @@ install_shim() {
 
 # Tests source this file to call the functions above without running the
 # installer.
-if [[ "${PAPPARDELLE_INSTALL_SOURCE_ONLY:-}" == 1 ]]; then
+if [[ "${LASAGNA_INSTALL_SOURCE_ONLY:-}" == 1 ]]; then
     # shellcheck disable=SC2317 # exit is reached only when not sourced
     return 0 2>/dev/null || exit 0
 fi

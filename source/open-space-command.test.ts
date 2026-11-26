@@ -20,7 +20,7 @@ const projectRoot = path.resolve(import.meta.dirname, '..');
 // Long enough for a CLI that has begun to wait for its agent to have tried
 // the status socket once and found nothing there.
 const FIRST_CONNECT_ATTEMPT_MS = 500;
-const useStandalone = process.env['PAPPARDELLE_TEST_STANDALONE'] === '1';
+const useStandalone = process.env['LASAGNA_TEST_STANDALONE'] === '1';
 
 function fixture(provider = 'jira') {
 	const root = tempDir('papp-cli-space-');
@@ -71,8 +71,8 @@ import fs from 'node:fs';
 fs.writeFileSync(process.env.IDOW_TEST_RECORD, JSON.stringify({
   args: process.argv.slice(2),
   cwd: process.cwd(),
-  projectRoot: process.env.PAPPARDELLE_PROJECT_ROOT,
-  mainRepoRoot: process.env.PAPPARDELLE_MAIN_REPO_ROOT,
+  projectRoot: process.env.LASAGNA_PROJECT_ROOT,
+  mainRepoRoot: process.env.LASAGNA_MAIN_REPO_ROOT,
   stdin: fs.readFileSync(0, 'utf8'),
   stdinIsTTY: process.stdin.isTTY ?? false,
 }));
@@ -117,8 +117,8 @@ setTimeout(() => {
 		// The standalone executable unpacks its native libraries here and never
 		// removes them.
 		TMPDIR: root,
-		PAPPARDELLE_PROJECT_ROOT: repo,
-		PAPPARDELLE_MAIN_REPO_ROOT: repo,
+		LASAGNA_PROJECT_ROOT: repo,
+		LASAGNA_MAIN_REPO_ROOT: repo,
 		IDOW_TEST_RECORD: record,
 	};
 	const start = (args: string[], overrides: NodeJS.ProcessEnv = {}) => {
@@ -257,7 +257,7 @@ test('CLI saves a normalized issue from a non-TTY sous-chef invocation', async (
 		await f.existingWorktree('STE-20');
 		const statusDir = path.join(f.root, 'status');
 		const result = await f.run(['--resume', '--wait', 'STE-20'], {
-			PAPPARDELLE_STATUS_DIR: statusDir,
+			LASAGNA_STATUS_DIR: statusDir,
 			IDOW_TEST_STATUS_DIR: statusDir,
 		});
 		expect(result.code, result.stderr).toBe(0);
@@ -316,7 +316,7 @@ test("space_open over MCP keeps idow's output off the protocol channel", async (
 	const env = Object.fromEntries(
 		Object.entries(f.env).filter(
 			(entry): entry is [string, string] =>
-				entry[1] !== undefined && entry[0] !== 'PAPPARDELLE_SPACE',
+				entry[1] !== undefined && entry[0] !== 'LASAGNA_SPACE',
 		),
 	);
 	await client.connect(
@@ -454,15 +454,13 @@ test('CLI warns, and still succeeds, when idow leaves a running agent on its old
 	const f = fixture();
 	const result = await f.run(['--agent-profile', 'claude', 'STE-20'], {
 		IDOW_TEST_OUTPUT:
-			'PAPPARDELLE_AGENT_PROFILE_OVERRIDE=skipped\nWorkspace STE-20 is ready!\n',
+			'LASAGNA_AGENT_PROFILE_OVERRIDE=skipped\nWorkspace STE-20 is ready!\n',
 	});
 	expect(result.code, result.stderr).toBe(0);
 	expect(result.stderr).toMatch(
 		/STE-20: agent already running, claude not applied/,
 	);
-	expect(result.stdout.includes('PAPPARDELLE_AGENT_PROFILE_OVERRIDE')).toBe(
-		false,
-	);
+	expect(result.stdout.includes('LASAGNA_AGENT_PROFILE_OVERRIDE')).toBe(false);
 	expect(result.stdout).toMatch(/Workspace STE-20 is ready!/);
 	expect(f.readRegistry()).toStrictEqual(['STE-20']);
 });

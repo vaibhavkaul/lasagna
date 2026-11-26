@@ -44,7 +44,7 @@ assert_eq() {
 }
 
 # idow exports the space's socket from `lasagna space get`.
-export PAPPARDELLE_TMUX_SOCKET=lasagna_inner
+export LASAGNA_TMUX_SOCKET=lasagna_inner
 
 summarize() {
     echo ""
@@ -169,7 +169,7 @@ cat > "$VIEW_TMP/bin/open" <<'SHIM'
 exec bash "$1"
 SHIM
 chmod +x "$VIEW_TMP/bin/tmux" "$VIEW_TMP/bin/open"
-vrun() { HOME="$VIEW_TMP/home" PATH="$VIEW_TMP/bin:$PATH" SHELL=/bin/sh PAPPARDELLE_TMUX_SOCKET=view_inner "$@"; }
+vrun() { HOME="$VIEW_TMP/home" PATH="$VIEW_TMP/bin:$PATH" SHELL=/bin/sh LASAGNA_TMUX_SOCKET=view_inner "$@"; }
 vtmux() { vrun tmux "$@"; }
 # shellcheck disable=SC2329 # invoked by the EXIT trap
 view_cleanup() { vtmux kill-server 2>/dev/null || true; rm -rf "$VIEW_TMP"; }

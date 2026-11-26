@@ -18,7 +18,7 @@ guard_refuse() {
 	printf '%s\n' "$guard_msg" >&2
 	# Teardowns often discard tmux's exit status, so the test run reads this
 	# log to fail on a refusal.
-	printf '%s\n' "$guard_msg" >>"${PAPPARDELLE_TEST_TMUX_REFUSALS:-$guard_shared_log}"
+	printf '%s\n' "$guard_msg" >>"${LASAGNA_TEST_TMUX_REFUSALS:-$guard_shared_log}"
 	exit 1
 }
 

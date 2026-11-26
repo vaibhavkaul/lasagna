@@ -267,11 +267,11 @@ signal.pause()
                    PATH=str(bin_dir) + os.pathsep + os.environ['PATH'],
                    XDG_CONFIG_HOME=str(home / '.config'), XDG_STATE_HOME=str(home / '.local/state'),
                    XDG_CACHE_HOME=str(home / '.cache'),
-                   TMUX_TMPDIR=str(root), PAPPARDELLE_TMUX_SOCKET='bench-inner')
+                   TMUX_TMPDIR=str(root), LASAGNA_TMUX_SOCKET='bench-inner')
         if startup_trace:
-            env['PAPPARDELLE_STARTUP_TRACE'] = '1'
+            env['LASAGNA_STARTUP_TRACE'] = '1'
         # The fixture's HOME has no config, so the state mode comes from the override.
-        env['PAPPARDELLE_SQLITE_STATE'] = '1' if sqlite_state else '0'
+        env['LASAGNA_SQLITE_STATE'] = '1' if sqlite_state else '0'
         subprocess.run([real_tools['git'], 'init', '-q', '-b', 'main'], cwd=repo, env=env, check=True)
         subprocess.run([real_tools['git'], '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test',
                         'commit', '--allow-empty', '-qm', 'Fixture'], cwd=repo, env=env, check=True)

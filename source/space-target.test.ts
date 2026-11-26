@@ -11,20 +11,20 @@ test('--space resolves like a typed issue key', () => {
 	expect(
 		resolveTargetSpace({
 			flag: '696',
-			env: {PAPPARDELLE_SPACE: 'STA-1'},
+			env: {LASAGNA_SPACE: 'STA-1'},
 			resolve,
 		}),
 	).toBe('resolved:696');
 });
 
-test('PAPPARDELLE_SPACE is the exact key and is not normalized', () => {
-	expect(
-		resolveTargetSpace({env: {PAPPARDELLE_SPACE: 'DEMO-2'}, resolve}),
-	).toBe('DEMO-2');
+test('LASAGNA_SPACE is the exact key and is not normalized', () => {
+	expect(resolveTargetSpace({env: {LASAGNA_SPACE: 'DEMO-2'}, resolve})).toBe(
+		'DEMO-2',
+	);
 });
 
 test('with neither, the caller is told it is not in a workspace', () => {
-	for (const env of [{}, {PAPPARDELLE_SPACE: ' '}]) {
+	for (const env of [{}, {LASAGNA_SPACE: ' '}]) {
 		expect(() => resolveTargetSpace({env, resolve})).toThrow(
 			NoTargetSpaceError,
 		);
@@ -46,10 +46,10 @@ const allIn = (key: string) => () => ({
 	}),
 });
 
-test('PAPPARDELLE_SPACE names the space wherever the caller runs', () => {
+test('LASAGNA_SPACE names the space wherever the caller runs', () => {
 	expect(
 		callerSpace({
-			env: {PAPPARDELLE_SPACE: 'STA-9'},
+			env: {LASAGNA_SPACE: 'STA-9'},
 			cwd: '/w',
 			checkout: {kind: 'checkout', checkout},
 			identities: allIn('STA-1'),
@@ -57,7 +57,7 @@ test('PAPPARDELLE_SPACE names the space wherever the caller runs', () => {
 	).toStrictEqual({kind: 'env', key: 'STA-9'});
 });
 
-test('outside a git checkout only PAPPARDELLE_SPACE names a space', () => {
+test('outside a git checkout only LASAGNA_SPACE names a space', () => {
 	const options = {
 		cwd: '/w',
 		checkout: {kind: 'not-in-a-repo'} as const,
@@ -65,7 +65,7 @@ test('outside a git checkout only PAPPARDELLE_SPACE names a space', () => {
 	};
 	expect(callerSpace({...options, env: {}})).toStrictEqual({kind: 'none'});
 	expect(
-		callerSpace({...options, env: {PAPPARDELLE_SPACE: 'STA-1'}}),
+		callerSpace({...options, env: {LASAGNA_SPACE: 'STA-1'}}),
 	).toStrictEqual({
 		kind: 'env',
 		key: 'STA-1',

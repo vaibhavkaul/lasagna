@@ -2,9 +2,9 @@ import {test, expect} from 'bun:test';
 import {buildSessionEnvArgs, buildSpawnEnv} from './spawn-env.ts';
 import {MAIN_WORKTREE_KEY} from './space-utils.ts';
 
-test('buildSpawnEnv includes PAPPARDELLE_PROJECT_ROOT', () => {
+test('buildSpawnEnv includes LASAGNA_PROJECT_ROOT', () => {
 	const env = buildSpawnEnv('/tmp/fake-project', {registerSpace: false});
-	expect(env['PAPPARDELLE_PROJECT_ROOT']).toBe('/tmp/fake-project');
+	expect(env['LASAGNA_PROJECT_ROOT']).toBe('/tmp/fake-project');
 });
 
 test('buildSpawnEnv preserves existing env vars', () => {
@@ -14,9 +14,9 @@ test('buildSpawnEnv preserves existing env vars', () => {
 });
 
 test('buildSpawnEnv does not mutate process.env', () => {
-	const before = process.env['PAPPARDELLE_PROJECT_ROOT'];
+	const before = process.env['LASAGNA_PROJECT_ROOT'];
 	buildSpawnEnv('/tmp/fake-project', {registerSpace: false});
-	expect(process.env['PAPPARDELLE_PROJECT_ROOT']).toBe(before);
+	expect(process.env['LASAGNA_PROJECT_ROOT']).toBe(before);
 });
 
 test('buildSpawnEnv passes the main repo root when given one', () => {
@@ -24,52 +24,51 @@ test('buildSpawnEnv passes the main repo root when given one', () => {
 		mainRepoRoot: '/tmp/fake-main',
 		registerSpace: false,
 	});
-	expect(env['PAPPARDELLE_MAIN_REPO_ROOT']).toBe('/tmp/fake-main');
+	expect(env['LASAGNA_MAIN_REPO_ROOT']).toBe('/tmp/fake-main');
 });
 
 test('buildSpawnEnv omits the main repo root when there is none', () => {
-	const before = process.env['PAPPARDELLE_MAIN_REPO_ROOT'];
-	delete process.env['PAPPARDELLE_MAIN_REPO_ROOT'];
+	const before = process.env['LASAGNA_MAIN_REPO_ROOT'];
+	delete process.env['LASAGNA_MAIN_REPO_ROOT'];
 	try {
 		expect(
-			'PAPPARDELLE_MAIN_REPO_ROOT' in
+			'LASAGNA_MAIN_REPO_ROOT' in
 				buildSpawnEnv('/tmp/fake-project', {registerSpace: false}),
 		).toBe(false);
 	} finally {
-		if (before !== undefined)
-			process.env['PAPPARDELLE_MAIN_REPO_ROOT'] = before;
+		if (before !== undefined) process.env['LASAGNA_MAIN_REPO_ROOT'] = before;
 	}
 });
 
 // idow starts the binary to record the space only when it is told to. A
 // registry that keeps no lifecycle has nothing to record.
 test('buildSpawnEnv tells idow to record the space only for a registry that records spaces being set up', () => {
-	const before = process.env['PAPPARDELLE_REGISTER_SPACE'];
+	const before = process.env['LASAGNA_REGISTER_SPACE'];
 	// What a Pappardelle started from inside another one's session inherits.
-	process.env['PAPPARDELLE_REGISTER_SPACE'] = '1';
+	process.env['LASAGNA_REGISTER_SPACE'] = '1';
 	try {
 		expect(
 			buildSpawnEnv('/tmp/fake-project', {registerSpace: true})[
-				'PAPPARDELLE_REGISTER_SPACE'
+				'LASAGNA_REGISTER_SPACE'
 			],
 		).toBe('1');
 		expect(
 			buildSpawnEnv('/tmp/fake-project', {registerSpace: false})[
-				'PAPPARDELLE_REGISTER_SPACE'
+				'LASAGNA_REGISTER_SPACE'
 			],
 		).toBe(undefined);
 	} finally {
-		if (before === undefined) delete process.env['PAPPARDELLE_REGISTER_SPACE'];
-		else process.env['PAPPARDELLE_REGISTER_SPACE'] = before;
+		if (before === undefined) delete process.env['LASAGNA_REGISTER_SPACE'];
+		else process.env['LASAGNA_REGISTER_SPACE'] = before;
 	}
 });
 
 test('buildSessionEnvArgs names the space and its repo for an issue space', () => {
 	expect(buildSessionEnvArgs('STA-42', 'repo')).toStrictEqual([
 		'-e',
-		'PAPPARDELLE_REPO=repo',
+		'LASAGNA_REPO=repo',
 		'-e',
-		'PAPPARDELLE_SPACE=STA-42',
+		'LASAGNA_SPACE=STA-42',
 	]);
 });
 
@@ -77,11 +76,11 @@ test('buildSessionEnvArgs adds the main repo root when given one', () => {
 	expect(buildSessionEnvArgs('STA-42', 'repo', '/tmp/fake-main')).toStrictEqual(
 		[
 			'-e',
-			'PAPPARDELLE_REPO=repo',
+			'LASAGNA_REPO=repo',
 			'-e',
-			'PAPPARDELLE_SPACE=STA-42',
+			'LASAGNA_SPACE=STA-42',
 			'-e',
-			'PAPPARDELLE_MAIN_REPO_ROOT=/tmp/fake-main',
+			'LASAGNA_MAIN_REPO_ROOT=/tmp/fake-main',
 		],
 	);
 });
@@ -93,12 +92,12 @@ test('buildSessionEnvArgs does not name the main space', () => {
 		buildSessionEnvArgs(MAIN_WORKTREE_KEY, 'repo', '/tmp/fake-main'),
 	).toStrictEqual([
 		'-e',
-		'PAPPARDELLE_REPO=repo',
+		'LASAGNA_REPO=repo',
 		'-e',
-		'PAPPARDELLE_MAIN_REPO_ROOT=/tmp/fake-main',
+		'LASAGNA_MAIN_REPO_ROOT=/tmp/fake-main',
 	]);
 	expect(buildSessionEnvArgs(MAIN_WORKTREE_KEY, 'repo')).toStrictEqual([
 		'-e',
-		'PAPPARDELLE_REPO=repo',
+		'LASAGNA_REPO=repo',
 	]);
 });

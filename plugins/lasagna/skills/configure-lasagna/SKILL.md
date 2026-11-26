@@ -371,7 +371,7 @@ Rules to apply when editing:
 - `agent_profile:` values must name an entry in `agent_profiles:` (or `claude`, which is built in); validation rejects dangling references
 - `args` is where skip-permissions equivalents for non-claude agents go (codex: `--yolo`) — `claude.dangerously_skip_permissions` only applies to claude
 - Claude-only behavior (`--name`, the `--model`/`--effort` templates, `~/.claude.json` pre-trust, `--resume {session_id}` default) is gated on the command's basename being `claude` or an explicit `is_claude: true`
-- Environment variables for an agent go in `env:`, never `command: env X=1 claude` (that loses claude gating unless `is_claude: true` is added). The sous-chef launches with the top-level `agent_profile`, so a variable meant only for spaces goes on the agent profiles workspace profiles select, not the top-level one. `PAPPARDELLE_` names are rejected
+- Environment variables for an agent go in `env:`, never `command: env X=1 claude` (that loses claude gating unless `is_claude: true` is added). The sous-chef launches with the top-level `agent_profile`, so a variable meant only for spaces goes on the agent profiles workspace profiles select, not the top-level one. `LASAGNA_` and `PAPPARDELLE_` names are rejected
 - Warn the user that non-claude agents show an `unknown` status icon in the rail — status hooks are Claude Code-only
 
 ## Configuring the Companion Pane Command

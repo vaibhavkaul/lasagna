@@ -27,7 +27,7 @@ const launchMarker = path.join(harness.root, 'launch-marker');
 const daos = createStateDaos({
 	repo,
 	stateDir: harness.stateDir,
-	sqlite: process.env['PAPPARDELLE_SQLITE_STATE'] === '1',
+	sqlite: process.env['LASAGNA_SQLITE_STATE'] === '1',
 });
 initTmuxState(daos);
 // As idow records the space before it starts the space's sessions.

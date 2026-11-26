@@ -1,6 +1,6 @@
 // Loaded into every test file (bunfig.toml, preload), after test-guard.ts.
 //
-// A test run chooses its state mode with PAPPARDELLE_SQLITE_STATE, not the
+// A test run chooses its state mode with LASAGNA_SQLITE_STATE, not the
 // home config. With the flag on, each test file also gets a database of its
 // own: the files share one throwaway HOME (scripts/unit-tests.ts).
 import fs from 'node:fs';
@@ -13,7 +13,7 @@ import {
 	stateDbPath,
 } from '../../source/state-db.ts';
 
-if (process.env['PAPPARDELLE_SQLITE_STATE'] === '1') {
+if (process.env['LASAGNA_SQLITE_STATE'] === '1') {
 	// Not an environment variable: a CLI that a test starts under a throwaway
 	// HOME has to keep its database there, apart from every other test's. The
 	// status daemon's socket is beside the database, so this moves it too.
@@ -26,7 +26,7 @@ if (process.env['PAPPARDELLE_SQLITE_STATE'] === '1') {
 		fs.rmSync(directory, {recursive: true, force: true});
 	});
 } else {
-	process.env['PAPPARDELLE_SQLITE_STATE'] = '0';
+	process.env['LASAGNA_SQLITE_STATE'] = '0';
 }
 
 // Bun starts with SIGPIPE ignored, but removing the last SIGPIPE listener

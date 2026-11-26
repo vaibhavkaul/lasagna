@@ -46,8 +46,8 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STATUS_MONITOR=()
 STATUS_GATE=""
-if [[ -x "${PAPPARDELLE_EXECUTABLE:-}" ]]; then
-    STATUS_MONITOR=("$PAPPARDELLE_EXECUTABLE" --internal-status-monitor)
+if [[ -x "${LASAGNA_EXECUTABLE:-}" ]]; then
+    STATUS_MONITOR=("$LASAGNA_EXECUTABLE" --internal-status-monitor)
 elif [[ -x "$SCRIPT_DIR/../dist/lasagna" ]]; then
     # Direct idow launches use the compiled monitor, which never loads the
     # workspace's .env or bunfig.toml and needs no Bun on PATH.
@@ -197,13 +197,13 @@ fi
 # otherwise defeat $TMUX propagation to subprocesses like Claude Code's
 # Agent Teams feature). See STA-860. idow exports the space's socket from
 # `lasagna space get`.
-if [[ -z "${PAPPARDELLE_TMUX_SOCKET:-}" ]]; then
-    echo "Error: PAPPARDELLE_TMUX_SOCKET is required: idow exports the space's socket from lasagna space get" >&2
+if [[ -z "${LASAGNA_TMUX_SOCKET:-}" ]]; then
+    echo "Error: LASAGNA_TMUX_SOCKET is required: idow exports the space's socket from lasagna space get" >&2
     exit 1
 fi
-TMUX_SOCKET_ARGS=(-L "$PAPPARDELLE_TMUX_SOCKET")
-if [[ "$PAPPARDELLE_TMUX_SOCKET" == /* ]]; then
-    TMUX_SOCKET_ARGS=(-S "$PAPPARDELLE_TMUX_SOCKET")
+TMUX_SOCKET_ARGS=(-L "$LASAGNA_TMUX_SOCKET")
+if [[ "$LASAGNA_TMUX_SOCKET" == /* ]]; then
+    TMUX_SOCKET_ARGS=(-S "$LASAGNA_TMUX_SOCKET")
 fi
 STARTUP_GATE_OPTION="@lasagna_startup_gate"
 
@@ -211,14 +211,14 @@ STARTUP_GATE_OPTION="@lasagna_startup_gate"
 # on a long-lived server that inherited its environment from whatever started
 # it, so a plain export would never reach the panes. Claude Code's hooks read
 # it to find the main checkout without walking back out of the worktree.
-# PAPPARDELLE_SPACE names the space the pane belongs to, so a Claude started
+# LASAGNA_SPACE names the space the pane belongs to, so a Claude started
 # later in the pane by hand (a restart, `claude --resume` from another
 # directory) still reports its status under this space, not under its cwd.
-# PAPPARDELLE_REPO qualifies the status file name: spaces of two repos can
+# LASAGNA_REPO qualifies the status file name: spaces of two repos can
 # share a key, and every repo writes to the same status directory.
-SESSION_ENV=(-e "PAPPARDELLE_REPO=$REPO_NAME" -e "PAPPARDELLE_SPACE=$ISSUE_KEY")
-if [[ -n "${PAPPARDELLE_MAIN_REPO_ROOT:-}" ]]; then
-    SESSION_ENV+=(-e "PAPPARDELLE_MAIN_REPO_ROOT=$PAPPARDELLE_MAIN_REPO_ROOT")
+SESSION_ENV=(-e "LASAGNA_REPO=$REPO_NAME" -e "LASAGNA_SPACE=$ISSUE_KEY")
+if [[ -n "${LASAGNA_MAIN_REPO_ROOT:-}" ]]; then
+    SESSION_ENV+=(-e "LASAGNA_MAIN_REPO_ROOT=$LASAGNA_MAIN_REPO_ROOT")
 fi
 # Only the agent session gets these, mirroring buildAgentSessionEnvArgs() in
 # source/spawn-env.ts: Pi and agy report their status to the pane monitor only
@@ -238,7 +238,7 @@ AGENT_SESSION_ENV=(
 if [[ "$AGENT_IS_CLAUDE" == "true" ]]; then
     python3 -c "
 import json, os, sys
-config_path = os.environ.get('PAPPARDELLE_CLAUDE_CONFIG_PATH', os.path.expanduser('~/.claude.json'))
+config_path = os.environ.get('LASAGNA_CLAUDE_CONFIG_PATH', os.path.expanduser('~/.claude.json'))
 try:
     with open(config_path) as f:
         config = json.load(f)
@@ -373,7 +373,7 @@ if ! tmux "${TMUX_SOCKET_ARGS[@]}" has-session -t "=$AGENT_SESSION:" 2>/dev/null
 fi
 
 if [[ ${#STATUS_MONITOR[@]} -gt 0 ]]; then
-    "${STATUS_MONITOR[@]}" attach "$REPO_NAME" "$ISSUE_KEY" "$AGENT_SESSION" "$PAPPARDELLE_TMUX_SOCKET" || true
+    "${STATUS_MONITOR[@]}" attach "$REPO_NAME" "$ISSUE_KEY" "$AGENT_SESSION" "$LASAGNA_TMUX_SOCKET" || true
 fi
 STATUS_GATE="$(tmux "${TMUX_SOCKET_ARGS[@]}" show-option -qv -t "=$AGENT_SESSION:" "$STARTUP_GATE_OPTION")"
 if [[ -n "$STATUS_GATE" ]]; then

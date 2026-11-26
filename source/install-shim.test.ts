@@ -45,7 +45,7 @@ function install(options: {executable: boolean; directory?: string}) {
 				PATH: process.env['PATH'],
 				// tmux falls back to the live tmux directory without it.
 				TMUX_TMPDIR: process.env['TMUX_TMPDIR'],
-				PAPPARDELLE_INSTALL_SOURCE_ONLY: '1',
+				LASAGNA_INSTALL_SOURCE_ONLY: '1',
 			},
 		},
 	);

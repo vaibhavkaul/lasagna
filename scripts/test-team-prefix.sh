@@ -4,7 +4,7 @@
 #
 # Verifies that:
 # 1. TEAM_PREFIX is read from .pappardelle.yml (not hardcoded STA)
-# 2. REPO_ROOT uses PAPPARDELLE_PROJECT_ROOT when set
+# 2. REPO_ROOT uses LASAGNA_PROJECT_ROOT when set
 # 3. REPO_ROOT falls back to git rev-parse from cwd when env var unset
 # 4. create_issue reads team_prefix from config when --team not passed
 #
@@ -154,26 +154,26 @@ teardown
 
 # ==========================================================================
 
-echo -e "\n${BOLD}Test: REPO_ROOT uses PAPPARDELLE_PROJECT_ROOT when set${RESET}"
-export PAPPARDELLE_PROJECT_ROOT="/tmp/fake-project"
+echo -e "\n${BOLD}Test: REPO_ROOT uses LASAGNA_PROJECT_ROOT when set${RESET}"
+export LASAGNA_PROJECT_ROOT="/tmp/fake-project"
 
-if [[ -n "${PAPPARDELLE_PROJECT_ROOT:-}" ]]; then
-    REPO_ROOT="$PAPPARDELLE_PROJECT_ROOT"
+if [[ -n "${LASAGNA_PROJECT_ROOT:-}" ]]; then
+    REPO_ROOT="$LASAGNA_PROJECT_ROOT"
 else
     REPO_ROOT="SHOULD_NOT_HAPPEN"
 fi
-assert_eq "REPO_ROOT equals PAPPARDELLE_PROJECT_ROOT" "/tmp/fake-project" "$REPO_ROOT"
+assert_eq "REPO_ROOT equals LASAGNA_PROJECT_ROOT" "/tmp/fake-project" "$REPO_ROOT"
 
-unset PAPPARDELLE_PROJECT_ROOT
+unset LASAGNA_PROJECT_ROOT
 
 # ==========================================================================
 
 echo -e "\n${BOLD}Test: REPO_ROOT falls back to git rev-parse when env var unset${RESET}"
 setup_git_repo
 
-unset PAPPARDELLE_PROJECT_ROOT
-if [[ -n "${PAPPARDELLE_PROJECT_ROOT:-}" ]]; then
-    REPO_ROOT="$PAPPARDELLE_PROJECT_ROOT"
+unset LASAGNA_PROJECT_ROOT
+if [[ -n "${LASAGNA_PROJECT_ROOT:-}" ]]; then
+    REPO_ROOT="$LASAGNA_PROJECT_ROOT"
 else
     REPO_ROOT=$(git rev-parse --show-toplevel)
 fi
@@ -215,29 +215,29 @@ teardown
 
 # ==========================================================================
 
-echo -e "\n${BOLD}Test: create-worktree.sh MAIN_REPO uses PAPPARDELLE_PROJECT_ROOT${RESET}"
+echo -e "\n${BOLD}Test: create-worktree.sh MAIN_REPO uses LASAGNA_PROJECT_ROOT${RESET}"
 
 # The line in create-worktree.sh is:
-# MAIN_REPO="${MAIN_REPO:-${PAPPARDELLE_PROJECT_ROOT:-$(git rev-parse --show-toplevel)}}"
+# MAIN_REPO="${MAIN_REPO:-${LASAGNA_PROJECT_ROOT:-$(git rev-parse --show-toplevel)}}"
 unset MAIN_REPO
-export PAPPARDELLE_PROJECT_ROOT="/tmp/my-project"
+export LASAGNA_PROJECT_ROOT="/tmp/my-project"
 
-MAIN_REPO="${MAIN_REPO:-${PAPPARDELLE_PROJECT_ROOT:-fallback}}"
-assert_eq "MAIN_REPO uses PAPPARDELLE_PROJECT_ROOT" "/tmp/my-project" "$MAIN_REPO"
+MAIN_REPO="${MAIN_REPO:-${LASAGNA_PROJECT_ROOT:-fallback}}"
+assert_eq "MAIN_REPO uses LASAGNA_PROJECT_ROOT" "/tmp/my-project" "$MAIN_REPO"
 
-unset MAIN_REPO PAPPARDELLE_PROJECT_ROOT
+unset MAIN_REPO LASAGNA_PROJECT_ROOT
 
 # ==========================================================================
 
 echo -e "\n${BOLD}Test: create-worktree.sh MAIN_REPO prefers explicit MAIN_REPO over env${RESET}"
 
 export MAIN_REPO="/explicit/path"
-export PAPPARDELLE_PROJECT_ROOT="/tmp/my-project"
+export LASAGNA_PROJECT_ROOT="/tmp/my-project"
 
-RESOLVED="${MAIN_REPO:-${PAPPARDELLE_PROJECT_ROOT:-fallback}}"
+RESOLVED="${MAIN_REPO:-${LASAGNA_PROJECT_ROOT:-fallback}}"
 assert_eq "explicit MAIN_REPO takes precedence" "/explicit/path" "$RESOLVED"
 
-unset MAIN_REPO PAPPARDELLE_PROJECT_ROOT
+unset MAIN_REPO LASAGNA_PROJECT_ROOT
 
 # ==========================================================================
 

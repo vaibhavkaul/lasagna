@@ -31,7 +31,7 @@ charlie    s130     -              Thu12       - -zsh
 
 class TestSendZap:
     def test_calls_curl_with_correct_args(self):
-        with patch.object(zap_mod, "PAPPARDELLE_NTFY_TOPIC", "test-topic"), patch("subprocess.run") as mock_run:
+        with patch.object(zap_mod, "LASAGNA_NTFY_TOPIC", "test-topic"), patch("subprocess.run") as mock_run:
             send_zap("test message")
             mock_run.assert_called_once()
             args = mock_run.call_args[0][0]
@@ -56,7 +56,7 @@ class TestMainLogic:
 
         stdin_mock = io.StringIO(json.dumps(input_data))
         with (
-            patch.object(zap_mod, "PAPPARDELLE_NTFY_TOPIC", ntfy_topic),
+            patch.object(zap_mod, "LASAGNA_NTFY_TOPIC", ntfy_topic),
             patch.object(zap_mod, "send_zap") as mock_zap,
             patch("sys.stdin", stdin_mock),
         ):
@@ -112,7 +112,7 @@ class TestMainLogic:
         """Regression for STA-2041: the zap no longer needs a Tailscale SSH session.
 
         `w` reports no remote login here. The hook must still send the push, because
-        PAPPARDELLE_NTFY_TOPIC is now the only switch that gates it.
+        LASAGNA_NTFY_TOPIC is now the only switch that gates it.
         """
         no_remote_login = MagicMock(returncode=0, stdout=W_OUTPUT_WITHOUT_REMOTE_LOGIN)
         with patch("subprocess.run", return_value=no_remote_login):

@@ -657,8 +657,8 @@ test('a space that cannot be recorded fails the script that asked, before it sta
 			{
 				env: {
 					...process.env,
-					PAPPARDELLE_SQLITE_STATE: '1',
-					PAPPARDELLE_STATE_DB: f.dbPath,
+					LASAGNA_SQLITE_STATE: '1',
+					LASAGNA_STATE_DB: f.dbPath,
 				},
 			},
 		),

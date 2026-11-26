@@ -13,8 +13,8 @@ Lasagna gives each issue a git worktree, an agent session (Claude, or the agent 
 
 ## Where you are
 
-- `PAPPARDELLE_SPACE` is the key of your space, such as `STA-696` or `pappardelle-dq9`. The main checkout's session has no `PAPPARDELLE_SPACE`; its key is `main`
-- `PAPPARDELLE_MAIN_REPO_ROOT` is the main checkout
+- `LASAGNA_SPACE` is the key of your space, such as `STA-696` or `pappardelle-dq9`. The main checkout's session has no `LASAGNA_SPACE`; its key is `main`
+- `LASAGNA_MAIN_REPO_ROOT` is the main checkout
 - Each space has a worktree and two tmux sessions on Lasagna's inner socket: the agent's and the companion's. Each companion split is a session of its own, which the TUI shows in a framed pane beside the companion. Splits show only in the TUI, not in the terminal launchers
 - The TUI runs in the session `lasagna-{repo}` on the default tmux server
 

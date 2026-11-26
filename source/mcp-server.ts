@@ -172,7 +172,7 @@ const spawnCli =
 					signal,
 					stdio: 'pipe',
 					cwd,
-					env: space ? {...process.env, PAPPARDELLE_SPACE: space} : process.env,
+					env: space ? {...process.env, LASAGNA_SPACE: space} : process.env,
 				},
 			);
 			let stdout = '';

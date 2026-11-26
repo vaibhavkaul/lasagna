@@ -27,7 +27,7 @@ const runtimeTest = spawnSync('tmux', ['-V']).status === 0 ? test : test.skip;
 
 /**
  * A private inner server for one test: HOME (whose .tmux.conf the server
- * loads) and PAPPARDELLE_TMUX_SOCKET point into a temp dir.
+ * loads) and LASAGNA_TMUX_SOCKET point into a temp dir.
  */
 function privateInnerServer(tmuxConf = '') {
 	const root = tempDir('inner-options-');
@@ -36,11 +36,11 @@ function privateInnerServer(tmuxConf = '') {
 	const saved = {
 		HOME: process.env['HOME'],
 		XDG_CONFIG_HOME: process.env['XDG_CONFIG_HOME'],
-		PAPPARDELLE_TMUX_SOCKET: process.env['PAPPARDELLE_TMUX_SOCKET'],
+		LASAGNA_TMUX_SOCKET: process.env['LASAGNA_TMUX_SOCKET'],
 	};
 	process.env['HOME'] = root;
 	delete process.env['XDG_CONFIG_HOME'];
-	process.env['PAPPARDELLE_TMUX_SOCKET'] = socket;
+	process.env['LASAGNA_TMUX_SOCKET'] = socket;
 	teardown(() => {
 		for (const [key, value] of Object.entries(saved)) {
 			if (value === undefined) Reflect.deleteProperty(process.env, key);

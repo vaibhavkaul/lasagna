@@ -282,7 +282,7 @@ table = {
 for key in sys.argv[2:]:
     assert agent_session.record_agent_session(
         {"session_id": key + "-codex", "hook_event_name": "SessionStart"},
-        False, {"PAPPARDELLE_REPO": "repo", "PAPPARDELLE_SPACE": key}, 100, lambda: table,
+        False, {"LASAGNA_REPO": "repo", "LASAGNA_SPACE": key}, 100, lambda: table,
         pane_session=lambda _env: agent_session.PaneSession("agent-repo-" + key, True),
         started=lambda _pid: ${JSON.stringify(STARTED)},
     )
@@ -299,8 +299,8 @@ for key in sys.argv[2:]:
 				// to /tmp instead of the run tmpdir.
 				TMPDIR: os.tmpdir(),
 				HOME: home,
-				PAPPARDELLE_SQLITE_STATE: '1',
-				PAPPARDELLE_STATE_DB: dbPath,
+				LASAGNA_SQLITE_STATE: '1',
+				LASAGNA_STATE_DB: dbPath,
 			},
 		},
 	);

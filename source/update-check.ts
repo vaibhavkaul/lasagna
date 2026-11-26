@@ -371,7 +371,7 @@ export function runUpdateScript(options: {waitOnFailure: boolean}): number {
 		stdio: 'inherit',
 		env: {
 			...process.env,
-			PAPPARDELLE_BUN: bunForChildren(),
+			LASAGNA_BUN: bunForChildren(),
 		},
 	});
 	return result.status ?? 1;

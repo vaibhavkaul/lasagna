@@ -326,7 +326,7 @@ export function spaceSessionNames(issueKey: string): SpaceSessionNames | null {
 // socket; everything the viewer panes attach to lives here. Routing inner
 // sessions onto a distinct socket lets the nested attach succeed without
 // `TMUX=`, which in turn lets `$TMUX` propagate correctly to subprocesses
-// like Claude Code's Agent Teams feature. Must match PAPPARDELLE_TMUX_SOCKET
+// like Claude Code's Agent Teams feature. Must match LASAGNA_TMUX_SOCKET
 // in _dev/scripts/dow/*.sh — the two sides have to agree.
 export const INNER_SOCKET = 'lasagna_inner';
 
@@ -1553,7 +1553,7 @@ export function cleanupOrphanedInnerSessions(
 }
 
 /**
- * The space a session was started for, from the PAPPARDELLE_SPACE its
+ * The space a session was started for, from the LASAGNA_SPACE its
  * creator set on it, or null when it has none. An orphan's space may have no
  * stored identity left to name it.
  */
@@ -1562,10 +1562,10 @@ function sessionSpace(name: string, runner: OuterTmuxRunner): string | null {
 		'show-environment',
 		'-t',
 		exactSessionTarget(name),
-		'PAPPARDELLE_SPACE',
+		'LASAGNA_SPACE',
 	]);
 	if (result.error || result.status !== 0) return null;
-	const match = /^PAPPARDELLE_SPACE=(.+)$/m.exec(result.stdout);
+	const match = /^LASAGNA_SPACE=(.+)$/m.exec(result.stdout);
 	return match?.[1]?.trim() || null;
 }
 
@@ -3997,7 +3997,7 @@ export function pretrustDirectoryForClaude(
 ): void {
 	const resolvedConfigPath =
 		configPath ??
-		process.env['PAPPARDELLE_CLAUDE_CONFIG_PATH'] ??
+		process.env['LASAGNA_CLAUDE_CONFIG_PATH'] ??
 		join(homedir(), '.claude.json');
 	try {
 		let config: Record<string, unknown> = {};

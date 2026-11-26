@@ -226,7 +226,7 @@ The chef may answer a space's prompt or question in the space itself instead of 
 
 ## Opening or Reopening a Space
 
-When the chef asks to open, fire, create, or reopen a space, call `space_open`. Never run `idow` yourself, not even for an option `space_open` seems to lack: it skips board registration (only `space_open` and the TUI set `PAPPARDELLE_REGISTER_SPACE`), so the space runs but never shows in the rail. Don't ask first: a wrong space is cheap, and the chef can close it. The callout names exactly what ran, so a mishearing shows up right away.
+When the chef asks to open, fire, create, or reopen a space, call `space_open`. Never run `idow` yourself, not even for an option `space_open` seems to lack: it skips board registration (only `space_open` and the TUI set `LASAGNA_REGISTER_SPACE`), so the space runs but never shows in the rail. Don't ask first: a wrong space is cheap, and the chef can close it. The callout names exactly what ran, so a mishearing shows up right away.
 
 The chef may give an issue key, a bare number, a Linear issue URL, or a description of the work. Pick the input from the board (the `spaces_list` output; call it again if it is stale):
 

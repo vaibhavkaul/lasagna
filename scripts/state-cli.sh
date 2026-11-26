@@ -9,9 +9,9 @@ _STATE_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Looks for the binary the way start-agent-session.sh finds the status
 # monitor, then falls back to the sources for a checkout with no build.
 pappardelle_state() {
-    local bun="${PAPPARDELLE_BUN:-$(command -v bun || true)}"
-    if [[ -x "${PAPPARDELLE_EXECUTABLE:-}" ]]; then
-        "$PAPPARDELLE_EXECUTABLE" --internal-state "$@"
+    local bun="${LASAGNA_BUN:-$(command -v bun || true)}"
+    if [[ -x "${LASAGNA_EXECUTABLE:-}" ]]; then
+        "$LASAGNA_EXECUTABLE" --internal-state "$@"
     elif [[ -x "$_STATE_CLI_DIR/../dist/lasagna" ]]; then
         "$_STATE_CLI_DIR/../dist/lasagna" --internal-state "$@"
     elif [[ -x "$bun" && -f "$_STATE_CLI_DIR/../source/state-cli.ts" ]]; then

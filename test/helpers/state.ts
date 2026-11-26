@@ -21,8 +21,8 @@ import {initTmuxState} from '../../source/tmux.ts';
 import {sendHookEvent, serveTestHub} from './status-daemon.ts';
 import {teardown, type Cleanup} from './teardown.ts';
 
-/** Whether this test run keeps state in SQLite (PAPPARDELLE_SQLITE_STATE=1). */
-export const sqliteRun = process.env['PAPPARDELLE_SQLITE_STATE'] === '1';
+/** Whether this test run keeps state in SQLite (LASAGNA_SQLITE_STATE=1). */
+export const sqliteRun = process.env['LASAGNA_SQLITE_STATE'] === '1';
 
 export type TestState = {
 	daos: StateDaos;

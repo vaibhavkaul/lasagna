@@ -132,7 +132,7 @@ export const SPACE_HELP = `
 	branch, profile, agentSessions, tmux (socket, socketFlag, agentSession,
 	companionSession, agentTarget, companionTarget), panes (agent, companion),
 	prNumber, prLinks, pipeline, unresolvedCommentCount and status. With no
-	key it answers for the space it runs in: PAPPARDELLE_SPACE, else the
+	key it answers for the space it runs in: LASAGNA_SPACE, else the
 	worktree or main checkout that holds the working directory.
 
 	space list prints the main space, then every open space in the rail's order.

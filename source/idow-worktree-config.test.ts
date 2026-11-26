@@ -177,7 +177,7 @@ if (sqliteRun) {
 		await fixture.run({
 			projectRoot: false,
 			cwd: fixture.linked,
-			extraEnv: {PAPPARDELLE_REGISTER_SPACE: '1'},
+			extraEnv: {LASAGNA_REGISTER_SPACE: '1'},
 		});
 		const other = path.join(path.dirname(fixture.main), 'other linked');
 		execFileSync('git', [

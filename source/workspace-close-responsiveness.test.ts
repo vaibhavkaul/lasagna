@@ -39,7 +39,7 @@ import {QaSimulatorCleanup} from ${JSON.stringify(simulatorUrl)};
 const daos = createStateDaos({
   repo: 'fixture',
   stateDir: process.env.CLOSE_STATE_DIR,
-  sqlite: process.env.PAPPARDELLE_SQLITE_STATE === '1',
+  sqlite: process.env.LASAGNA_SQLITE_STATE === '1',
 });
 const {registry} = daos;
 initTmuxState(daos);

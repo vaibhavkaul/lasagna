@@ -27,7 +27,7 @@ fi
 
 TMUX_GUARD_ENV=$("$SCRIPT_DIR/../test/helpers/tmux-guard-env.sh") || exit 1
 eval "$TMUX_GUARD_ENV"
-TMUX_REFUSALS=${PAPPARDELLE_TEST_TMUX_REFUSALS:-}
+TMUX_REFUSALS=${LASAGNA_TEST_TMUX_REFUSALS:-}
 
 ROOT="$(mktemp -d /tmp/pq-XXXXXX)"
 REPO_NAME="pappardelle-qa-$(basename "$ROOT" | cut -d- -f2 | tr '[:upper:]' '[:lower:]')"
@@ -67,17 +67,17 @@ if [[ "$SOCKET" != "$TMUX_TMPDIR"/* ]]; then
     exit 1
 fi
 
-# This may itself run inside a space, whose PAPPARDELLE_* would point the
+# This may itself run inside a space, whose LASAGNA_* would point the
 # timer at that space's repo.
-SQLITE_STATE="${PAPPARDELLE_SQLITE_STATE:-}"
-for name in $(compgen -e | grep '^PAPPARDELLE_' | grep -v '^PAPPARDELLE_TEST_'); do unset "$name"; done
+SQLITE_STATE="${LASAGNA_SQLITE_STATE:-}"
+for name in $(compgen -e | grep '^LASAGNA_' | grep -v '^LASAGNA_TEST_'); do unset "$name"; done
 # The run keeps its state mode. This test runs under the real $HOME, so the
 # database and the status daemon's socket are its own, and the timer it starts
 # is handed all three.
-export PAPPARDELLE_STATE_DB="$ROOT/state.db"
-export PAPPARDELLE_STATUS_SOCKET="$ROOT/status-1.sock"
+export LASAGNA_STATE_DB="$ROOT/state.db"
+export LASAGNA_STATUS_SOCKET="$ROOT/status-1.sock"
 if [[ -n "$SQLITE_STATE" ]]; then
-    export PAPPARDELLE_SQLITE_STATE="$SQLITE_STATE"
+    export LASAGNA_SQLITE_STATE="$SQLITE_STATE"
 fi
 
 # The jobs the test's database holds for this repo.
@@ -86,7 +86,7 @@ stored_jobs() {
         import {Database} from "bun:sqlite";
         const db = new Database(process.argv[1], {readonly: true});
         console.log(db.query("SELECT COUNT(*) AS jobs FROM schedules WHERE repo = ?").get(process.argv[2]).jobs);
-    ' "$PAPPARDELLE_STATE_DB" "$REPO_NAME"
+    ' "$LASAGNA_STATE_DB" "$REPO_NAME"
 }
 
 lasagna() {

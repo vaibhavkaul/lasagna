@@ -451,7 +451,7 @@ function target(raw: string | undefined, deps: SpaceCommandDeps): Target {
 	// A session started in a nested repo has a git dir that names that repo,
 	// so its own space's repo comes from its environment.
 	const repo =
-		deps.env['PAPPARDELLE_REPO']?.trim() ||
+		deps.env['LASAGNA_REPO']?.trim() ||
 		(checkout.kind === 'checkout' ? checkout.checkout.repoName : undefined);
 	return repo === undefined
 		? {kind: 'not-in-a-repo'}

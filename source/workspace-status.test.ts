@@ -31,14 +31,14 @@ import type {ProgramStatusInfo} from './program-status.ts';
 import type {SpaceData} from './types.ts';
 
 function setup(options: {sqlite?: boolean} = {}) {
-	const oldSocket = process.env['PAPPARDELLE_TMUX_SOCKET'];
-	process.env['PAPPARDELLE_TMUX_SOCKET'] = 'test-status';
+	const oldSocket = process.env['LASAGNA_TMUX_SOCKET'];
+	process.env['LASAGNA_TMUX_SOCKET'] = 'test-status';
 	const state = testState(options);
 	const {claudeStatus, programStatus} = state.daos;
 	teardown(() => {
 		if (oldSocket === undefined)
-			Reflect.deleteProperty(process.env, 'PAPPARDELLE_TMUX_SOCKET');
-		else process.env['PAPPARDELLE_TMUX_SOCKET'] = oldSocket;
+			Reflect.deleteProperty(process.env, 'LASAGNA_TMUX_SOCKET');
+		else process.env['LASAGNA_TMUX_SOCKET'] = oldSocket;
 	});
 	let paneOutput = '%1\t12\t0\t1\t12.owner';
 	let queries = 0;
@@ -534,7 +534,7 @@ for (const sqlite of [false, true]) {
 				env: {
 					...process.env,
 					HOME: h.state.stateDir,
-					PAPPARDELLE_SQLITE_STATE: sqlite ? '1' : '0',
+					LASAGNA_SQLITE_STATE: sqlite ? '1' : '0',
 				},
 			},
 		);

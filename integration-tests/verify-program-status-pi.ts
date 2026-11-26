@@ -9,8 +9,8 @@ import {buildAgentSessionEnvArgs} from '../source/spawn-env.ts';
 import {StatusHarness} from './program-status-harness.ts';
 
 assert.ok(process.argv.includes('--live'), 'Pass --live to run interactive Pi');
-const binary = process.env['PAPPARDELLE_PI_BIN'] ?? 'pi';
-const model = process.env['PAPPARDELLE_PI_MODEL'] ?? 'openai/gpt-6.1-sol';
+const binary = process.env['LASAGNA_PI_BIN'] ?? 'pi';
+const model = process.env['LASAGNA_PI_MODEL'] ?? 'openai/gpt-6.1-sol';
 const version = execFileSync(binary, ['--version'], {encoding: 'utf8'}).trim();
 const harness = new StatusHarness();
 const repo = 'pi-prototype';

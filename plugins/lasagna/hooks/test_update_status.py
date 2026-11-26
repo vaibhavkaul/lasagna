@@ -46,7 +46,7 @@ def _status_file(status_dir: Path, status_key: str) -> Optional[dict[str, Any]]:
 @pytest.fixture
 def flag_off(monkeypatch: pytest.MonkeyPatch) -> None:
     """The space comes from the cwd's path, as it does without the database."""
-    monkeypatch.setenv("PAPPARDELLE_SQLITE_STATE", "0")
+    monkeypatch.setenv("LASAGNA_SQLITE_STATE", "0")
 
 
 @pytest.fixture
@@ -713,7 +713,7 @@ class TestAtomicWrite:
     @pytest.fixture(autouse=True)
     def _status_files(self, monkeypatch):
         # The hook writes a status file only while the flag is off.
-        monkeypatch.setenv("PAPPARDELLE_SQLITE_STATE", "0")
+        monkeypatch.setenv("LASAGNA_SQLITE_STATE", "0")
 
     def test_rewrite_swaps_inode_via_atomic_rename(self, tmp_path):
         """Two sequential writes must land on distinct inodes.
@@ -795,27 +795,27 @@ if __name__ == "__main__":
 
 
 # ============================================================================
-# PAPPARDELLE_SPACE (session environment) and slash branches
+# LASAGNA_SPACE (session environment) and slash branches
 # ============================================================================
 
 
 @pytest.fixture(autouse=True)
 def _no_space_env(monkeypatch):
     """The developer's own shell may run inside a pappardelle pane."""
-    monkeypatch.delenv("PAPPARDELLE_SPACE", raising=False)
-    monkeypatch.delenv("PAPPARDELLE_REPO", raising=False)
+    monkeypatch.delenv("LASAGNA_SPACE", raising=False)
+    monkeypatch.delenv("LASAGNA_REPO", raising=False)
 
 
 @pytest.mark.usefixtures("flag_off")
 class TestSpaceEnvironment:
     def test_space_env_wins_over_worktree_path(self, monkeypatch):
-        monkeypatch.setenv("PAPPARDELLE_SPACE", "STA-42")
+        monkeypatch.setenv("LASAGNA_SPACE", "STA-42")
         with patch("os.getcwd", return_value="/Users/x/.worktrees/repo/STA-999"):
             assert get_workspace_name() == "STA-42"
 
     def test_space_env_wins_over_main_checkout_cwd(self, monkeypatch):
         """A Claude resumed from the main checkout inside a space's pane."""
-        monkeypatch.setenv("PAPPARDELLE_SPACE", "STA-42")
+        monkeypatch.setenv("LASAGNA_SPACE", "STA-42")
 
         def mock_run(cmd, **kwargs):
             raise AssertionError("git must not be consulted when the space is known")
@@ -827,7 +827,7 @@ class TestSpaceEnvironment:
             assert get_workspace_name("/Users/x/cs/repo") == "STA-42"
 
     def test_empty_space_env_falls_back_to_cwd(self, monkeypatch):
-        monkeypatch.setenv("PAPPARDELLE_SPACE", "  ")
+        monkeypatch.setenv("LASAGNA_SPACE", "  ")
         with patch("os.getcwd", return_value="/Users/x/.worktrees/repo/STA-7"):
             assert get_workspace_name() == "STA-7"
 
@@ -853,15 +853,15 @@ class TestRepoEnvironment:
     status directory, so the session's repo qualifies the file name."""
 
     def test_repo_qualifies_the_space(self, monkeypatch):
-        monkeypatch.setenv("PAPPARDELLE_SPACE", "QA-2")
-        monkeypatch.setenv("PAPPARDELLE_REPO", "repo-a")
+        monkeypatch.setenv("LASAGNA_SPACE", "QA-2")
+        monkeypatch.setenv("LASAGNA_REPO", "repo-a")
         assert get_workspace_name() == "repo-a-QA-2"
-        monkeypatch.setenv("PAPPARDELLE_REPO", "repo-b")
+        monkeypatch.setenv("LASAGNA_REPO", "repo-b")
         assert get_workspace_name() == "repo-b-QA-2"
 
     @pytest.mark.usefixtures("flag_off")
     def test_repo_qualifies_an_issue_key_from_the_worktree_path(self, monkeypatch):
-        monkeypatch.setenv("PAPPARDELLE_REPO", "repo-a")
+        monkeypatch.setenv("LASAGNA_REPO", "repo-a")
         with patch("os.getcwd", return_value="/Users/x/.worktrees/repo-a/STA-7"):
             assert get_workspace_name() == "repo-a-STA-7"
 
@@ -869,7 +869,7 @@ class TestRepoEnvironment:
     def test_repo_qualifies_the_main_branch_over_the_toplevel_name(self, monkeypatch):
         """The TUI names the repo after the main checkout's git dir, which the
         session env carries; the toplevel basename can differ."""
-        monkeypatch.setenv("PAPPARDELLE_REPO", "repo-a")
+        monkeypatch.setenv("LASAGNA_REPO", "repo-a")
 
         def mock_run(cmd, **kwargs):
             if "--abbrev-ref" in cmd:
@@ -885,11 +885,11 @@ class TestRepoEnvironment:
             assert get_workspace_name() == "repo-a-main"
 
     def test_two_repos_with_the_same_space_key_report_separately(self, monkeypatch, tmp_path, read_status):
-        monkeypatch.setenv("PAPPARDELLE_STATUS_DIR", str(tmp_path))
-        monkeypatch.setenv("PAPPARDELLE_SPACE", "QA-2")
-        monkeypatch.setenv("PAPPARDELLE_REPO", "repo-a")
+        monkeypatch.setenv("LASAGNA_STATUS_DIR", str(tmp_path))
+        monkeypatch.setenv("LASAGNA_SPACE", "QA-2")
+        monkeypatch.setenv("LASAGNA_REPO", "repo-a")
         update_status_module.update_status("processing")
-        monkeypatch.setenv("PAPPARDELLE_REPO", "repo-b")
+        monkeypatch.setenv("LASAGNA_REPO", "repo-b")
         update_status_module.update_status("waiting_for_approval")
         assert read_status(tmp_path, "repo-a-QA-2")["status"] == "processing"
         assert read_status(tmp_path, "repo-b-QA-2")["status"] == "waiting_for_approval"
@@ -973,7 +973,7 @@ class TestStoredSpace:
     def test_a_cwd_in_no_stored_space_reports_nothing(
         self, worktree: Path, tmp_path: Path, status_socket: StatusSocket, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setenv("PAPPARDELLE_STATUS_DIR", str(tmp_path / "status"))
+        monkeypatch.setenv("LASAGNA_STATUS_DIR", str(tmp_path / "status"))
         update_status("processing", cwd=str(tmp_path))
         assert status_socket.messages() == []
         assert not (tmp_path / "status").exists()
@@ -1014,7 +1014,7 @@ class TestStatusDaemon:
     @pytest.fixture
     def status_dir(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         status_dir = tmp_path / "status"
-        monkeypatch.setenv("PAPPARDELLE_STATUS_DIR", str(status_dir))
+        monkeypatch.setenv("LASAGNA_STATUS_DIR", str(status_dir))
         return status_dir
 
     @pytest.fixture
@@ -1046,8 +1046,8 @@ class TestStatusDaemon:
     def test_flag_on_a_later_event_leaves_out_what_it_does_not_report(
         self, flag_on: None, status_socket: StatusSocket, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setenv("PAPPARDELLE_REPO", "repo")
-        monkeypatch.setenv("PAPPARDELLE_SPACE", "QA-1")
+        monkeypatch.setenv("LASAGNA_REPO", "repo")
+        monkeypatch.setenv("LASAGNA_SPACE", "QA-1")
         update_status("running_tool", "Bash", "sess-1", "PreToolUse", self.CWD)
         update_status("waiting_for_input", session_id="sess-1")
 
@@ -1063,11 +1063,11 @@ class TestStatusDaemon:
         self, status_socket: StatusSocket, status_dir: Path, state_db: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         record_space(state_db, "stardust-labs", "STA-9200", self.CWD)
-        monkeypatch.setenv("PAPPARDELLE_REPO", "stardust-labs")
-        monkeypatch.setenv("PAPPARDELLE_SQLITE_STATE", "0")
+        monkeypatch.setenv("LASAGNA_REPO", "stardust-labs")
+        monkeypatch.setenv("LASAGNA_SQLITE_STATE", "0")
         update_status("processing", cwd=self.CWD)
         update_status("processing", cwd="/Users/charlie/.worktrees/stardust-labs/STA-9201")
-        monkeypatch.setenv("PAPPARDELLE_SQLITE_STATE", "1")
+        monkeypatch.setenv("LASAGNA_SQLITE_STATE", "1")
 
         update_status("waiting_for_input", cwd=self.CWD)
 
@@ -1083,7 +1083,7 @@ class TestStatusDaemon:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         record_space(state_db, "stardust-labs", "STA-9200", self.CWD)
-        monkeypatch.setenv("PAPPARDELLE_SQLITE_STATE", "0")
+        monkeypatch.setenv("LASAGNA_SQLITE_STATE", "0")
         update_status("processing", cwd=self.CWD)
         before = (status_dir / "STA-9200.json").read_text()
         status_socket.close()
@@ -1094,10 +1094,10 @@ class TestStatusDaemon:
             {"hook_event_name": "Stop", "session_id": "sess-1", "cwd": self.CWD},
             {
                 "HOME": str(home),
-                "PAPPARDELLE_STATUS_DIR": str(status_dir),
-                "PAPPARDELLE_SQLITE_STATE": "1",
-                "PAPPARDELLE_STATE_DB": str(state_db),
-                "PAPPARDELLE_STATUS_SOCKET": str(status_socket.path),
+                "LASAGNA_STATUS_DIR": str(status_dir),
+                "LASAGNA_SQLITE_STATE": "1",
+                "LASAGNA_STATE_DB": str(state_db),
+                "LASAGNA_STATUS_SOCKET": str(status_socket.path),
             },
         )
 
@@ -1111,7 +1111,7 @@ class TestStatusDaemon:
     def test_flag_on_with_nothing_listening_and_no_file_nothing_is_written(
         self, flag_on: None, status_dir: Path, short_tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setenv("PAPPARDELLE_STATUS_SOCKET", str(short_tmp_path / "status-1.sock"))
+        monkeypatch.setenv("LASAGNA_STATUS_SOCKET", str(short_tmp_path / "status-1.sock"))
 
         update_status("processing", cwd=self.CWD)
 
@@ -1125,8 +1125,8 @@ class TestStatusDaemon:
         moved = short_tmp_path / "state.db"
         shutil.copy(migrated_db, moved)
         record_space(moved, "stardust-labs", "STA-9200", self.CWD)
-        monkeypatch.setenv("PAPPARDELLE_SQLITE_STATE", "1")
-        monkeypatch.setenv("PAPPARDELLE_STATE_DB", str(moved))
+        monkeypatch.setenv("LASAGNA_SQLITE_STATE", "1")
+        monkeypatch.setenv("LASAGNA_STATE_DB", str(moved))
         try:
             update_status("processing", cwd=self.CWD)
 
@@ -1139,7 +1139,7 @@ class TestStatusDaemon:
     def test_flag_off_writes_the_file_and_sends_nothing(
         self, status_socket: StatusSocket, status_dir: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setenv("PAPPARDELLE_SQLITE_STATE", "0")
+        monkeypatch.setenv("LASAGNA_SQLITE_STATE", "0")
         update_status("processing", cwd=self.CWD)
 
         assert json.loads((status_dir / "STA-9200.json").read_text())["status"] == "processing"
@@ -1150,7 +1150,7 @@ class TestStatusDaemon:
         what it did before the database and the daemon existed."""
         result = _run_hook(
             {"hook_event_name": "Stop", "session_id": "sess-1", "cwd": self.CWD},
-            {"PAPPARDELLE_STATUS_DIR": str(status_dir), "PAPPARDELLE_SQLITE_STATE": "0"},
+            {"LASAGNA_STATUS_DIR": str(status_dir), "LASAGNA_SQLITE_STATE": "0"},
         )
 
         assert json.loads((status_dir / "STA-9200.json").read_text())["status"] == "waiting_for_input"

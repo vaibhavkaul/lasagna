@@ -230,7 +230,7 @@ def _resolve_main_repo_root(start: Optional[str]) -> Optional[str]:
     # running inside a worktree is told the main checkout instead of forking git
     # for it on every tool use. An explicit `start` overrides: the caller is
     # asking about some other directory, not this workspace.
-    injected = os.environ.get("PAPPARDELLE_MAIN_REPO_ROOT")
+    injected = os.environ.get("LASAGNA_MAIN_REPO_ROOT")
     if start is None and injected:
         return injected
 

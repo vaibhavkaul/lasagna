@@ -40,7 +40,7 @@ export const runStatusTmux: StatusTmuxRunner = async args => {
 };
 
 export function statusSocket(env: NodeJS.ProcessEnv = process.env): string {
-	return env['PAPPARDELLE_TMUX_SOCKET'] ?? 'lasagna_inner';
+	return env['LASAGNA_TMUX_SOCKET'] ?? 'lasagna_inner';
 }
 /** tmux's flag for a socket: a path, or a name under tmux's own directory. */
 export function statusSocketFlag(socket: string): '-S' | '-L' {
@@ -62,11 +62,11 @@ function segment(value: string): string {
 }
 /**
  * Where a repo's snapshots and leases are kept.
- * PAPPARDELLE_PROGRAM_STATUS_DIR moves them for a test or a timer service.
+ * LASAGNA_PROGRAM_STATUS_DIR moves them for a test or a timer service.
  */
 export function programStatusDir(repo: string, stateDir: string): string {
 	return path.join(
-		process.env['PAPPARDELLE_PROGRAM_STATUS_DIR'] ??
+		process.env['LASAGNA_PROGRAM_STATUS_DIR'] ??
 			path.join(stateDir, 'program-status'),
 		segment(repo),
 	);
@@ -374,7 +374,7 @@ export async function monitorStatusPane(
 			key,
 			Buffer.from(JSON.stringify(pane)).toString('base64'),
 			dir,
-			process.env['PAPPARDELLE_PROGRAM_STATUS_TRACE_DIR'] ?? '',
+			process.env['LASAGNA_PROGRAM_STATUS_TRACE_DIR'] ?? '',
 			// pipe-pane starts the monitor with the tmux server's environment,
 			// which may name another socket than this process uses.
 			store.socketPath,

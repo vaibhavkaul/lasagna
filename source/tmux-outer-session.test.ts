@@ -169,7 +169,7 @@ tmuxTest(
 			session,
 			command: 'sleep 30',
 			cwd: repo,
-			envArgs: ['-e', 'PAPPARDELLE_REVIVE_TEST=1'],
+			envArgs: ['-e', 'LASAGNA_REVIVE_TEST=1'],
 			markerPaneId: viewer,
 		});
 

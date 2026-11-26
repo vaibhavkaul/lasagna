@@ -59,12 +59,12 @@ const companionHelp = `
 	  $ lasagna companion width  <N|N%|reset>
 
 	Changes the companion pane of a Lasagna space. Every verb takes
-	--space KEY and defaults to $PAPPARDELLE_SPACE. Only the space's companion
+	--space KEY and defaults to $LASAGNA_SPACE. Only the space's companion
 	session is ever touched, never its agent session.
 
 	With no verb, the arguments are a command for the main pane of this
 	space's own companion: \`lasagna companion hunk diff --watch\` is
-	\`run --pane main -- hunk diff --watch\` in $PAPPARDELLE_SPACE. A command
+	\`run --pane main -- hunk diff --watch\` in $LASAGNA_SPACE. A command
 	that starts with a verb name needs the explicit \`run --\` form.
 
 	A single command argument runs as a shell command line, so pipes work
@@ -182,7 +182,7 @@ export function parseCompanionArgs(argv: readonly string[]): CompanionCommand {
 		}
 
 		// The shortcut only ever reaches the caller's own space, so it takes no
-		// --space: `space` stays undefined and resolves from $PAPPARDELLE_SPACE.
+		// --space: `space` stays undefined and resolves from $LASAGNA_SPACE.
 		return {
 			verb: 'run',
 			pane: MAIN_PANE,

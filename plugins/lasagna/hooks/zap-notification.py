@@ -11,7 +11,7 @@ whether he is at the desk or remote in Termius over Tailscale SSH.
 
 The hook used to fire only when it saw an active Tailscale SSH session in `w`
 output. That probe missed real remote sessions, and a buzz is welcome at the
-desk too, so STA-2041 removed it. `PAPPARDELLE_NTFY_TOPIC` is now the only
+desk too, so STA-2041 removed it. `LASAGNA_NTFY_TOPIC` is now the only
 switch: leave it unset and the hook stays silent.
 """
 
@@ -21,7 +21,7 @@ import re
 import subprocess
 import sys
 
-PAPPARDELLE_NTFY_TOPIC = os.environ.get("PAPPARDELLE_NTFY_TOPIC")
+LASAGNA_NTFY_TOPIC = os.environ.get("LASAGNA_NTFY_TOPIC")
 TERMIUS_DEEPLINK = "termius://terminal"
 
 
@@ -36,7 +36,7 @@ def send_zap(message: str) -> None:
                 message,
                 "-H",
                 f"Click: {TERMIUS_DEEPLINK}",
-                f"ntfy.sh/{PAPPARDELLE_NTFY_TOPIC}",
+                f"ntfy.sh/{LASAGNA_NTFY_TOPIC}",
             ],
             capture_output=True,
             timeout=10,
@@ -64,7 +64,7 @@ def main() -> None:
     except json.JSONDecodeError:
         input_data = {}
 
-    if not PAPPARDELLE_NTFY_TOPIC:
+    if not LASAGNA_NTFY_TOPIC:
         sys.exit(0)
 
     hook_event = input_data.get("hook_event_name", "")

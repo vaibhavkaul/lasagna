@@ -1,15 +1,15 @@
 /**
  * Whether a test run drops an inherited variable. A run started inside a
- * space, or by a timer service, inherits that space's PAPPARDELLE_*, and the
- * state ones (PAPPARDELLE_STATE_DB, PAPPARDELLE_STATUS_SOCKET, ...) point past
+ * space, or by a timer service, inherits that space's LASAGNA_*, and the
+ * state ones (LASAGNA_STATE_DB, LASAGNA_STATUS_SOCKET, ...) point past
  * any HOME at the real database. A test run keeps only its state mode and its
- * own PAPPARDELLE_TEST_* switches.
+ * own LASAGNA_TEST_* switches.
  */
 export function isHostPappardelleEnv(name: string): boolean {
 	return (
-		name.startsWith('PAPPARDELLE_') &&
-		name !== 'PAPPARDELLE_SQLITE_STATE' &&
-		!name.startsWith('PAPPARDELLE_TEST_')
+		name.startsWith('LASAGNA_') &&
+		name !== 'LASAGNA_SQLITE_STATE' &&
+		!name.startsWith('LASAGNA_TEST_')
 	);
 }
 

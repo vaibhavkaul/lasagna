@@ -50,7 +50,7 @@ try {
 	const daos = createStateDaos({
 		repo,
 		stateDir,
-		sqlite: process.env['PAPPARDELLE_SQLITE_STATE'] === '1',
+		sqlite: process.env['LASAGNA_SQLITE_STATE'] === '1',
 	});
 	initTmuxState(daos);
 	const issue: TrackerIssue = {

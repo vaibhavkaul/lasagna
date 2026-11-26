@@ -1,7 +1,7 @@
 """Runs the hook tests against files alone, or with experimental.sqliteState on:
 files and SQLite, and status sent to a status socket.
 
-PAPPARDELLE_SQLITE_STATE=1 in the environment selects the second. Either way
+LASAGNA_SQLITE_STATE=1 in the environment selects the second. Either way
 no test reads the developer's own flag, touches their database or reaches
 their status daemon.
 """
@@ -19,7 +19,7 @@ from typing import Any, Optional
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-SQLITE_RUN = os.environ.get("PAPPARDELLE_SQLITE_STATE") == "1"
+SQLITE_RUN = os.environ.get("LASAGNA_SQLITE_STATE") == "1"
 
 
 @pytest.fixture(scope="session")
@@ -28,7 +28,7 @@ def migrated_db(tmp_path_factory: pytest.TempPathFactory) -> Path:
     bun = shutil.which("bun")
     if bun is None:
         if SQLITE_RUN:
-            pytest.fail("PAPPARDELLE_SQLITE_STATE=1 needs bun to create the state database")
+            pytest.fail("LASAGNA_SQLITE_STATE=1 needs bun to create the state database")
         pytest.skip("bun is not installed")
     assert bun is not None  # pytest.skip ends the test, but mypy cannot see that here
     db = tmp_path_factory.mktemp("state-db") / "state.db"
@@ -64,8 +64,8 @@ def state_db(migrated_db: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     """A fresh database that the hooks under test write to."""
     db = tmp_path / "state.db"
     shutil.copy(migrated_db, db)
-    monkeypatch.setenv("PAPPARDELLE_SQLITE_STATE", "1")
-    monkeypatch.setenv("PAPPARDELLE_STATE_DB", str(db))
+    monkeypatch.setenv("LASAGNA_SQLITE_STATE", "1")
+    monkeypatch.setenv("LASAGNA_STATE_DB", str(db))
     return db
 
 
@@ -111,7 +111,7 @@ def short_tmp_path() -> Iterator[Path]:
 def status_socket(short_tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[StatusSocket]:
     """The socket a hook under test sends its status to while the flag is on."""
     listening = StatusSocket(short_tmp_path / "status-1.sock")
-    monkeypatch.setenv("PAPPARDELLE_STATUS_SOCKET", str(listening.path))
+    monkeypatch.setenv("LASAGNA_STATUS_SOCKET", str(listening.path))
     yield listening
     listening.close()
 
@@ -140,8 +140,8 @@ def read_status(request: pytest.FixtureRequest) -> Callable[[Path, str], Optiona
 
 @pytest.fixture(autouse=True)
 def _state_mode(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("PAPPARDELLE_STATUS_SOCKET", raising=False)
+    monkeypatch.delenv("LASAGNA_STATUS_SOCKET", raising=False)
     if SQLITE_RUN:
         request.getfixturevalue("state_db")
     elif "state_db" not in request.fixturenames:
-        monkeypatch.setenv("PAPPARDELLE_SQLITE_STATE", "0")
+        monkeypatch.setenv("LASAGNA_SQLITE_STATE", "0")

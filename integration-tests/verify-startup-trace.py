@@ -29,17 +29,17 @@ def main():
             directory.mkdir()
         env = dict(HOME=str(home), SHELL='/bin/bash', TERM='xterm-256color',
                    PATH=str(bin_dir) + os.pathsep + os.environ['PATH'],
-                   TMUX_TMPDIR=str(root), PAPPARDELLE_TMUX_SOCKET='trace-inner',
+                   TMUX_TMPDIR=str(root), LASAGNA_TMUX_SOCKET='trace-inner',
                    GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_GLOBAL='/dev/null')
         # With the flag on the TUI starts a status daemon that outlives it. The
         # fixture's teardown stops every process that carries this marker.
         env[harness['FIXTURE_MARKER']] = tmp
         # Beside the database under HOME, the socket's path is too long for
         # macOS, whose temp directory is deep.
-        env['PAPPARDELLE_STATUS_SOCKET'] = str(root / 'status-1.sock')
+        env['LASAGNA_STATUS_SOCKET'] = str(root / 'status-1.sock')
         # The fixture's HOME has no config, so the state mode comes from the override.
-        if 'PAPPARDELLE_SQLITE_STATE' in os.environ:
-            env['PAPPARDELLE_SQLITE_STATE'] = os.environ['PAPPARDELLE_SQLITE_STATE']
+        if 'LASAGNA_SQLITE_STATE' in os.environ:
+            env['LASAGNA_SQLITE_STATE'] = os.environ['LASAGNA_SQLITE_STATE']
         for tool in ('bd', 'gh', 'glab', 'acli', 'claude', 'codex'):
             target = bin_dir / tool
             target.write_text(f'#!{sys.executable}\nprint("[]")\n')
@@ -90,8 +90,8 @@ def main():
         try:
             # This server predates the tracing environment; client inheritance cannot enable it.
             tmux('-f', '/dev/null', 'new-session', '-d', '-s', 'sentinel', '-x', '100', '-y', '52').check_returncode()
-            assert tmux('show-environment', '-g', 'PAPPARDELLE_STARTUP_TRACE').returncode != 0
-            env['PAPPARDELLE_STARTUP_TRACE'] = '1'
+            assert tmux('show-environment', '-g', 'LASAGNA_STARTUP_TRACE').returncode != 0
+            env['LASAGNA_STARTUP_TRACE'] = '1'
             launcher = subprocess.Popen([str(binary)], cwd=repo, env=env, stdin=slave,
                                         stdout=slave, stderr=slave, start_new_session=True)
             first = wait_ready()

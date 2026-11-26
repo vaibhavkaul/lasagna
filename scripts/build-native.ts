@@ -12,7 +12,7 @@ export async function buildNative(destination: string) {
 		minify: {syntax: true, whitespace: true, identifiers: false},
 		sourcemap: 'linked',
 		define: {
-			PAPPARDELLE_COMPILED: 'true',
+			LASAGNA_COMPILED: 'true',
 			'process.env.NODE_ENV': JSON.stringify('production'),
 			...(platform === 'linux'
 				? {'process.env.OPENTUI_LIBC': JSON.stringify('glibc')}

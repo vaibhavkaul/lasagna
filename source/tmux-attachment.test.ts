@@ -57,11 +57,11 @@ afterAll(async () => {
 // monorepo's config sets `companion_command: ""`, which starts no companion
 // command, so the launch tests failed there and passed upstream (STA-3087).
 // An empty repository gives every checkout the default config. A space sets
-// PAPPARDELLE_MAIN_REPO_ROOT, which would point the lookup back at its repo.
+// LASAGNA_MAIN_REPO_ROOT, which would point the lookup back at its repo.
 const emptyRepository = mkdtempSync(join(tmpdir(), 'pappa-attach-repo-'));
 spawnSync('git', ['init', '-q', emptyRepository]);
 process.chdir(emptyRepository);
-delete process.env['PAPPARDELLE_MAIN_REPO_ROOT'];
+delete process.env['LASAGNA_MAIN_REPO_ROOT'];
 afterAll(() => {
 	rmSync(emptyRepository, {recursive: true, force: true});
 });
@@ -474,11 +474,11 @@ test('failed cold respawn discards cached ttys before a recycled pty can target 
 
 for (const selected of ['qa-custom', "/tmp/socket with ' quotes"]) {
 	test(`cold viewers attach to the selected socket ${selected}`, async () => {
-		const previous = process.env['PAPPARDELLE_TMUX_SOCKET'];
-		process.env['PAPPARDELLE_TMUX_SOCKET'] = selected;
+		const previous = process.env['LASAGNA_TMUX_SOCKET'];
+		process.env['LASAGNA_TMUX_SOCKET'] = selected;
 		teardown(() => {
-			if (previous === undefined) delete process.env['PAPPARDELLE_TMUX_SOCKET'];
-			else process.env['PAPPARDELLE_TMUX_SOCKET'] = previous;
+			if (previous === undefined) delete process.env['LASAGNA_TMUX_SOCKET'];
+			else process.env['LASAGNA_TMUX_SOCKET'] = previous;
 		});
 		const fake = fakeTmux();
 		const run: AsyncTmuxRunner = async args => {
@@ -1037,7 +1037,7 @@ test('cold companion creation completes its command before reporting success', a
 	expect(
 		calls.every(args => args[0] === '-L' && args[1] === 'lasagna_inner'),
 	).toBe(true);
-	expect(calls[1]!.includes('PAPPARDELLE_SPACE=TEST-NEW')).toBe(true);
+	expect(calls[1]!.includes('LASAGNA_SPACE=TEST-NEW')).toBe(true);
 	expect(calls[1]!.includes('custom-ui')).toBe(true);
 });
 
@@ -1065,7 +1065,7 @@ test('a new agent session stores the agent profile it was started with', async (
 		isClaude: false,
 	});
 	const created = calls.find(args => args.includes('new-session'))!;
-	expect(created.some(arg => arg.startsWith('PAPPARDELLE_AGENT_'))).toBe(false);
+	expect(created.some(arg => arg.startsWith('LASAGNA_AGENT_'))).toBe(false);
 });
 
 test('a new agent session starts when its agent profile cannot be stored', async () => {

@@ -132,14 +132,14 @@ def test_the_flag_comes_from_the_override_then_the_recorded_config(tmp_path: Pat
         json.dumps({"sqliteState": True, "db": "/recorded/state.db"})
     )
     assert state_db.state_db_path({}) == "/recorded/state.db"
-    assert state_db.state_db_path({"PAPPARDELLE_SQLITE_STATE": "0"}) is None
-    assert state_db.state_db_path({"PAPPARDELLE_STATE_DB": "/env/state.db"}) == "/env/state.db"
+    assert state_db.state_db_path({"LASAGNA_SQLITE_STATE": "0"}) is None
+    assert state_db.state_db_path({"LASAGNA_STATE_DB": "/env/state.db"}) == "/env/state.db"
 
     (tmp_path / ".lasagna" / "state-flag.json").write_text(
         json.dumps({"sqliteState": False, "db": "/recorded/state.db"})
     )
     assert state_db.state_db_path({}) is None
-    assert state_db.state_db_path({"PAPPARDELLE_SQLITE_STATE": "1"}) == "/recorded/state.db"
+    assert state_db.state_db_path({"LASAGNA_SQLITE_STATE": "1"}) == "/recorded/state.db"
 
 
 def test_a_database_path_with_uri_characters_is_opened(state_db: Path, tmp_path: Path):

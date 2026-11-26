@@ -214,14 +214,14 @@ jq -n --arg worktree_path "$2" '{worktree_path: $worktree_path}'`,
 			input?: string;
 		} = {}): Promise<string> {
 			const env = {...process.env};
-			delete env.PAPPARDELLE_PROJECT_ROOT;
+			delete env.LASAGNA_PROJECT_ROOT;
 			delete env.MAIN_REPO;
 			delete env.WORKTREES_ROOT;
 			delete env.MAIN_REPO_ROOT;
 			// idow exports this into every workspace it spawns, so a suite run
 			// from inside a Pappardelle session inherits it and the fixture
 			// resolves the real checkout instead of its own.
-			delete env.PAPPARDELLE_MAIN_REPO_ROOT;
+			delete env.LASAGNA_MAIN_REPO_ROOT;
 			return new Promise((resolve, reject) => {
 				const child = execFile(
 					'bash',
@@ -242,7 +242,7 @@ jq -n --arg worktree_path "$2" '{worktree_path: $worktree_path}'`,
 							...env,
 							HOME: home,
 							PATH: `${bin}:${process.env.PATH!}`,
-							...(projectRoot ? {PAPPARDELLE_PROJECT_ROOT: linked} : {}),
+							...(projectRoot ? {LASAGNA_PROJECT_ROOT: linked} : {}),
 							IDOW_TEST_WORKSPACE: workspace,
 							IDOW_TEST_LAUNCH_ARGS: launchArgs,
 							IDOW_TEST_VCS_CALLS: vcsCalls,
@@ -250,7 +250,7 @@ jq -n --arg worktree_path "$2" '{worktree_path: $worktree_path}'`,
 							IDOW_TEST_OPEN_CALLS: openCalls,
 							IDOW_TEST_YQ: yq,
 							IDOW_TEST_LAUNCHERS: launchers,
-							PAPPARDELLE_EXECUTABLE: stateCli,
+							LASAGNA_EXECUTABLE: stateCli,
 							...extraEnv,
 						},
 					},

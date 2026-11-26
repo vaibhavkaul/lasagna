@@ -31,9 +31,9 @@ test('a hook event sent to a running daemon reaches a watch in another process, 
 		// tmux falls back to the live tmux directory without it.
 		TMUX_TMPDIR: process.env['TMUX_TMPDIR'],
 		HOME: stateDir,
-		PAPPARDELLE_SQLITE_STATE: '1',
-		PAPPARDELLE_STATE_DB: path.join(stateDir, 'state.db'),
-		PAPPARDELLE_STATUS_DIR: path.join(stateDir, 'claude-status'),
+		LASAGNA_SQLITE_STATE: '1',
+		LASAGNA_STATE_DB: path.join(stateDir, 'state.db'),
+		LASAGNA_STATUS_DIR: path.join(stateDir, 'claude-status'),
 	};
 	const daemon = spawnStatusDaemon(socketPath, env)!;
 	teardown(() => {
@@ -82,7 +82,7 @@ test('a hook event sent to a running daemon reaches a watch in another process, 
 	);
 
 	const reporting = execute('python3', [hook], {
-		env: {...env, PAPPARDELLE_REPO: 'repo', PAPPARDELLE_SPACE: 'STA-1'},
+		env: {...env, LASAGNA_REPO: 'repo', LASAGNA_SPACE: 'STA-1'},
 	});
 	reporting.child.stdin!.end(
 		JSON.stringify({

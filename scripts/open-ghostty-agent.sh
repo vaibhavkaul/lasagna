@@ -166,8 +166,8 @@ if [[ -z "$TMUX_SESSION" || -z "$COMPANION_SESSION" ]]; then
     exit 1
 fi
 
-if [[ -z "${PAPPARDELLE_TMUX_SOCKET:-}" ]]; then
-    echo "Error: PAPPARDELLE_TMUX_SOCKET is required: idow exports the space's socket from lasagna space get" >&2
+if [[ -z "${LASAGNA_TMUX_SOCKET:-}" ]]; then
+    echo "Error: LASAGNA_TMUX_SOCKET is required: idow exports the space's socket from lasagna space get" >&2
     exit 1
 fi
 
@@ -394,7 +394,7 @@ APPLESCRIPT_END
 # Run the AppleScript with arguments. Argument 9 is the print-only switch: when
 # true the script returns the assembled command lines and never touches Ghostty.
 USER_SHELL=$(command -v "${SHELL:-zsh}" || echo /bin/zsh)
-OSA_OUTPUT=$(osascript "$APPLESCRIPT" "$ISSUE_KEY" "$WORKTREE" "$TMUX_SESSION" "$AGENT_PROMPT" "$REPO_NAME" "$LAUNCH_FLAGS" "$PAPPARDELLE_TMUX_SOCKET" "$COMPANION_COMMAND" "$PRINT_COMMAND" "$WINDOW_ID" "$USER_SHELL" "$AGENT_COMMAND" "$NAME_FLAG" "$AGENT_RESUME_STR" "$PROMPT_WORDS" "$COMPANION_SESSION")
+OSA_OUTPUT=$(osascript "$APPLESCRIPT" "$ISSUE_KEY" "$WORKTREE" "$TMUX_SESSION" "$AGENT_PROMPT" "$REPO_NAME" "$LAUNCH_FLAGS" "$LASAGNA_TMUX_SOCKET" "$COMPANION_COMMAND" "$PRINT_COMMAND" "$WINDOW_ID" "$USER_SHELL" "$AGENT_COMMAND" "$NAME_FLAG" "$AGENT_RESUME_STR" "$PROMPT_WORDS" "$COMPANION_SESSION")
 
 if [[ "$PRINT_COMMAND" == true ]]; then
     printf '%s\n' "$OSA_OUTPUT"

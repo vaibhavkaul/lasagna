@@ -91,7 +91,7 @@ function runInstallFunction(
 		{
 			encoding: 'utf8',
 			env: {
-				PAPPARDELLE_INSTALL_SOURCE_ONLY: '1',
+				LASAGNA_INSTALL_SOURCE_ONLY: '1',
 				PATH: env['PATH'] ?? toolsDir(),
 				...env,
 			},
@@ -145,7 +145,7 @@ test('find_bun prefers the bun the TUI passes over a stale PATH bun', () => {
 	const result = runInstallFunction('find_bun', {
 		HOME: home,
 		PATH: tools,
-		PAPPARDELLE_BUN: tuiBun,
+		LASAGNA_BUN: tuiBun,
 	});
 
 	expect(result.status, `stderr: ${result.stderr}`).toBe(0);
@@ -180,10 +180,10 @@ test('find_bun ignores the bunfig.toml preload of the directory it runs from', (
 			cwd: workspace,
 			encoding: 'utf8',
 			env: {
-				PAPPARDELLE_INSTALL_SOURCE_ONLY: '1',
+				LASAGNA_INSTALL_SOURCE_ONLY: '1',
 				HOME: testDir(),
 				PATH: toolsDir(),
-				PAPPARDELLE_BUN: process.execPath,
+				LASAGNA_BUN: process.execPath,
 			},
 		},
 	);
@@ -214,7 +214,7 @@ test('install_private_bun installs a verified bun that find_bun then uses', () =
 	const env = {
 		HOME: home,
 		PATH: tools,
-		PAPPARDELLE_BUN_DIST_URL: fakeBunDist(),
+		LASAGNA_BUN_DIST_URL: fakeBunDist(),
 	};
 
 	const installed = runInstallFunction('install_private_bun', env);
@@ -237,7 +237,7 @@ test('install_private_bun refuses a checksum mismatch and keeps an earlier priva
 	const good = runInstallFunction('install_private_bun', {
 		HOME: home,
 		PATH: tools,
-		PAPPARDELLE_BUN_DIST_URL: fakeBunDist(),
+		LASAGNA_BUN_DIST_URL: fakeBunDist(),
 	});
 	expect(good.status, `stderr: ${good.stderr}`).toBe(0);
 	const current = path.join(home, '.lasagna', 'bun', 'current');
@@ -246,7 +246,7 @@ test('install_private_bun refuses a checksum mismatch and keeps an earlier priva
 	const bad = runInstallFunction('install_private_bun', {
 		HOME: home,
 		PATH: tools,
-		PAPPARDELLE_BUN_DIST_URL: fakeBunDist({corruptChecksum: true}),
+		LASAGNA_BUN_DIST_URL: fakeBunDist({corruptChecksum: true}),
 	});
 
 	expect(bad.status).not.toBe(0);
@@ -259,7 +259,7 @@ test('install_private_bun removes the private bun it replaces', () => {
 	const env = {
 		HOME: home,
 		PATH: toolsDir(),
-		PAPPARDELLE_BUN_DIST_URL: fakeBunDist(),
+		LASAGNA_BUN_DIST_URL: fakeBunDist(),
 	};
 	for (let run = 0; run < 2; run++) {
 		const result = runInstallFunction('install_private_bun', env);
@@ -281,7 +281,7 @@ test('install_private_bun names the archive URL when its download fails', () => 
 	const result = runInstallFunction('install_private_bun', {
 		HOME: testDir(),
 		PATH: toolsDir(),
-		PAPPARDELLE_BUN_DIST_URL: dist,
+		LASAGNA_BUN_DIST_URL: dist,
 	});
 
 	expect(result.status).not.toBe(0);
@@ -341,7 +341,7 @@ test('a failed build leaves the current install in place', () => {
 	const result = runInstallFunction('install_repo_atomically', {
 		HOME: home,
 		PATH: toolsWithFakeBun(),
-		PAPPARDELLE_REPO_URL: sourceRepo('exit 1\n'),
+		LASAGNA_REPO_URL: sourceRepo('exit 1\n'),
 	});
 
 	expect(result.status).not.toBe(0);
@@ -361,7 +361,7 @@ test('a clone that does not typecheck is never built and leaves the current inst
 	const result = runInstallFunction('install_repo_atomically', {
 		HOME: home,
 		PATH: toolsWithFakeBun(),
-		PAPPARDELLE_REPO_URL: sourceRepo(
+		LASAGNA_REPO_URL: sourceRepo(
 			'mkdir -p dist && echo new build > dist/lasagna\n',
 			'exit 2\n',
 		),
@@ -380,7 +380,7 @@ test('a clone failure leaves the current install in place', () => {
 	const result = runInstallFunction('install_repo_atomically', {
 		HOME: home,
 		PATH: toolsWithFakeBun(),
-		PAPPARDELLE_REPO_URL: path.join(testDir(), 'missing'),
+		LASAGNA_REPO_URL: path.join(testDir(), 'missing'),
 	});
 
 	expect(result.status).not.toBe(0);
@@ -396,7 +396,7 @@ test('a successful build replaces the install and keeps the old one as a rollbac
 	const result = runInstallFunction('install_repo_atomically', {
 		HOME: home,
 		PATH: toolsWithFakeBun(),
-		PAPPARDELLE_REPO_URL: sourceRepo(
+		LASAGNA_REPO_URL: sourceRepo(
 			'mkdir -p dist && echo new build > dist/lasagna\n',
 		),
 	});

@@ -47,14 +47,14 @@ def _recorded_flag() -> dict[str, Any]:
 
 def state_db_path(environ: Mapping[str, str] = os.environ) -> Optional[str]:
     """The database to write to, or None while the flag is off."""
-    override = environ.get("PAPPARDELLE_SQLITE_STATE")
+    override = environ.get("LASAGNA_SQLITE_STATE")
     recorded = _recorded_flag()
     if override == "0":
         return None
     if override != "1" and recorded.get("sqliteState") is not True:
         return None
     return (
-        environ.get("PAPPARDELLE_STATE_DB")
+        environ.get("LASAGNA_STATE_DB")
         or recorded.get("db")
         or str(state_dir() / "state.db")
     )
@@ -67,14 +67,14 @@ STATUS_SOCKET_NAME = "status-1.sock"
 def status_socket_path(environ: Mapping[str, str] = os.environ) -> Optional[str]:
     """The status daemon's socket, or None while the flag is off.
 
-    It is beside the database unless PAPPARDELLE_STATUS_SOCKET names another
+    It is beside the database unless LASAGNA_STATUS_SOCKET names another
     place, so whatever moves the database moves the daemon with it, as in
     statusSocketPath (source/state-db.ts).
     """
     db_path = state_db_path(environ)
     if db_path is None:
         return None
-    return environ.get("PAPPARDELLE_STATUS_SOCKET") or os.path.join(os.path.dirname(db_path), STATUS_SOCKET_NAME)
+    return environ.get("LASAGNA_STATUS_SOCKET") or os.path.join(os.path.dirname(db_path), STATUS_SOCKET_NAME)
 
 
 def _log_failure(message: str) -> None:

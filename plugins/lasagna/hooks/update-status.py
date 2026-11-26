@@ -71,8 +71,8 @@ def send_status(path: str, state: dict[str, Any]) -> bool:
 
 
 # Debug mode - logs all hook events to a file
-# Set PAPPARDELLE_DEBUG=1 environment variable to enable logging
-DEBUG = os.environ.get("PAPPARDELLE_DEBUG", "0") == "1"
+# Set LASAGNA_DEBUG=1 environment variable to enable logging
+DEBUG = os.environ.get("LASAGNA_DEBUG", "0") == "1"
 
 
 def log_debug(message: str, data: Any = None) -> None:
@@ -107,11 +107,11 @@ def get_workspace_name(cwd: Optional[str] = None) -> Optional[str]:
     """
     # The session's repo, set by start-agent-session.sh and the TUI. It is the
     # name the TUI reads under, which the cwd-derived name can differ from.
-    repo = os.environ.get("PAPPARDELLE_REPO", "").strip()
+    repo = os.environ.get("LASAGNA_REPO", "").strip()
     # The space this pane belongs to, set on the tmux session by
     # start-agent-session.sh. It wins over the cwd: a Claude resumed from
     # another directory inside the pane still reports under the space shown.
-    space = os.environ.get("PAPPARDELLE_SPACE", "").strip()
+    space = os.environ.get("LASAGNA_SPACE", "").strip()
     if space:
         return _qualify(repo, space) if repo else space
     db_path = state_db_path()
@@ -170,9 +170,9 @@ def get_workspace_name(cwd: Optional[str] = None) -> Optional[str]:
 def get_status_dir() -> Path:
     """Get the status directory path.
 
-    Uses PAPPARDELLE_STATUS_DIR env var if set, otherwise defaults to ~/.lasagna/claude-status/.
+    Uses LASAGNA_STATUS_DIR env var if set, otherwise defaults to ~/.lasagna/claude-status/.
     """
-    env_dir = os.environ.get("PAPPARDELLE_STATUS_DIR")
+    env_dir = os.environ.get("LASAGNA_STATUS_DIR")
     if env_dir:
         return Path(env_dir)
     return state_dir() / "claude-status"

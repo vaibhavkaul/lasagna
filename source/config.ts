@@ -523,7 +523,7 @@ export function getMainRepoRoot(): string {
 function resolveMainRepoRoot(): string {
 	// Set by whoever created this workspace, so a worktree session is told its
 	// main checkout instead of forking git to work it out again.
-	const injected = process.env['PAPPARDELLE_MAIN_REPO_ROOT'];
+	const injected = process.env['LASAGNA_MAIN_REPO_ROOT'];
 	if (injected) return injected;
 
 	try {

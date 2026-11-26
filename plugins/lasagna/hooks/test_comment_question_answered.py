@@ -34,7 +34,7 @@ class TestGetIssueKey:
     @pytest.fixture(autouse=True)
     def _flag_off(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Without the database the key is read from the worktree's path."""
-        monkeypatch.setenv("PAPPARDELLE_SQLITE_STATE", "0")
+        monkeypatch.setenv("LASAGNA_SQLITE_STATE", "0")
 
     def test_extracts_from_worktree_path(self):
         with patch("os.getcwd", return_value="/Users/x/.worktrees/repo/STA-123/src"):

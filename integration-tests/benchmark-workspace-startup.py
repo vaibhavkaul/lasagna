@@ -68,7 +68,7 @@ printf '{"worktree_path":"%s"}\\n' "$HOME/.worktrees/repo/bench-123"''')
         (home / ".lasagna" / ".pappardelle.yml").write_text("claude:\n  effort: high\n")
         self.env = {
             **os.environ, "HOME": str(home), "PATH": f'{bin_dir}:{os.environ["PATH"]}',
-            "PAPPARDELLE_PROJECT_ROOT": str(project), "PAPPARDELLE_MAIN_REPO_ROOT": str(project),
+            "LASAGNA_PROJECT_ROOT": str(project), "LASAGNA_MAIN_REPO_ROOT": str(project),
             "BENCH_YQ_LOG": str(root / "yq-calls"),
         }
 

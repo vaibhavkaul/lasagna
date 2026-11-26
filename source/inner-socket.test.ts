@@ -111,7 +111,7 @@ test('new-session for per-issue sessions routes through innerTmuxArgs', () => {
 
 test('every per-issue new-session carries the space session environment', () => {
 	// A Claude started by hand in the pane reports its status under
-	// PAPPARDELLE_SPACE, so a session the TUI makes must carry it just like one
+	// LASAGNA_SPACE, so a session the TUI makes must carry it just like one
 	// start-agent-session.sh makes. Without it, the fix from
 	// chardigio/pappardelle#22 holds only until the next reboot.
 	const agent =
@@ -293,7 +293,7 @@ function makeFakeRunner(options: {
 	listSessionsStatus?: number;
 	listSessionsError?: Error;
 	killStatus?: (name: string) => number;
-	/** Each session's PAPPARDELLE_SPACE. */
+	/** Each session's LASAGNA_SPACE. */
 	spaces?: Record<string, string>;
 }): {runner: OuterTmuxRunner; calls: string[][]} {
 	const calls: string[][] = [];
@@ -317,7 +317,7 @@ function makeFakeRunner(options: {
 			const space = options.spaces?.[(args[2] ?? '').slice(1, -1)];
 			return space === undefined
 				? {status: 1, stdout: ''}
-				: {status: 0, stdout: `PAPPARDELLE_SPACE=${space}\n`};
+				: {status: 0, stdout: `LASAGNA_SPACE=${space}\n`};
 		}
 		return {status: 0, stdout: ''};
 	};
