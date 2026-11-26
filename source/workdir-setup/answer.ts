@@ -339,12 +339,58 @@ export function parseRepoAnswer(
  * A setup step Claude worked out must not stop a space from opening: one
  * run wrote a git-crypt unlock that fails in a locked checkout, without
  * continue_on_error. A step keeps the flag it was given; the rest get it.
+ *
+ * Nor may it end or move idow, which evals every step in its own shell: that
+ * unlock ended in `exit $rc`, and the space opened with no first prompt and
+ * no error. So each step's run is put in a subshell. It is done here, to the
+ * steps setup writes, and not in idow: a step a person wrote runs as it
+ * always has.
  */
 function forgivingSteps(value: unknown): unknown {
 	if (!Array.isArray(value)) return value;
-	return value.map(step =>
-		isRecord(step) && step['continue_on_error'] === undefined
-			? {...step, continue_on_error: true}
-			: step,
+	return value.map(step => {
+		if (!isRecord(step)) return step;
+		return {
+			...step,
+			...(typeof step['run'] === 'string' && {run: inSubshell(step['run'])}),
+			...(step['continue_on_error'] === undefined && {
+				continue_on_error: true,
+			}),
+		};
+	});
+}
+
+/**
+ * `run` as a subshell, where an `exit` ends and a `cd` moves only the step,
+ * unless it is one already. After a run with a comment or several lines the
+ * closing parenthesis gets a line of its own, since a comment would take it.
+ */
+export function inSubshell(run: string): string {
+	const command = run.trim();
+	if (isSubshell(command)) return command;
+	return /[#\n]/.test(command) ? `(\n${command}\n)` : `( ${command} )`;
+}
+
+/**
+ * Whether a command is one `( ... )` from its first character to its last.
+ * `(a) && (b)` is not, and when in doubt the answer is no: a subshell inside
+ * another one does no harm.
+ */
+function isSubshell(command: string): boolean {
+	// A parenthesis that is quoted or escaped groups nothing: blank those out,
+	// keeping every other character where it was.
+	const bare = command.replaceAll(/\\.|'[^']*'|"(?:\\.|[^"\\])*"/gs, quoted =>
+		' '.repeat(quoted.length),
 	);
+	if (!bare.startsWith('(') || !bare.endsWith(')')) return false;
+	let depth = 0;
+	for (const [index, char] of [...bare].entries()) {
+		if (char === '(') depth++;
+		if (char !== ')') continue;
+		depth--;
+		// Closed before the end: what follows is outside the first group.
+		if (depth <= 0 && index < bare.length - 1) return false;
+	}
+
+	return depth === 0;
 }

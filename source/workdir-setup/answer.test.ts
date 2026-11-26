@@ -1,6 +1,8 @@
+import {spawnSync} from 'node:child_process';
 import {describe, test, expect} from 'bun:test';
 import {
 	KEY_SPECS,
+	inSubshell,
 	keyFor,
 	mergeValues,
 	parseRepoAnswer,
@@ -68,7 +70,7 @@ describe('a repo answer', () => {
 					value: [
 						{
 							name: 'Install',
-							run: 'yarn install --frozen-lockfile',
+							run: '( yarn install --frozen-lockfile )',
 							continue_on_error: true,
 						},
 					],
@@ -234,10 +236,51 @@ describe('the keys setup infers', () => {
 		expect(parsed.values[0]!.value).toStrictEqual([
 			{
 				name: 'Unlock',
-				run: 'git-crypt unlock; exit $?',
+				run: '( git-crypt unlock; exit $? )',
 				continue_on_error: true,
 			},
-			{name: 'Must pass', run: 'make', continue_on_error: false},
+			{name: 'Must pass', run: '( make )', continue_on_error: false},
 		]);
+	});
+
+	test('an inferred setup step runs in a subshell, once, with the closing parenthesis out of reach of a comment', () => {
+		const parsed = accepted(
+			answer([
+				value(
+					'post_workspace_init',
+					[
+						'cd app && yarn install',
+						'  ( cd app && make )  ',
+						'(cd a) && (cd b)',
+						'(echo ")" ) ; exit 1 ; (echo "(")',
+						'mise trust # tool versions',
+						'cat > .env <<EOF\nA=1\nEOF',
+					].map(run => ({name: 'Step', run})),
+				),
+			]),
+		);
+		expect(
+			(parsed.values[0]!.value as Array<{run: string}>).map(step => step.run),
+		).toStrictEqual([
+			'( cd app && yarn install )',
+			'( cd app && make )',
+			'( (cd a) && (cd b) )',
+			'( (echo ")" ) ; exit 1 ; (echo "(") )',
+			'(\nmise trust # tool versions\n)',
+			'(\ncat > .env <<EOF\nA=1\nEOF\n)',
+		]);
+	});
+
+	test('what the subshell is for: an exit or a cd in a step leaves the shell that evals it running, where it was', () => {
+		const shell = (run: string) =>
+			spawnSync(
+				'bash',
+				['-c', 'cd /tmp; eval "$1"; printf "%s after" "$PWD"', 'bash', run],
+				{encoding: 'utf8'},
+			).stdout;
+		const step = 'cd / && exit 3';
+		expect(shell(step)).toBe('');
+		expect(shell(inSubshell(step))).toBe('/tmp after');
+		expect(shell(inSubshell('cd / # and stay\nexit 3'))).toBe('/tmp after');
 	});
 });
