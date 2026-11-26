@@ -313,7 +313,16 @@ export function retargetCli(
  * placed in a repo.
  */
 export function retargetProcess(argv: readonly string[]): string[] {
-	const result = retargetCli(argv, defaultRetargetDeps());
+	let deps: RetargetDeps;
+	try {
+		deps = defaultRetargetDeps();
+	} catch {
+		// The working directory is gone (a removed worktree). The verb says so
+		// in its own words, as it did before there was anything to point at.
+		return [...argv];
+	}
+
+	const result = retargetCli(argv, deps);
 	switch (result.kind) {
 		case 'unchanged': {
 			return [...argv];

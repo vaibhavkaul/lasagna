@@ -1,5 +1,6 @@
 import {test, expect} from 'bun:test';
 import {spawnSync} from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 import {testState} from '../test/helpers/state.ts';
 import {teardown} from '../test/helpers/teardown.ts';
@@ -347,6 +348,29 @@ test('the CLI answers for a space named with its repo, from another repo and fro
 	const unknown = field(repos['api']!.root, 'nope:WEB-4', 'repo');
 	expect(unknown.code).toBe(2);
 	expect(unknown.stderr).toContain('No repo nope in this work dir');
+}, 60_000);
+
+test('a command run from a directory that is gone still reaches its own error', () => {
+	const gone = path.join(tempDir('lasagna-gone-'), 'removed-worktree');
+	fs.mkdirSync(gone);
+	const result = spawnSync(
+		'/bin/sh',
+		[
+			'-c',
+			'cd "$1" && rmdir "$1" && shift && exec "$@"',
+			'sh',
+			gone,
+			process.execPath,
+			...bunIsolationArgs,
+			path.join(import.meta.dirname, 'cli.tsx'),
+			'spaces',
+		],
+		{encoding: 'utf8', env: {...process.env, HOME: tempDir('lasagna-home-')}},
+	);
+	expect(result.status).toBe(1);
+	expect(result.stderr).toContain(
+		'lasagna must be run from within a git repository',
+	);
 }, 60_000);
 
 test('the CLI refuses a bare key that two repos have, naming both', async () => {
