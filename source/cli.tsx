@@ -185,6 +185,16 @@ if (process.argv[2] === 'agent-profile') {
 	);
 }
 
+// Dispatched before meow for the same reasons as `space`. It runs on a work
+// dir, so it needs no repo and no config.
+if (process.argv[2] === 'scan') {
+	const {runScanCommand, defaultScanCommandDeps} =
+		await import('./workdir-scan.ts');
+	await exitAfterFlush(
+		await runScanCommand(process.argv.slice(3), defaultScanCommandDeps()),
+	);
+}
+
 // Dispatched before meow, which would read the wrapped command's flags
 // (including --help) as Pappardelle's own.
 if (process.argv[2] === 'companion') {
