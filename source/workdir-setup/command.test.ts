@@ -216,6 +216,20 @@ describe('lasagna setup', () => {
 		expect(Object.keys(written().profiles)).toStrictEqual(['mine']);
 	});
 
+	test('an existing file with nothing new for its repos still gets the top level', async () => {
+		const {run, workdirYml, written} = setup({});
+		fs.mkdirSync(path.dirname(workdirYml), {recursive: true});
+		fs.writeFileSync(workdirYml, 'repos:\n  api:\n    default_emoji: x\n');
+
+		await run(['--yes', '--no-claude', '--repo', 'web']);
+		const first = fs.readFileSync(workdirYml, 'utf8');
+		const {out} = await run(['--yes', '--no-claude', '--repo', 'web']);
+
+		expect(Object.keys(written().profiles)).toStrictEqual(['work']);
+		expect(fs.readFileSync(workdirYml, 'utf8')).toBe(first);
+		expect(out).toContain('Nothing to change');
+	});
+
 	test('an answer that is not JSON is reported and leaves the repo as it was', async () => {
 		const {run, workdirYml} = setup({}, {FAKE_CLAUDE_MODE: 'invalid'});
 

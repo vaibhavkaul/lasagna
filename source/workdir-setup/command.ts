@@ -1562,7 +1562,8 @@ export async function runSetupCommand(
 	const pending = changes.filter(({changed}) => changed);
 
 	if (options.dryRun) return finish('Dry run: nothing written');
-	if (pending.length === 0) return finish('Nothing to change');
+	if (pending.length === 0 && topLevel.length === 0)
+		return finish('Nothing to change');
 	if (options.yes) return write(candidate);
 	if (!deps.interactive) {
 		return finish(
