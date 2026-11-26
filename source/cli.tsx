@@ -5,10 +5,15 @@ import {
 	startupTrace,
 	startupSessionEnvArgs,
 } from './startup-trace.ts';
-import {spawnSync} from 'node:child_process';
+import {spawn, spawnSync} from 'node:child_process';
 import {existsSync, readFileSync} from 'node:fs';
 import {homedir} from 'node:os';
-import {installationRoot, scriptsDir, cliFilePath} from './runtime.ts';
+import {
+	installationRoot,
+	scriptsDir,
+	cliFilePath,
+	selfLaunchArgs,
+} from './runtime.ts';
 import path from 'node:path';
 import {
 	cleanupOrphanedInnerSessions,
@@ -21,6 +26,7 @@ import {
 	sendKeysToSpaceAgent,
 	newOuterSessionArgs,
 	sendToSpaceAgent,
+	initTmuxState,
 	type SendToSpaceAgentResult,
 	sessionExists,
 	setupPappardellLayout,
@@ -170,6 +176,14 @@ function workdirModeOfProcess(): ReturnType<typeof workdirMode> {
 	}
 }
 
+// Where the command was run, which pointing the process at a repo changes.
+let startDirectory: string | undefined;
+try {
+	startDirectory = process.cwd();
+} catch {
+	// A working directory that is gone; the verb says so.
+}
+
 // A space named with its repo (`repo:KEY`) points the process at that repo,
 // and a command run at a work dir's root is about the work dir.
 process.argv.splice(
@@ -212,6 +226,48 @@ function resolveCliSpaceKey(rawKey: string): string {
 		`${rawKey} needs team_prefix from .pappardelle.yml, which is invalid:\n${formatConfigErrors(resolved.errors)}`,
 	);
 	process.exit(1);
+}
+
+// `space add-repo` is about a work dir, whichever of its repos, or of its
+// ticket folders, it is run from.
+if (process.argv[2] === 'space' && process.argv[3] === 'add-repo') {
+	const {
+		runAddRepoCommand,
+		workdirTicketEnv,
+		readsOwnOutput,
+		ADD_REPO_DETACHED,
+	} = await import('./ticket-command.ts');
+	// The detached half of converting the caller's own space. Its stdio is
+	// ignored, so what it has to say goes to the log.
+	const detached = Boolean(process.env[ADD_REPO_DETACHED]);
+	const addRepoLog = createLogger('add-repo');
+	await exitAfterFlush(
+		await runAddRepoCommand(process.argv.slice(4), {
+			cwd: process.cwd(),
+			env: process.env,
+			ticketEnv: root =>
+				workdirTicketEnv(root, {
+					async tell(stores, repo, key, text) {
+						if (readsOwnOutput(process.env, repo, key)) return 'sent';
+						initTmuxState(stores);
+						return sendToSpaceAgent(key, text);
+					},
+				}),
+			detach(argv) {
+				spawn(
+					process.execPath,
+					[...selfLaunchArgs(), 'space', 'add-repo', ...argv],
+					{
+						detached: true,
+						stdio: 'ignore',
+						env: {...process.env, [ADD_REPO_DETACHED]: '1'},
+					},
+				).unref();
+			},
+			out: text => (detached ? addRepoLog.info(text) : console.log(text)),
+			err: text => (detached ? addRepoLog.error(text) : console.error(text)),
+		}),
+	);
 }
 
 // Dispatched before meow so that `--field x` and `--field=x` both parse, and
@@ -420,13 +476,46 @@ if (cli.input[0] === 'link-pr') {
 		// A GitLab host from a layer that failed to parse would link the wrong MR.
 		if (providers.layerErrors.length > 0)
 			throw new Error(formatConfigErrors(providers.layerErrors));
+		// In a ticket folder the PR is one repo's and the space is the work
+		// dir's: run from that repo's worktree, it is recorded for both.
+		const directory = startDirectory ?? process.cwd();
+		const {ticketFolderAt} = await import('./ticket-space.ts');
+		const ticket = cli.flags.workspace ? undefined : ticketFolderAt(directory);
+		let ticketSpace:
+			{repoName: string; issueKey: string; memberRepo: string} | undefined;
+		if (ticket) {
+			const {commandWorkdir} = await import('./ticket-command.ts');
+			const workdirRoot = commandWorkdir(directory, process.env);
+			let member: string | undefined;
+			try {
+				member = repoRootsAt(directory).name;
+			} catch {
+				// The folder itself, which is no checkout.
+			}
+
+			if (workdirRoot === undefined || member === undefined)
+				throw new Error(
+					`Run link-pr from the PR's repo inside the ticket folder (${ticket.folder}/<repo>)`,
+				);
+			ticketSpace = {
+				repoName: workdirRepoRoots(workdirRoot).name,
+				issueKey: ticket.key,
+				memberRepo: member,
+			};
+		}
+
 		const result = await linkPr(
 			cli.input[1]!,
-			process.cwd(),
-			cli.flags.workspace ? path.resolve(cli.flags.workspace) : getRepoRoot(),
+			directory,
+			ticket
+				? ticket.folder
+				: cli.flags.workspace
+					? path.resolve(cli.flags.workspace)
+					: getRepoRoot(),
 			{
 				daosFor: repo => createStateDaos({repo}),
 				gitlabHost: providers.vcs_host?.host,
+				...(ticketSpace ? {space: ticketSpace} : {}),
 			},
 		);
 		console.log(

@@ -22,6 +22,7 @@ export function nextWorkdirGrouping(current: WorkdirGrouping): WorkdirGrouping {
 }
 
 const GROUP_COLOR = '#4b9fea';
+const TICKETS_COLOR = '#c678dd';
 const MAINS_COLOR = 'gray';
 
 /** The header the repos' main spaces sit under. */
@@ -32,6 +33,59 @@ export const MAIN_SPACES_GROUP: RailGroup = {
 	statuses: [],
 	categories: [],
 };
+
+/** The header ticket spaces sit under when the rail is grouped by repo. */
+export const TICKET_SPACES_GROUP: RailGroup = {
+	id: 'workdir-ticket-spaces',
+	name: 'tickets',
+	color: TICKETS_COLOR,
+	statuses: [],
+	categories: [],
+};
+
+/** A ticket space: the work dir's own, holding a worktree of several repos. */
+export function isTicketSpace(space: SpaceData): boolean {
+	return (
+		!isAgentSpace(space) &&
+		space.repo !== undefined &&
+		isWorkdirRepoName(space.repo)
+	);
+}
+
+/** The work dir's repos a space is not in yet. */
+export function addableRepos(
+	space: SpaceData,
+	repos: readonly string[],
+): string[] {
+	const held = new Set(
+		space.ticketRepos?.map(repo => repo.name) ?? [space.repo],
+	);
+	return repos.filter(name => !held.has(name));
+}
+
+/**
+ * Why the rail's `a` cannot add a repo to the selected space right now, or
+ * undefined when it can. `adding` holds the keys of the spaces a repo is
+ * being added to: a second add to one of them would only wait behind the
+ * first, with nothing on screen to say so, and a second conversion of the
+ * same plain space would find it half-way to a ticket space. What it says
+ * leads with the reason: the rail's header is as narrow as the rail.
+ */
+export function addRepoRefusal(
+	space: SpaceData | undefined,
+	options: {
+		repos: readonly string[];
+		adding: Pick<ReadonlySet<string>, 'has'>;
+	},
+): string | undefined {
+	if (!space || space.isMainWorktree || space.isPending || !space.key)
+		return 'Select a space to add a repo to';
+	if (options.adding.has(space.key))
+		return `Still adding a repo to ${space.key}. Add the next one when it is done`;
+	if (addableRepos(space, options.repos).length === 0)
+		return `Every repo of the work dir is already in ${space.key}`;
+	return undefined;
+}
 
 function group(kind: WorkdirGrouping, name: string): RailGroup {
 	return {
@@ -73,7 +127,8 @@ function pendingFirst(spaces: readonly SpaceData[]): SpaceData[] {
 
 /**
  * The rows of a work dir's rail. Grouped by repo, each repo with a space is a
- * header over its spaces, in the order the work dir lists its repos. Grouped
+ * header over its spaces, in the order the work dir lists its repos, after
+ * the ticket spaces, which are in several repos, under a header of their own. Grouped
  * by ticket, each key is a header over the spaces every repo has for it, so a
  * ticket that spans repos reads as one. Spaces keep their incoming order
  * within a group. The narrow layout has too few rows to spare for headers and
@@ -129,7 +184,16 @@ export function buildWorkdirRailRows(options: {
 	// issue, so on the ticket rail it waits above the tickets.
 	const unkeyed: SpaceData[] = [];
 	if (grouping === 'repo') {
-		for (const space of [...workspaces].sort(byRepoOrder))
+		const tickets = workspaces.filter(space => isTicketSpace(space));
+		if (tickets.length > 0)
+			// Keyed as no repo can be named.
+			groups.set('@tickets', {
+				group: TICKET_SPACES_GROUP,
+				spaces: tickets,
+			});
+		for (const space of workspaces
+			.filter(each => !isTicketSpace(each))
+			.sort(byRepoOrder))
 			add(space.repo ?? '', space);
 	} else {
 		const keyed = workspaces.filter(space => ticketOf(space) !== '');

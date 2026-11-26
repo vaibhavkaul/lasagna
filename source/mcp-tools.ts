@@ -637,6 +637,26 @@ export const MCP_TOOLS: readonly McpTool[] = [
 		}),
 	}),
 	defineTool({
+		name: 'space_add_repo',
+		description:
+			"Add a repo of the work dir to a space, for a ticket that turns out to need it. A ticket space gains the repo's worktree in its ticket folder (./<repo>, on the ticket's branch, set up with that repo's own commands), and its CLAUDE.md is rewritten to list it. A plain space, which has one repo, becomes a ticket space: a lead agent starts in a new ticket folder with a handoff of the plain agent's last turns and diff, the plain agent's session ends, and then its worktree is moved into the folder. Adding a repo to your own plain space therefore ends this session, so say what is left to do and wait for the go first. Fails when the directory is in no work dir or the repo is not one of its repos",
+		// It ends the agent of the plain space it converts, which may be
+		// another space's.
+		destructive: true,
+		inputSchema: {
+			repo: z.string().describe("The repo's name, as the work dir lists it"),
+			space,
+		},
+		toCli: ({repo, space}) => ({
+			args: [
+				'space',
+				'add-repo',
+				...(space === undefined ? [] : [space]),
+				repo,
+			],
+		}),
+	}),
+	defineTool({
 		name: 'agent_profiles_list',
 		description:
 			"The agent profiles a space can be opened on, for space_open's agent_profile, each with the config files that define it",

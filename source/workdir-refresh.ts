@@ -60,7 +60,8 @@ export class WorkdirRefresh {
 	private readonly loaded = new Set<string>();
 
 	constructor(
-		private readonly runtime: Pick<WorkdirRuntime, 'all' | 'repos'>,
+		private readonly runtime: Pick<WorkdirRuntime, 'all' | 'repos'> &
+			Partial<Pick<WorkdirRuntime, 'ticketMembers' | 'repo'>>,
 		private readonly deps: WorkdirRefreshDeps,
 	) {
 		this.order = new Map(runtime.all.map((repo, index) => [repo.name, index]));
@@ -157,7 +158,8 @@ export class WorkdirRefresh {
 			const mine = merged.filter(space => space.repo === repo.name);
 			const previous = mine.map(space => this.bare(space));
 			const next = update(previous);
-			if (next === previous) return merged;
+			// A ticket space's repos can change with nothing else about it having.
+			if (next === previous && !repo.isWorkdir) return merged;
 			const named = next.map(space => this.named(repo, space));
 			if (
 				named.length === mine.length &&
@@ -182,19 +184,24 @@ export class WorkdirRefresh {
 	}
 
 	private named(repo: WorkdirRepo, bare: SpaceData): SpaceData {
+		const name = formatSpaceRef(repo.name, bare.name);
+		const ticketRepos = repo.isWorkdir ? this.ticketRepos(name) : undefined;
+		// One repo needs no telling apart, and a main space's row is already
+		// called by its repo. A ticket space carries the tag of each repo it holds.
+		const repoTag = ticketRepos
+			? ticketRepos.map(each => each.tag).join('+')
+			: this.runtime.repos.length > 1 && !bare.isMainWorktree
+				? repo.tag
+				: undefined;
 		let space = this.namedOf.get(bare);
-		if (!space) {
+		if (!space || space.repoTag !== repoTag) {
 			space = {
 				...bare,
-				name: formatSpaceRef(repo.name, bare.name),
+				name,
 				repo: repo.name,
 				key: bare.name,
-				// One repo needs no telling apart, and a main space's row is
-				// already called by its repo.
-				repoTag:
-					this.runtime.repos.length > 1 && !bare.isMainWorktree
-						? repo.tag
-						: undefined,
+				repoTag,
+				...(ticketRepos ? {ticketRepos} : {}),
 			};
 			this.namedOf.set(bare, space);
 			this.bareOf.set(space, bare);
@@ -203,10 +210,24 @@ export class WorkdirRefresh {
 		return space;
 	}
 
+	/** The repos of a ticket space with their tags, read anew each time. */
+	private ticketRepos(name: string): SpaceData['ticketRepos'] {
+		return this.runtime.ticketMembers?.(name)?.map(member => ({
+			name: member.repo.name,
+			tag: this.runtime.repo?.(member.repo.name)?.tag ?? member.repo.name,
+		}));
+	}
+
 	private bare(space: SpaceData): SpaceData {
 		let bare = this.bareOf.get(space);
 		if (!bare) {
-			const {repo: _repo, key, repoTag: _tag, ...rest} = space;
+			const {
+				repo: _repo,
+				key,
+				repoTag: _tag,
+				ticketRepos: _ticket,
+				...rest
+			} = space;
 			bare = {...rest, name: key ?? space.name};
 			this.bareOf.set(space, bare);
 			this.namedOf.set(bare, space);

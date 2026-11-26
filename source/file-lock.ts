@@ -51,16 +51,21 @@ export function isPidAlive(pid: number): boolean {
 
 const mutationQueues = new Map<string, Promise<unknown>>();
 
+/** Another process held the lock for as long as the caller would wait. */
+export class LockTimeoutError extends Error {}
+
 /**
  * Run `fn` while holding the advisory lock `${p}.lock`, shared with every
  * other process that locks the same path, until `fn` has returned and what it
  * returned has settled. Calls in this process queue behind each other. Times
- * out instead of running `fn` when the lock stays held.
+ * out instead of running `fn` when the lock stays held: after `waitMs` when
+ * given, for a lock whose holders keep it longer than a file write takes.
  */
 export async function withFileLock<T>(
 	p: string,
 	fn: (p: string) => T | Promise<T>,
 	signal?: AbortSignal,
+	waitMs?: number,
 ): Promise<T> {
 	const previous = mutationQueues.get(p) ?? Promise.resolve();
 	const task = previous
@@ -71,7 +76,8 @@ export async function withFileLock<T>(
 			fs.mkdirSync(path.dirname(lockPath), {recursive: true});
 			const owner = `${process.pid}-${randomUUID()}`;
 			const marker = path.join(lockPath, owner);
-			const deadline = Date.now() + lockTimeoutMs;
+			const timeoutMs = waitMs ?? lockTimeoutMs;
+			const deadline = Date.now() + timeoutMs;
 			for (;;) {
 				signal?.throwIfAborted();
 				let acquired = false;
@@ -110,7 +116,9 @@ export async function withFileLock<T>(
 					}
 				}
 				if (Date.now() >= deadline)
-					throw new Error(`Lock timed out after ${lockTimeoutMs}ms: ${p}`);
+					throw new LockTimeoutError(
+						`Lock timed out after ${timeoutMs}ms: ${p}`,
+					);
 				await delay(lockRetryMs, undefined, {signal});
 			}
 		});

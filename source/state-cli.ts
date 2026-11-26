@@ -14,8 +14,10 @@ import {
 	checkAgentProfile,
 	loadConfigFromPaths,
 	loadRawMergedConfig,
+	repoConfigPaths,
 	rootConfigPaths,
 	readConfig,
+	workdirRepoRoots,
 	unknownAgentProfileMessage,
 	type ConfigPaths,
 } from './config.ts';
@@ -24,6 +26,7 @@ import {
 	ConfigValidationError,
 	formatConfigErrors,
 } from './config-errors.ts';
+import {isWorkdirRepoName} from './repo-config-files.ts';
 import {createStateDaos} from './state-daos.ts';
 import {openStateDb} from './state-db.ts';
 
@@ -54,13 +57,23 @@ function idowConfigPaths(args: string[]): {
 		options: {
 			'project-root': {type: 'string'},
 			'main-root': {type: 'string'},
+			'workdir-repo': {type: 'string'},
 		},
 	});
-	const {'project-root': projectDir, 'main-root': mainRoot} = values;
+	const {
+		'project-root': projectDir,
+		'main-root': mainRoot,
+		'workdir-repo': workdirRepo,
+	} = values;
+	// idow run for a work dir itself (the lead agent of a ticket space) says
+	// so with --workdir-repo: the work dir is no checkout, and its config is
+	// its own top level.
 	return {
 		paths:
 			projectDir && mainRoot
-				? rootConfigPaths(projectDir, mainRoot)
+				? workdirRepo && isWorkdirRepoName(workdirRepo)
+					? repoConfigPaths(workdirRepoRoots(mainRoot))
+					: rootConfigPaths(projectDir, mainRoot)
 				: undefined,
 		positionals,
 	};

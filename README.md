@@ -4,7 +4,7 @@
 
 Where Pappardelle is one wide noodle, Lasagna stacks many layers. This fork is working towards:
 
-- **Many repos at once**: no longer tied to running inside a single git repo.
+- **Many repos at once** (works now): one rail for every repo in a work dir, the repo picked from the ticket key, and ticket spaces where one agent works a ticket across several repos. See [section 7](#7-advanced-wrangling-multi-repo-changes).
 - **Cloud workspaces**: sessions that run on remote boxes as well as your machine.
 - **A server for client agents**: so other agents and clients can drive and watch workspaces.
 
@@ -20,6 +20,14 @@ Where Pappardelle is one wide noodle, Lasagna stacks many layers. This fork is w
 | Skills                | `/init-lasagna`, `/update-lasagna`, `/configure-lasagna` | `/init-pappardelle`, …              |
 | Environment variables | `LASAGNA_*`                                              | `PAPPARDELLE_*`                     |
 | Workspace setup logs  | `~/Library/Logs/lasagna/`                                | `~/Library/Logs/stardust-workspace` |
+
+For a directory full of repos:
+
+```bash
+lasagna scan  ~/code/work      # find the repos and the ticket prefixes each one works on
+lasagna setup ~/code/work      # learn each repo's defaults with Claude, ask you, write .lasagna/workdir.yml
+cd ~/code/work && lasagna      # one rail for all of them
+```
 
 The config files keep Pappardelle's names and format: a repo's `.pappardelle.yml` and `.pappardelle.local.yml` are read as they are, and the home config is `~/.lasagna/.pappardelle.yml`.
 
@@ -440,6 +448,28 @@ Press `z` on a workspace and your phone buzzes with a notification — tap it an
 
 Pappardelle is designed for single-repo workflows, but (experimentally) you can extend it to orchestrate changes across multiple repositories using a parent (pappa) repo.
 
+### Setting up a work dir: `lasagna scan` and `lasagna setup`
+
+`lasagna scan [dir]` finds the git checkouts in a directory (two levels deep; `--depth` changes it) and skips worktrees, bare repos and checkouts nested inside others. For each repo it reads the ticket keys in branch names, recent commit subjects and, when `gh` can reach the repo, PR titles, and counts each prefix. Prefixes seen only in commit text (`UTF-8`, `SHA-256`) are dropped. It prints the repos and a prefix map (each prefix's repos by share, and the default repo, which follows your own local branches) and writes `<dir>/.lasagna/scan.json`. It never changes a repo. `--dry-run` writes nothing; `--json` prints the result.
+
+`lasagna setup [dir]` runs scan, then works out each repo's config:
+
+- One headless `claude -p` per repo, four at a time, reads the repo's `CLAUDE.md`, `AGENTS.md` and README. It runs from a scratch directory under `~/.cache/lasagna-setup` with the repo added read-only, so the repo's own Claude hooks don't run, and it may only read files and Jira. When Claude has the Atlassian tools (or `acli` is logged in), it checks the prefixes against Jira; otherwise they come from the scan alone, and setup says so.
+- What it can set: `team_prefix`, `issue_tracker`, `post_workspace_init` steps for a fresh worktree, and on the repo's profile `display_name`, `keywords`, `tracker_projects`, `vcs.label` and the `PR_TEMPLATE` / `PR_TITLE_FORMAT` vars. Every value carries its source (a file and line, a Jira query, a scan count) and a confidence. A value it can't stand behind is left out with a note rather than costing the repo the rest.
+- A repo worked on under several prefixes gets a profile for each prefix your own branches use, so a new ticket can be filed in any of them. Run from a terminal, setup then asks for the repo's default prefix (for bare numbers and new tickets from free text), listing yours first, and saves the answer as your own setting.
+- Generated setup steps run in a shell of their own and with `continue_on_error`, so a step that fails or exits can't stop a space from opening.
+- It shows what would change per repo and asks: accept all, repo by repo, edit the file first, or quit.
+
+Setup writes only `repos.<name>.inferred` in `.lasagna/workdir.yml`, plus a top-level `version`, profile and shared issue tracker for the work dir's own spaces when they're missing. Settings you add beside `inferred`, your comments and a repo's own `.pappardelle.yml` stay and win over anything inferred; re-running setup rewrites only `inferred`. Repos never need a Lasagna file of their own.
+
+| Flag              |                                                                           |
+| ----------------- | ------------------------------------------------------------------------- |
+| `--yes`           | Don't ask: take the high-confidence values and the guessed default prefix |
+| `--dry-run`       | Print the proposal; write nothing                                         |
+| `--no-claude`     | Use the scan alone                                                        |
+| `--repo <name>`   | Only this repo (repeatable)                                               |
+| `--model <model>` | Passed to `claude`                                                        |
+
 ### A work dir: every repo on one rail
 
 A work dir is a directory that holds several repos and a `.lasagna/workdir.yml` listing them. Its top level is config for every repo in it, and each entry under `repos:` is one repo's own:
@@ -471,6 +501,28 @@ Start `lasagna` at the work dir's root (or anywhere in it outside its configured
 Which repo a prefix belongs in comes from `<work dir>/.lasagna/scan.json`, when `lasagna scan` has written one: each prefix's repos by their share of its keys, and its default repo. In a work dir never scanned, a repo whose own config names the prefix (`team_prefix`, or a profile's `team_prefix` or `tracker_projects`) is suggested.
 
 Started inside a configured repo, Lasagna shows that repo alone, as before. Issue watchlists are not polled on a work dir's rail.
+
+#### Ticket spaces: one ticket in several repos
+
+A space made in more than one repo is a **ticket space**: one lead agent that sees every repo of the ticket. Tick two or more repos in the new-space dialog (`Tab`, then `Space` on each), or add a repo to a space you already have.
+
+```
+~/.lasagna/worktrees/_tickets/<work dir>/B2B-123/
+  appian-server/     git worktree of appian-server, branch B2B-123
+  tts-business/      git worktree of tts-business, branch B2B-123
+  CLAUDE.md          generated
+  .claude/           generated settings for the lead agent
+```
+
+- The repos are real git worktrees, each made by the repo's own setup (`post_workspace_init`), not links. One search from the folder reaches all of them, and each repo's `CLAUDE.md` and skills load when the agent first reads a file there. The folder is kept by work dir, so the same key in two work dirs is two tickets. A directory already in the folder is taken for a repo's worktree only when git says it is one.
+- The generated `CLAUDE.md` says the folder is a ticket folder, lists each repo with its branch, its default branch and its PR rules (`PR_TEMPLATE` and `PR_TITLE_FORMAT` from the repo's default profile `vars`, or a template found in the repo), and repeats the work dir's own `CLAUDE.md`. The generated `.claude/settings.json` is every repo's `permissions` merged; the repos' hooks and env are left out. A `defaultMode` is the folder's only when every repo sets the same one: a mode one repo chose for itself (`bypassPermissions`, say) would cover all of them, so it is left out and `CLAUDE.md` says so.
+- The space belongs to no repo. It is the work dir's own (`@<work dir>:B2B-123`), so its agent, its first prompt and its profile come from the work dir's top-level config, and which repos it holds is kept in `~/.lasagna/repos/@<work dir>/tickets/`. That config needs a `profiles` entry of its own: without one a ticket space is refused before any worktree is made.
+- If the lead agent cannot start after the worktrees are made, the ticket space is on the rail all the same, not started: select it to start its agent, or close it.
+- On the rail it sits under a `tickets` header with the tag of every repo it holds (`as+tb`), and each repo's PR status behind its tag. Each repo keeps its own branch and its own PR: run `lasagna link-pr <url>` from the repo's directory.
+- Its companion is a shell in the ticket folder, with a pane for each repo started in that repo's worktree with that repo's `companion_command`.
+- `a` on the rail adds a repo to the selected space. So does `lasagna space add-repo [space] <repo>`, and the `space_add_repo` MCP tool for the agent itself. The repo's worktree is made in the folder, `CLAUDE.md` and the settings are written again, and the lead agent is told. Changes to one ticket run one at a time: a second add waits for the first, from wherever it was started.
+- Adding a second repo to a plain space makes it a ticket space. Once the new repo's worktree is ready, the plain agent is told to stop, and a lead agent starts in a new ticket folder on a handoff (`HANDOFF.md`: the issue, the plain agent's last turns, its branch's diff, written again when that agent has ended). The plain agent's sessions then end, and only after that is its worktree moved into the folder with `git worktree move`. Claude Code keeps conversations by directory, so the lead agent's is a new one. A plain space still being set up is not converted. If the lead agent cannot start, the plain space stays as it was and the worktree made for the new repo is removed. A worktree git will not move (one with submodules) stays where it is, and the lead agent is told its path.
+- Closing a ticket space runs each repo's `pre_workspace_deinit` in that repo's worktree, ends the sessions and removes the generated files. The worktrees stay, as a plain space's does.
 
 Where a command takes a space, `repo:KEY` names one in another repo of the work dir: `lasagna send web-app:WEB-30 "rebase on main"`. A bare key is the repo the command runs in when that repo has the space, else the one repo that does. The work dir's own main space is `@<work dir>:main`.
 

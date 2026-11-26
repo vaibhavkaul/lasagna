@@ -1,3 +1,4 @@
+import {isWorkdirRepoName} from './repo-config-files.ts';
 import {bunForChildren, isStandalone} from './runtime.ts';
 import {MAIN_WORKTREE_KEY} from './space-utils.ts';
 
@@ -51,6 +52,22 @@ export function idowSpawnOptions(
 			env: repo.env,
 		}),
 	};
+}
+
+/**
+ * idow's arguments for a repo. A work dir is no checkout for idow to read a
+ * name off, so its pseudo-repo, which its spaces (ticket spaces) are kept
+ * under, is named first.
+ *
+ * As an argument, not in the environment: idow's environment becomes the
+ * inner tmux server's when the session it starts is the first on that
+ * server, and from there every later pane's. An idow run for a repo from
+ * one of those panes would then take itself for the work dir's.
+ */
+export function idowArgsFor(repo: {name: string}, args: string[]): string[] {
+	return isWorkdirRepoName(repo.name)
+		? ['--workdir-repo', repo.name, ...args]
+		: args;
 }
 
 /**

@@ -20,6 +20,16 @@ export type {
 } from './providers/types.ts';
 
 import type {ProgramStatusInfo} from './program-status.ts';
+
+/**
+ * A space's PR status as the rail shows it. A ticket space has a PR in each
+ * of its repos: `repos` is each one's own, and the fields beside it are all
+ * of them taken together.
+ */
+export type SpaceRailStatus = RailStatus & {
+	repos?: ReadonlyArray<{repo: string; status: RailStatus}>;
+};
+
 /**
  * SpaceData represents a DOW workspace (Linear issue with worktree)
  */
@@ -36,7 +46,7 @@ export interface SpaceData {
 	isDirty?: boolean; // True if worktree has uncommitted changes (used for main worktree color)
 	isPending?: boolean; // True for placeholder rows shown while a new session is starting
 	pendingTitle?: string; // Title text for pending rows (e.g., "Opening..." or "Starting new session...")
-	railStatus?: RailStatus; // Snapshot of PR pipeline state + unresolved comment count (from VcsHostProvider.getRailStatus)
+	railStatus?: SpaceRailStatus; // Snapshot of PR pipeline state + unresolved comment count (from VcsHostProvider.getRailStatus)
 	profileEmoji?: string; // Optional emoji for the active profile, rendered to the left of the Claude status icon
 	/**
 	 * Set on a rail that shows a whole work dir, where `name` is `repo:KEY`:
@@ -45,6 +55,12 @@ export interface SpaceData {
 	repo?: string;
 	key?: string;
 	repoTag?: string;
+	/**
+	 * Set for a ticket space, which is the work dir's own and holds a worktree
+	 * of several repos: those repos, each with its tag. `repoTag` is then all
+	 * of their tags.
+	 */
+	ticketRepos?: ReadonlyArray<{name: string; tag: string}>;
 }
 
 /**

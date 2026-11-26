@@ -4,7 +4,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import {mainCheckoutHasConfig} from './repo-config-files.ts';
+import {isWorkdirRepoName, mainCheckoutHasConfig} from './repo-config-files.ts';
 import {statusSocket} from './program-status-monitor.ts';
 import {sameFile} from './same-file.ts';
 import {MAIN_WORKTREE_KEY} from './space-utils.ts';
@@ -127,13 +127,23 @@ export function newSpaceIdentity(input: {
 	};
 }
 
+/** The directory under `~/.lasagna/worktrees` that holds every work dir's ticket folders. */
+export const TICKETS_DIR = '_tickets';
+
 /**
  * Where Lasagna puts a repo's worktrees, one per space. Under its own
  * directory, not Pappardelle's ~/.worktrees, so neither tool takes the
- * other's worktree for one of its spaces.
+ * other's worktree for one of its spaces. A work dir's own spaces are its
+ * ticket spaces, which have a ticket folder each in place of a worktree: a
+ * folder holding a worktree of every repo of the ticket. They are kept by
+ * work dir (`_tickets/<workdir>/<KEY>`), since two work dirs can each have a
+ * ticket with the same key, in repos of their own.
  */
 export function worktreesDir(home: string, repoName: string): string {
-	return path.join(home, STATE_DIR_NAME, 'worktrees', repoName);
+	const worktrees = path.join(home, STATE_DIR_NAME, 'worktrees');
+	return isWorkdirRepoName(repoName)
+		? path.join(worktrees, TICKETS_DIR, repoName.slice(1))
+		: path.join(worktrees, repoName);
 }
 
 export function worktreePathFor(
@@ -251,7 +261,11 @@ export class JsonSpaceIdentityDao implements SpaceIdentityDao {
 			if (parent === directory) return {kind: 'unknown'};
 			if (sameFile(parent, worktrees))
 				return this.get(path.basename(directory));
-			if (isCheckoutRoot(directory)) return {kind: 'unknown'};
+			// A repo's worktree in a ticket folder is part of the ticket space.
+			const inTicketFolder =
+				isWorkdirRepoName(repo) && sameFile(path.dirname(parent), worktrees);
+			if (isCheckoutRoot(directory) && !inTicketFolder)
+				return {kind: 'unknown'};
 			directory = parent;
 		}
 	}
@@ -294,9 +308,22 @@ export function identityAt(
 		const id = fileId(directory);
 		const found = id ? byFile.get(id) : undefined;
 		if (found) return found;
-		if (isCheckoutRoot(directory)) return undefined;
 		const parent = path.dirname(directory);
 		if (parent === directory) return undefined;
+		if (isCheckoutRoot(directory)) {
+			// A repo's worktree in a ticket folder is part of the ticket space.
+			// A repo in the work dir itself is its own, not the work dir's main
+			// space's.
+			const parentId = fileId(parent);
+			const holder = parentId ? byFile.get(parentId) : undefined;
+			if (
+				!holder ||
+				!isWorkdirRepoName(holder.repo) ||
+				holder.key === MAIN_WORKTREE_KEY
+			)
+				return undefined;
+		}
+
 		directory = parent;
 	}
 }

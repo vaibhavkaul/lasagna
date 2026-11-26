@@ -357,6 +357,11 @@ export interface CompanionSplitConfig {
 
 export type ResolvedCompanionSplit = CompanionSplitConfig & {
 	split: SplitDirection;
+	/**
+	 * Where the split starts, when not where the companion did. Never read
+	 * from a config: a ticket space gives each repo's pane its worktree.
+	 */
+	cwd?: string;
 };
 
 export interface PappardelleConfig {
@@ -838,11 +843,14 @@ export function loadRawMergedConfig(
 	const files = readConfigLayers(opts);
 	const errors = layerErrors(files);
 	if (errors.length > 0) throw new ConfigValidationError(errors);
+	// A work dir's own spaces (its ticket spaces) are configured by its top
+	// level, which for a repo under it is only what it shares with the others.
+	const ownWorkdir = isWorkdirRepoName(opts.repoName?.() ?? '');
 	const configured = files.some(
 		file =>
 			file.kind === 'read' &&
 			(file.role === 'project' ||
-				(file.role === 'workdir' && file.section !== 'top')),
+				(file.role === 'workdir' && (file.section !== 'top' || ownWorkdir))),
 	);
 	if (!configured) {
 		throw new ConfigNotFoundError(opts.projectDir ?? '(no project dir)');

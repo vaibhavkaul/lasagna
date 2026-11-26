@@ -62,6 +62,59 @@ test('a rail too narrow for tag and key keeps the key', async () => {
 	expect(drawn).not.toContain('tb ');
 });
 
+test('a ticket space\u2019s row carries every repo\u2019s tag, and each repo\u2019s PR behind its tag', async () => {
+	const ticket: SpaceData = {
+		...space,
+		name: '@work:B2B-3184',
+		repo: '@work',
+		repoTag: 'tb+as+te',
+		ticketRepos: [
+			{name: 'tts-business', tag: 'tb'},
+			{name: 'appian-server', tag: 'as'},
+			{name: 'terraform', tag: 'te'},
+		],
+		railStatus: {
+			pipeline: 'failing',
+			unresolvedCommentCount: 3,
+			hasConflict: false,
+			repos: [
+				{
+					repo: 'tts-business',
+					status: {pipeline: 'passing', unresolvedCommentCount: 0},
+				},
+				{
+					repo: 'appian-server',
+					status: {pipeline: 'failing', unresolvedCommentCount: 3},
+				},
+				// No PR in terraform yet: nothing to show for it.
+				{
+					repo: 'terraform',
+					status: {pipeline: null, unresolvedCommentCount: 0},
+				},
+			],
+		},
+	};
+	const view = await render(
+		React.createElement(
+			'box',
+			{flexDirection: 'row', width: 70},
+			React.createElement(SpaceListItem, {
+				space: ticket,
+				isSelected: false,
+				width: 70,
+				layout: 'single_line',
+				label: ticket.key,
+				tag: ticket.repoTag,
+			}),
+		),
+	);
+	const drawn = view.lastFrame() ?? '';
+	await view.unmount();
+	expect(drawn).toContain('● tb+as+te B2B-3184 Biz remittance credit');
+	expect(drawn).toMatch(/\(3\) tb✓ as✗ *$/m);
+	expect(drawn).not.toContain('te✓');
+});
+
 const mains = (folded: boolean): Extract<RailRow, {kind: 'header'}> => ({
 	kind: 'header',
 	group: MAIN_SPACES_GROUP,

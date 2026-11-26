@@ -10,6 +10,7 @@ import {contractTest} from '../test/helpers/dao-contract.ts';
 import {testState, type TestState} from '../test/helpers/state.ts';
 import {tempDir} from '../test/helpers/temp-dir.ts';
 import {
+	identityAt,
 	newSpaceIdentity,
 	protectedSessionNames,
 	worktreePathFor,
@@ -463,4 +464,101 @@ test('a closed space holds no path', async () => {
 	).toStrictEqual({
 		kind: 'unknown',
 	});
+});
+
+test("a repo's worktree in a ticket folder is part of the ticket space; a checkout nested in a plain space is not that space's", () => {
+	const root = tempDir('papp-identity-');
+	const checkout = (...parts: string[]) => {
+		const directory = path.join(root, ...parts);
+		fs.mkdirSync(path.join(directory, 'src'), {recursive: true});
+		fs.writeFileSync(path.join(directory, '.git'), 'gitdir: elsewhere\n');
+		return directory;
+	};
+
+	const folder = path.join(root, '_tickets', 'B2B-5');
+	const member = checkout('_tickets', 'B2B-5', 'api');
+	const plain = checkout('api', 'STA-1');
+	const nested = checkout('api', 'STA-1', 'lib');
+	const ticket = newSpaceIdentity({
+		repo: '@work',
+		key: 'B2B-5',
+		worktreePath: folder,
+		socket: SOCKET,
+	});
+	const space = newSpaceIdentity({
+		repo: 'api',
+		key: 'STA-1',
+		worktreePath: plain,
+		socket: SOCKET,
+	});
+	const at = (directory: string) => identityAt(directory, [ticket, space])?.key;
+
+	expect(at(folder)).toBe('B2B-5');
+	expect(at(member)).toBe('B2B-5');
+	expect(at(path.join(member, 'src'))).toBe('B2B-5');
+	expect(at(path.join(plain, 'src'))).toBe('STA-1');
+	// An agent's own checkout inside a plain space's worktree is nobody's.
+	expect(at(path.join(nested, 'src'))).toBeUndefined();
+	// Nor is a checkout further down in one of the ticket's repos.
+	expect(
+		at(checkout('_tickets', 'B2B-5', 'api', 'vendor', 'dep')),
+	).toBeUndefined();
+	// A repo in the work dir is its own repo's, not the work dir's main space's.
+	const work = path.join(root, 'work');
+	const repo = checkout('work', 'api');
+	const main = newSpaceIdentity({
+		repo: '@work',
+		key: 'main',
+		worktreePath: work,
+		socket: SOCKET,
+	});
+	expect(identityAt(path.join(work, 'notes'), [main])).toBeUndefined();
+	fs.mkdirSync(path.join(work, 'notes'));
+	expect(identityAt(path.join(work, 'notes'), [main])?.key).toBe('main');
+	expect(identityAt(path.join(repo, 'src'), [main])).toBeUndefined();
+});
+
+test("without the database, a path in a ticket folder's repo is found as the ticket space", async () => {
+	const home = tempDir('papp-identity-');
+	const state = testState({
+		sqlite: false,
+		repo: '@work',
+		home,
+		mainRoot: () => path.join(home, 'work'),
+	});
+	await state.daos.registry.add('B2B-5');
+	const member = path.join(
+		home,
+		'.lasagna',
+		'worktrees',
+		'_tickets',
+		'work',
+		'B2B-5',
+		'api',
+	);
+	fs.mkdirSync(path.join(member, 'src'), {recursive: true});
+	fs.writeFileSync(path.join(member, '.git'), 'gitdir: elsewhere\n');
+	const found = state.daos.spaceIdentities.atPath(path.join(member, 'src'));
+	expect(found.kind === 'identity' && found.identity).toMatchObject({
+		repo: '@work',
+		key: 'B2B-5',
+		worktreePath: path.join(
+			home,
+			'.lasagna',
+			'worktrees',
+			'_tickets',
+			'work',
+			'B2B-5',
+		),
+	});
+	// A repo's own stores do not take it for one of that repo's spaces.
+	const api = testState({
+		sqlite: false,
+		repo: 'api',
+		home,
+		stateDir: state.stateDir,
+	});
+	expect(api.daos.spaceIdentities.atPath(path.join(member, 'src')).kind).toBe(
+		'unknown',
+	);
 });

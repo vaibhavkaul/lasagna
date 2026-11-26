@@ -27,7 +27,7 @@ A ticket that spans repos gets one lead agent that sees all of its repos. Gettin
 | A ticket in several repos            | A **ticket space** with one **lead agent**. It runs in a ticket folder that holds each repo's worktree as a real directory, so it sees the whole change.                                                                                      |
 | How a ticket gets its repos          | Suggested from the ticket prefix when you create the space, and you confirm. Repos can be added later: by key, by `lasagna space add-repo`, or by the agent through MCP. A plain space becomes a ticket space when its second repo is added.  |
 | Worktrees                            | Always, for every repo (appian-server included). A plain space's worktree is at `~/.lasagna/worktrees/<repo>/<KEY>/` (Pappardelle keeps its own in `~/.worktrees`); a ticket space's are inside its ticket folder. There is no in-place mode. |
-| Ticket folders                       | `~/.lasagna/worktrees/_tickets/<KEY>/`, holding `<repo>/` worktrees                                                                                                                                                                           |
+| Ticket folders                       | `~/.lasagna/worktrees/_tickets/<workdir>/<KEY>/`, holding `<repo>/` worktrees                                                                                                                                                                 |
 | Root main space                      | The work dir gets a main space of its own, at the top of the rail. Its agent runs at the work dir root with its `CLAUDE.md` and `.claude/`, and the sous-chef lives there. Each repo's main space sits below it, collapsible.                 |
 | Setup                                | A CLI command that runs `claude -p`, not a skill, so you can re-run it from a plain terminal.                                                                                                                                                 |
 | Where learned config goes            | `<workdir>/.lasagna/workdir.yml`, untracked. Setup writes it only after you approve the changes.                                                                                                                                              |
@@ -167,7 +167,7 @@ A ticket space is a ticket with two or more repos and one lead agent.
 - **Layout on disk:**
 
   ```
-  ~/.lasagna/worktrees/_tickets/B2B-123/
+  ~/.lasagna/worktrees/_tickets/<workdir>/B2B-123/
     appian-server/     git worktree of appian-server, branch B2B-123
     tts-business/      git worktree of tts-business, branch B2B-123
     CLAUDE.md          generated

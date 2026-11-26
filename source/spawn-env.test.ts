@@ -1,5 +1,10 @@
 import {test, expect} from 'bun:test';
-import {buildSessionEnvArgs, buildSpawnEnv} from './spawn-env.ts';
+import {
+	buildSessionEnvArgs,
+	buildSpawnEnv,
+	idowArgsFor,
+	idowSpawnOptions,
+} from './spawn-env.ts';
 import {MAIN_WORKTREE_KEY} from './space-utils.ts';
 
 test('buildSpawnEnv includes LASAGNA_PROJECT_ROOT', () => {
@@ -100,4 +105,33 @@ test('buildSessionEnvArgs does not name the main space', () => {
 		'-e',
 		'LASAGNA_REPO=repo',
 	]);
+});
+
+test("idow run for a work dir itself is told the pseudo-repo's name, which no checkout gives it", () => {
+	const args = ['--issue-key', 'B2B-5'];
+	expect(idowArgsFor({name: 'api'}, args)).toEqual(args);
+	expect(idowArgsFor({name: '@code'}, args)).toEqual([
+		'--workdir-repo',
+		'@code',
+		...args,
+	]);
+});
+
+test('nothing about the work dir is in idow\u2019s environment, which the tmux server it starts keeps', () => {
+	const repo = {root: '/code/api', mainRoot: '/code/api', env: {A: '1'}};
+	const forRepo = idowSpawnOptions(repo, false);
+	expect(forRepo.cwd).toBe('/code/api');
+	expect(forRepo.env['A']).toBe('1');
+	expect(forRepo.env['LASAGNA_MAIN_REPO_ROOT']).toBe('/code/api');
+
+	const forWorkdir = idowSpawnOptions(
+		{root: '/code', mainRoot: '/code', env: {}},
+		true,
+	);
+	expect(forWorkdir.env['LASAGNA_REGISTER_SPACE']).toBe('1');
+	expect(
+		Object.keys(forWorkdir.env).filter(name =>
+			/WORKDIR_REPO|PROMPT/.test(name),
+		),
+	).toEqual([]);
 });

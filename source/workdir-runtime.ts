@@ -12,9 +12,14 @@ import {
 } from './repo-context.ts';
 import {sameFile} from './same-file.ts';
 import {formatSpaceRef, parseSpaceRef} from './space-ref.ts';
-import {setSpaceScopes} from './space-scope.ts';
+import {
+	setSpaceScopes,
+	setTicketMembers,
+	type TicketMember,
+} from './space-scope.ts';
 import {MAIN_WORKTREE_KEY} from './space-utils.ts';
 import type {StateDaos} from './state-daos.ts';
+import {ticketStore, type TicketStore} from './ticket-space.ts';
 import {initTmuxState} from './tmux.ts';
 import {workdirStateDaos} from './workdir-daos.ts';
 import {readWorkdir, type Workdir} from './workdir.ts';
@@ -49,6 +54,13 @@ export type WorkdirRuntime = {
 	repo(name: string): WorkdirRepo | undefined;
 	/** The repo a space name carries. */
 	repoOf(spaceName: string): WorkdirRepo | undefined;
+	/** Which repos each of the work dir's ticket spaces holds. */
+	tickets: TicketStore;
+	/**
+	 * The repos of a ticket space, by its name. Undefined for any other space,
+	 * and for a space of the work dir that no ticket folder was made for.
+	 */
+	ticketMembers(spaceName: string): TicketMember[] | undefined;
 };
 
 const TAG_LENGTH = 3;
@@ -137,6 +149,8 @@ export function startWorkdir(
 		workdir?: Workdir;
 		/** Sets a repo up and hands back its stores. */
 		setup?: WorkdirRepoSetup;
+		/** The work dir's ticket records; the ones under the default state dir. */
+		tickets?: TicketStore;
 	} = {},
 ): WorkdirRuntime {
 	const workdir = options.workdir ?? readWorkdir(root);
@@ -176,6 +190,22 @@ export function startWorkdir(
 		const repo = repoOf(spaceName);
 		return repo && {repo: repo.context, key: parseSpaceRef(spaceName).key};
 	});
+	const tickets = options.tickets ?? ticketStore(ownRepo.name);
+	// A ticket space is a space of the work dir itself that has a ticket
+	// folder; its only other space is its main one.
+	const ticketMembers = (spaceName: string) => {
+		const {key} = parseSpaceRef(spaceName);
+		if (repoOf(spaceName) !== ownRepo || key === MAIN_WORKTREE_KEY)
+			return undefined;
+		return tickets.read(key)?.repos.flatMap(member => {
+			const repo = byName.get(member.name);
+			return repo
+				? [{repo: repo.context, worktreePath: member.worktreePath}]
+				: [];
+		});
+	};
+
+	setTicketMembers(ticketMembers);
 
 	return {
 		root: workdir.root,
@@ -187,5 +217,7 @@ export function startWorkdir(
 		rootMain: formatSpaceRef(ownRepo.name, MAIN_WORKTREE_KEY),
 		repo: name => byName.get(name),
 		repoOf,
+		tickets,
+		ticketMembers,
 	};
 }

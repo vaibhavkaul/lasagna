@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {testState} from '../test/helpers/state.ts';
 import {linkPr, type LinkExecutor} from './link-pr.ts';
+import {createStateDaos} from './state-daos.ts';
 import {discoverWorkspaceRepositories} from './providers/workspace-repositories.ts';
 
 /** Stores for the repo named `workspace`, which every workspace here is in. */
@@ -214,4 +215,74 @@ test('failed verification and unrelated source repositories do not write state',
 		fs.existsSync(path.join(stateDir, 'repos', 'workspace', 'space-state')),
 	).toBe(false);
 	expect(fs.existsSync(path.join(stateDir, 'pr-link.stamp'))).toBe(false);
+});
+
+test('a PR linked from a repo in a ticket folder is recorded for the ticket space, and for that repo', async () => {
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'link-pr-'));
+	teardown(() => fs.rmSync(root, {recursive: true, force: true}));
+	// The folder is no checkout; the repo's worktree in it is.
+	const folder = path.join(root, '_tickets', 'B2B-5');
+	const worktree = path.join(folder, 'api');
+	fs.mkdirSync(worktree, {recursive: true});
+	const git = (args: string[]) =>
+		execFileSync('git', args, {cwd: worktree, encoding: 'utf-8'}).trim();
+	git(['init', '-b', 'B2B-5']);
+	git(['remote', 'add', 'origin', 'git@github.com:acme/api.git']);
+	const run: LinkExecutor = async (command, args) => {
+		if (command === 'git') return git(args);
+		return JSON.stringify({
+			state: 'open',
+			number: 41,
+			head: {ref: 'B2B-5', repo: {full_name: 'acme/api'}},
+		});
+	};
+
+	const work = testState({repo: '@work'});
+	// The repo's stores beside the work dir's, as one HOME keeps them.
+	const api = createStateDaos({
+		repo: 'api',
+		stateDir: work.stateDir,
+		sqlite: work.sqlite,
+	});
+	teardown(() => api.disconnectStatusDaemon());
+	const linked = await linkPr(
+		'https://github.com/acme/api/pull/41',
+		worktree,
+		folder,
+		{
+			daosFor: repoName => (repoName === '@work' ? work.daos : api),
+			run,
+			space: {repoName: '@work', issueKey: 'B2B-5', memberRepo: 'api'},
+		},
+	);
+	expect(linked.file).toBe(work.daos.spaceState.file('B2B-5'));
+	const link = {
+		host: 'github.com',
+		project: 'acme/api',
+		localBranch: 'B2B-5',
+		remoteBranch: 'B2B-5',
+		url: 'https://github.com/acme/api/pull/41',
+		number: 41,
+	};
+	expect(work.daos.spaceState.read('B2B-5')?.prLinks).toStrictEqual([link]);
+	// The repo's own status is read by its worktree, which finds the link here.
+	expect(api.spaceState.read('B2B-5')?.prLinks).toStrictEqual([link]);
+
+	// From the folder itself there is no repo for the PR to be in.
+	const outside = await rejectionOf(
+		linkPr('https://github.com/acme/api/pull/41', folder, folder, {
+			daosFor: () => work.daos,
+			async run(command, args) {
+				if (command === 'git')
+					return execFileSync('git', args, {cwd: folder, encoding: 'utf-8'});
+				return JSON.stringify({
+					state: 'open',
+					number: 41,
+					head: {ref: 'B2B-5', repo: {full_name: 'acme/api'}},
+				});
+			},
+			space: {repoName: '@work', issueKey: 'B2B-5', memberRepo: 'api'},
+		}),
+	);
+	expect(outside).toBeInstanceOf(Error);
 });

@@ -217,7 +217,9 @@ import {
 	spaceConfig,
 	spaceNameIn,
 	spaceReportedConfig,
+	ticketMembers,
 } from './space-scope.ts';
+import {ticketCompanionSplits} from './ticket-companions.ts';
 import {isWorkdirRepoName} from './repo-config-files.ts';
 import {
 	calculateIdealListHeightForCount,
@@ -973,7 +975,7 @@ async function awaitViewerClientTty(
 // What tmux prints when no server is behind the socket. A server exits when
 // its last session is killed, and a command that reaches it on its way out
 // gets the third.
-const SERVER_GONE =
+export const SERVER_GONE =
 	/^(?:no server running on |error connecting to .* \(No such file or directory\)|server exited unexpectedly)/m;
 
 /**
@@ -2659,6 +2661,17 @@ export async function attachToSpace(
 	);
 }
 
+/** A space's configured splits, and for a ticket space one per repo after them. */
+function withTicketSplits(
+	issueKey: string,
+	configured: ResolvedCompanionSplit[],
+): ResolvedCompanionSplit[] {
+	const members = ticketMembers(issueKey);
+	return members
+		? [...configured, ...ticketCompanionSplits(members)]
+		: configured;
+}
+
 // What tmux says of a pane that no longer exists; the wording depends on the
 // command.
 const PANE_GONE = /^(?:can't find pane|no such pane):/m;
@@ -2728,10 +2741,13 @@ async function attachViewers(
 						// Without a config there are no splits to seed, and an
 						// invalid one is seeded once it is fixed.
 						return load.kind === 'valid'
-							? getCompanionSplits(
-									load.config,
-									issueTitle,
-									savedSpaceProfile(issueKey),
+							? withTicketSplits(
+									issueKey,
+									getCompanionSplits(
+										load.config,
+										issueTitle,
+										savedSpaceProfile(issueKey),
+									),
 								)
 							: undefined;
 					},
@@ -2828,8 +2844,15 @@ async function attachViewers(
 			...(isMainSpaceName(issueKey) ? sousChefLaunch(config) : {}),
 		};
 		skipPermissions = getDangerouslySkipPermissions(config);
-		companionCommand = getCompanionCommand(config, issueTitle, profileName);
-		configuredSplits = getCompanionSplits(config, issueTitle, profileName);
+		// A ticket folder is no checkout for a git UI to open: its companion
+		// is a shell there, and each repo's worktree gets a split of its own.
+		companionCommand = ticketMembers(issueKey)
+			? ''
+			: getCompanionCommand(config, issueTitle, profileName);
+		configuredSplits = withTicketSplits(
+			issueKey,
+			getCompanionSplits(config, issueTitle, profileName),
+		);
 		agentProfile = getAgentProfile(config, issueTitle, profileName);
 	}
 
@@ -4410,6 +4433,11 @@ export function createCompanionSplit(
 		split: SplitDirection;
 		size?: PaneWidth;
 		order?: number;
+		/**
+		 * Where it starts, in place of the companion's own directory: a ticket
+		 * space has a split in each repo's worktree.
+		 */
+		cwd?: string;
 	},
 	options: {runner?: OuterTmuxRunner} = {},
 ): CreateSplitResult {
@@ -4434,7 +4462,7 @@ export function createCompanionSplit(
 			// the split is told its own repo's main checkout, not the rail's.
 			spaceNameIn(identity.repo, identity.key),
 			session,
-			cwd.stdout.trim(),
+			split.cwd ?? cwd.stdout.trim(),
 			split.command,
 			identity.repo,
 		),
