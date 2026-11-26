@@ -81,29 +81,71 @@ test('a header whose rows fold says which way it is', () => {
 });
 
 test('the repo picker lists the repos and picks by Enter or by number', async () => {
-	const picked: string[] = [];
+	const picked: string[][] = [];
 	let cancelled = 0;
 	const view = await render(
 		React.createElement(RepoPicker, {
-			repos: [{name: 'tts-business'}, {name: 'data-eng'}, {name: 'terraform'}],
+			repos: [
+				{name: 'tts-business', share: 0.62, suggested: true},
+				{name: 'data-eng', suggested: false},
+				{name: 'terraform', suggested: false},
+			],
 			initialIndex: 1,
-			onPick: (name: string) => picked.push(name),
+			prefix: 'B2B',
+			onPick: (names: string[]) => picked.push(names),
 			onCancel: () => cancelled++,
 		}),
-		{width: 60, height: 14},
+		{width: 70, height: 14},
 	);
 	const frame = view.lastFrame() ?? '';
 	expect(frame).toContain('+ New Session in');
-	expect(frame).toContain('  1 tts-business');
+	// A repo the typed key's prefix is worked on in says how much of it.
+	expect(frame).toContain('  1 [ ] tts-business  62% of B2B');
 	// It opens on the repo it was told to.
-	expect(frame).toContain('❯ 2 data-eng');
+	expect(frame).toContain('❯ 2 [ ] data-eng');
 	await view.stdin.write('\r');
 	await view.stdin.write('j');
 	await view.stdin.write('\r');
 	await view.stdin.write('1');
-	expect(picked).toEqual(['data-eng', 'terraform', 'tts-business']);
+	expect(picked).toEqual([['data-eng'], ['terraform'], ['tts-business']]);
 	// A lone Escape is only known for one once nothing follows it.
 	await view.stdin.write('\u001B');
 	await until(() => cancelled === 1);
+	await view.unmount();
+});
+
+test('Space ticks repos, and Enter picks every ticked one for a ticket space', async () => {
+	const picked: string[][] = [];
+	const view = await render(
+		React.createElement(RepoPicker, {
+			repos: [
+				{name: 'tts-business', suggested: true},
+				{name: 'appian-server', suggested: true},
+				{name: 'terraform', suggested: false},
+			],
+			initialIndex: 0,
+			prefix: 'B2B',
+			onPick: (names: string[]) => picked.push(names),
+			onCancel() {},
+		}),
+		{width: 70, height: 14},
+	);
+	// Suggested by the repo's own config, which has no share to show.
+	expect(view.lastFrame()).toContain('❯ 1 [ ] tts-business  ← B2B');
+	await view.stdin.write(' ');
+	await view.stdin.write('j');
+	await view.stdin.write(' ');
+	const frame = view.lastFrame() ?? '';
+	expect(frame).toContain('+ New Ticket Space in');
+	expect(frame).toContain('  1 [x] tts-business');
+	expect(frame).toContain('❯ 2 [x] appian-server');
+	expect(frame).toContain('  3 [ ] terraform');
+	// The highlighted row is not picked for being highlighted.
+	await view.stdin.write('j');
+	await view.stdin.write('\r');
+	expect(picked).toEqual([['tts-business', 'appian-server']]);
+	// A digit still picks its row alone.
+	await view.stdin.write('3');
+	expect(picked[1]).toEqual(['terraform']);
 	await view.unmount();
 });
