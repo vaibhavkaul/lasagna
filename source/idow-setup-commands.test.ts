@@ -94,9 +94,12 @@ test('resume mode launches without a prompt; agy gets its built-in prompt flag',
 		'--model gemini-4-argon-medium',
 	);
 
-	fs.mkdirSync(path.join(fixture.home, '.worktrees/main checkout/test-abc'), {
-		recursive: true,
-	});
+	fs.mkdirSync(
+		path.join(fixture.home, '.lasagna/worktrees/main checkout/test-abc'),
+		{
+			recursive: true,
+		},
+	);
 	await fixture.run({open: true});
 	args = launchArgs();
 	expect(args.includes('--no-prompt')).toBe(true);

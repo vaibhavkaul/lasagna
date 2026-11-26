@@ -231,8 +231,8 @@ export function claudeProjectDir(
  *
  * Claude Code stores transcripts under `~/.claude/projects/<encoded-cwd>/`,
  * where `<encoded-cwd>` is the absolute worktree path with `/` and `.` both
- * replaced by `-` (e.g. `/Users/me/.worktrees/repo/STA-1` →
- * `-Users-me--worktrees-repo-STA-1`). Returns the path of the newest
+ * replaced by `-` (e.g. `/Users/me/.lasagna/worktrees/repo/STA-1` →
+ * `-Users-me--lasagna-worktrees-repo-STA-1`). Returns the path of the newest
  * top-level `.jsonl` in that directory, or `null` if none exists.
  *
  * Subagent jsonls live in nested subdirectories (`subagents/*.jsonl`) and are

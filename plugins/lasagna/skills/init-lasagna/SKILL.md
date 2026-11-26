@@ -29,7 +29,7 @@ Before any other output, print the "What is a Workspace?" section verbatim so th
 
 A **workspace** in Lasagna is the per-issue environment Lasagna creates for you when you start work on a ticket. Each workspace bundles together:
 
-- A dedicated **git worktree** at `~/.worktrees/{repo}/{issue-key}/` — an isolated checkout on a fresh branch, so you can have many in-flight tickets without stashing or switching branches.
+- A dedicated **git worktree** at `~/.lasagna/worktrees/{repo}/{issue-key}/` — an isolated checkout on a fresh branch, so you can have many in-flight tickets without stashing or switching branches.
 - A tracked **issue** in your issue tracker (Linear, Jira or beads) — Lasagna either creates one from your prompt or uses an existing key like `STA-123` (or `myproj-a1b2` on beads).
 - A **PR/MR** against the main branch — opened by the agent once it has a real diff, not at provisioning time. A fresh workspace legitimately has none.
 - Its own **Claude Code session** (a named tmux session: `agent-{repo}-{issue-key}`) where you drive the work.
@@ -385,7 +385,7 @@ Next steps:
   3. Type an issue key (e.g., PROJ-123) or a one-line description of what you want to build.
 
 What happens when you create a workspace:
-  • A git worktree is created at ~/.worktrees/{repo}/{issue-key}/
+  • A git worktree is created at ~/.lasagna/worktrees/{repo}/{issue-key}/
   • An existing PR/MR for the branch is linked if there is one (provisioning
     never opens one — your agent does that at its first real commit)
   • A named tmux session spins up Claude Code (with `{initialization_command}` if set)

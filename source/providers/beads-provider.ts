@@ -647,7 +647,7 @@ export class BeadsProvider implements IssueTrackerProvider {
 		let bodyDir: string | undefined;
 		let bodyPath: string | undefined;
 		try {
-			bodyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pappardelle-beads-'));
+			bodyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lasagna-beads-'));
 			bodyPath = path.join(bodyDir, 'comment.md');
 			fs.writeFileSync(bodyPath, body, {mode: 0o600});
 		} catch (err) {

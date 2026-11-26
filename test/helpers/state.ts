@@ -138,7 +138,7 @@ export function testTmuxState(
 
 /**
  * Record identities for `keys` as idow records them when it opens a space:
- * the worktree under `~/.worktrees` and the names the creation rule gives.
+ * the worktree under `~/.lasagna/worktrees` and the names the creation rule gives.
  */
 export async function recordIdentities(
 	state: TestState,

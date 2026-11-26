@@ -528,13 +528,13 @@ def test_the_codex_daemon_records_into_the_space_holding_its_cwd(home: Path):
         return AgentPane(Space("repo", "STA-2"), AGENT_PANE_PID)
 
     assert record(
-        payload(cwd="/Users/me/.worktrees/repo/STA-2"),
+        payload(cwd="/Users/me/.lasagna/worktrees/repo/STA-2"),
         False,
         env_for("STA-1"),
         lambda: {**CODEX_DAEMON, **AGENT_PANE},
         pane_for,
     )
-    assert lookups == ["/Users/me/.worktrees/repo/STA-2"]
+    assert lookups == ["/Users/me/.lasagna/worktrees/repo/STA-2"]
     assert entries(sessions_path(home, "STA-2")) == {"codex": {"session_id": "01a117bd-5978", "pid": 52, "started": STARTED}}
     assert not sessions_path(home, "STA-1").exists()
 
@@ -545,7 +545,7 @@ def test_the_codex_daemon_keeps_the_first_id_while_the_pane_agent_lives(sessions
 
     def run(session_id: str, pane, started):
         return record(
-            payload(session_id, cwd="/Users/me/.worktrees/repo/STA-1"),
+            payload(session_id, cwd="/Users/me/.lasagna/worktrees/repo/STA-1"),
             False,
             {},
             lambda: {**CODEX_DAEMON, **pane},
@@ -564,7 +564,7 @@ def test_the_codex_daemon_keeps_the_first_id_while_the_pane_agent_lives(sessions
 def test_the_codex_daemon_records_nothing_while_the_pane_runs_no_agent(sessions_file: Path):
     launch()
     assert not record(
-        payload(cwd="/Users/me/.worktrees/repo/STA-1"),
+        payload(cwd="/Users/me/.lasagna/worktrees/repo/STA-1"),
         False,
         {},
         lambda: {**CODEX_DAEMON, 50: (49, "-zsh"), 49: (1, "tmux")},
@@ -576,7 +576,7 @@ def test_the_codex_daemon_records_nothing_while_the_pane_runs_no_agent(sessions_
 def test_the_codex_daemon_does_not_record_into_a_claude_space(sessions_file: Path):
     launch(agent_profile="claude", is_claude=True)
     assert not record(
-        payload(cwd="/Users/me/.worktrees/repo/STA-1"),
+        payload(cwd="/Users/me/.lasagna/worktrees/repo/STA-1"),
         False,
         {},
         lambda: {**CODEX_DAEMON, **AGENT_PANE},
@@ -611,7 +611,7 @@ CLAUDE_UNDER_DAEMON = {
 def test_an_agent_run_by_the_daemons_shell_tool_is_not_recorded(sessions_file: Path, is_claude, table):
     launch(agent_profile="claude" if is_claude else "codex", is_claude=is_claude)
     assert not record(
-        payload(cwd="/Users/me/.worktrees/repo/STA-1"),
+        payload(cwd="/Users/me/.lasagna/worktrees/repo/STA-1"),
         is_claude,
         env_for(),
         lambda: {**table, **AGENT_PANE},
@@ -644,7 +644,7 @@ def test_the_codex_daemon_records_into_the_space_holding_the_cwd_not_its_starter
     launch("STA-1")
     launch("STA-2")
     assert record(
-        payload(cwd="/home/me/.worktrees/repo/STA-2"),
+        payload(cwd="/home/me/.lasagna/worktrees/repo/STA-2"),
         False,
         env_for("STA-1"),
         lambda: {**daemon, **AGENT_PANE},
@@ -669,7 +669,7 @@ def test_the_codex_daemon_records_into_the_space_holding_the_cwd_not_its_starter
 def test_an_agent_the_daemon_runs_under_its_starters_pane_is_not_recorded(sessions_file: Path, spawned):
     launch()
     assert not record(
-        payload(cwd="/home/me/.worktrees/repo/STA-1"),
+        payload(cwd="/home/me/.lasagna/worktrees/repo/STA-1"),
         False,
         env_for(),
         lambda: {**CODEX_DAEMON_UNDER_ITS_STARTER, **spawned},
@@ -705,7 +705,7 @@ def test_an_agent_outside_tmux_other_than_the_codex_daemon_is_not_recorded(
     sessions_file: Path, is_claude_hook, table
 ):
     launch(agent_profile="agent", is_claude=is_claude_hook)
-    assert not record(payload(cwd="/Users/me/.worktrees/repo/STA-1"), is_claude_hook, env_for(), lambda: table)
+    assert not record(payload(cwd="/Users/me/.lasagna/worktrees/repo/STA-1"), is_claude_hook, env_for(), lambda: table)
     assert not sessions_file.exists()
 
 

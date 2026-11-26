@@ -18,7 +18,7 @@
 #    the next install
 # 4. Links `lasagna` in ~/.local/bin/ to the installed build. idow stays
 #    inside the install: ~/.local/bin/idow belongs to Pappardelle
-# 5. Creates required directories (~/.worktrees/, ~/.lasagna/claude-status/)
+# 5. Creates required directories (~/.lasagna/worktrees/, ~/.lasagna/claude-status/)
 # 6. Installs skill helper scripts to ~/.lasagna/scripts/
 # 7. Installs the Lasagna plugin (skills and hooks) from the installed
 #    build into Claude Code, Codex and agy (`lasagna plugin install`), and adds
@@ -44,7 +44,8 @@ LASAGNA_DIR="$HOME/.lasagna"
 REPO_DIR="$LASAGNA_DIR/repo"
 LOCAL_INSTALL_DIR="$LASAGNA_DIR/local"
 LOCAL_BIN="$HOME/.local/bin"
-WORKTREES_DIR="$HOME/.worktrees"
+# Under Lasagna's own directory: ~/.worktrees is where Pappardelle keeps its.
+WORKTREES_DIR="$LASAGNA_DIR/worktrees"
 REPO_URL="https://github.com/vaibhavkaul/lasagna.git"
 # Keep the build floor aligned with package.json.
 MIN_BUN_VERSION=1.4.4
@@ -449,7 +450,7 @@ mkdir -p "$LASAGNA_DIR/claude-status"
 mkdir -p "$LASAGNA_DIR/repos"
 mkdir -p "$LASAGNA_DIR/logs"
 mkdir -p "$WORKTREES_DIR"
-print_status "Created directories (~/.lasagna/, ~/.worktrees/)"
+print_status "Created directories (~/.lasagna/, ~/.lasagna/worktrees/)"
 
 # ============================================================================
 # Install Skill Scripts

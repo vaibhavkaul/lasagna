@@ -47,8 +47,8 @@ class Fixture:
         # Both names, so a baseline from before the agent-profile rename still runs.
         for session_script in ("start-claude-session.sh", "start-agent-session.sh"):
             write_script(scripts / session_script, ":")
-        write_script(scripts / "create-worktree.sh", '''mkdir -p "$HOME/.worktrees/repo/bench-123"
-printf '{"worktree_path":"%s"}\\n' "$HOME/.worktrees/repo/bench-123"''')
+        write_script(scripts / "create-worktree.sh", '''mkdir -p "$HOME/.lasagna/worktrees/repo/bench-123"
+printf '{"worktree_path":"%s"}\\n' "$HOME/.lasagna/worktrees/repo/bench-123"''')
         for launcher in (
             "open-iterm-claude.sh", "open-default-terminal-claude.sh", "open-ghostty-claude.sh",
             "open-iterm-agent.sh", "open-default-terminal-agent.sh", "open-ghostty-agent.sh",
@@ -73,7 +73,7 @@ printf '{"worktree_path":"%s"}\\n' "$HOME/.worktrees/repo/bench-123"''')
         }
 
     def run(self, mode):
-        worktree = self.root / "home/.worktrees/repo/bench-123"
+        worktree = self.root / "home/.lasagna/worktrees/repo/bench-123"
         if mode == "create":
             shutil.rmtree(worktree, ignore_errors=True)
         else:

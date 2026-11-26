@@ -378,7 +378,7 @@ test('a systemd one-shot fires at local time and unloads once it has', () => {
 	expect(calls[0]).toStrictEqual([
 		'systemd-run',
 		'--user',
-		'--unit=pappardelle-my_repo-ab12',
+		'--unit=lasagna-my_repo-ab12',
 		'--description=Lasagna wake-up for STA-1',
 		'--timer-property=RemainAfterElapse=no',
 		'--timer-property=AccuracySec=1s',
@@ -391,10 +391,8 @@ test('a systemd one-shot fires at local time and unloads once it has', () => {
 		'fire',
 		'ab12',
 	]);
-	expect(systemdUnitName('a.b', job)).toBe('pappardelle-a.b-ab12');
-	expect(systemdUnitName('a.b', {...job, arm: 2})).toBe(
-		'pappardelle-a.b-ab12-2',
-	);
+	expect(systemdUnitName('a.b', job)).toBe('lasagna-a.b-ab12');
+	expect(systemdUnitName('a.b', {...job, arm: 2})).toBe('lasagna-a.b-ab12-2');
 	expect(onCalendar(new Date(2026, 0, 2, 3, 4, 5))).toBe('2026-01-02 03:04:05');
 });
 
@@ -405,7 +403,7 @@ test('a launchd agent runs the same command on the calendar date', () => {
 		{at: new Date(2026, 10, 14, 7, 51)},
 	);
 	expect(plist).toMatch(
-		/<key>Label<\/key>\n\t<string>dev\.pappardelle\.my_repo\.ab12<\/string>/,
+		/<key>Label<\/key>\n\t<string>dev\.lasagna\.my_repo\.ab12<\/string>/,
 	);
 	expect(plist).toMatch(
 		/<key>ProgramArguments<\/key>\n\t<array>\n\t\t<string>\/opt\/pappardelle\/dist\/lasagna<\/string>\n\t\t<string>schedule<\/string>\n\t\t<string>fire<\/string>\n\t\t<string>ab12<\/string>/,

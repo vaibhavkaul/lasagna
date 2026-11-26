@@ -28,7 +28,8 @@ export function setup(realWorktree = false) {
 	const home = path.join(root, 'home');
 	const workspace = path.join(
 		home,
-		'.worktrees',
+		'.lasagna',
+		'worktrees',
 		path.basename(main),
 		'test-abc',
 	);

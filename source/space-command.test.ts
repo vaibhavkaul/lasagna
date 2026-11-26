@@ -217,7 +217,7 @@ test('both stores answer get and list the same for one history', async () => {
 		key: 'STA-2',
 		phase: 'open',
 		title: 'Fix the login page',
-		worktreePath: '/home/u/.worktrees/repo/STA-2',
+		worktreePath: '/home/u/.lasagna/worktrees/repo/STA-2',
 		branch: 'STA-2',
 		profile: 'dev',
 		agentSessions: {claude: 'c-1', codex: 'x-1'},
@@ -405,7 +405,7 @@ test('a space named by LASAGNA_SPACE belongs to LASAGNA_REPO, not the nested che
 	expect(JSON.parse(result.stdout)).toStrictEqual({
 		repo: 'repo',
 		profile: 'dev',
-		worktreePath: '/home/u/.worktrees/repo/STA-1',
+		worktreePath: '/home/u/.lasagna/worktrees/repo/STA-1',
 	});
 });
 
@@ -415,7 +415,14 @@ test('with no key and no LASAGNA_SPACE, the space is the worktree the caller is 
 	);
 	teardown(() => fs.rmSync(home, {recursive: true, force: true}));
 	const state = stateOf({home});
-	const inside = path.join(home, '.worktrees', 'repo', 'STA-1', 'src');
+	const inside = path.join(
+		home,
+		'.lasagna',
+		'worktrees',
+		'repo',
+		'STA-1',
+		'src',
+	);
 	fs.mkdirSync(inside, {recursive: true});
 	await openSpace(state, 'STA-1', {home});
 	expect(
@@ -459,7 +466,7 @@ test('a space is reported under the names stored for it', async () => {
 	});
 });
 
-test('with no key, a worktree outside ~/.worktrees is found by its stored path', async () => {
+test('with no key, a worktree outside ~/.lasagna/worktrees is found by its stored path', async () => {
 	const root = fs.realpathSync(
 		fs.mkdtempSync(path.join(os.tmpdir(), 'space-custom-')),
 	);

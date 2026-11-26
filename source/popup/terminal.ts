@@ -214,7 +214,7 @@ export async function openPopupTerminal(
 	size: PopupSize,
 	client: string[] = [],
 ): Promise<PopupTerminal | undefined> {
-	const dir = mkdtempSync(path.join(tmpdir(), 'pappardelle-popup-'));
+	const dir = mkdtempSync(path.join(tmpdir(), 'lasagna-popup-'));
 	const readyPath = path.join(dir, 'ready');
 	let isPopupOpen = true;
 	const closed = new Promise<void>(resolve => {

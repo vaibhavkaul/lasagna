@@ -133,7 +133,7 @@ test('prepare-space stores an issue title that starts with a dash', () => {
 			'--repo',
 			'repo',
 			'--worktree',
-			path.join(home, '.worktrees', 'repo', 'STA-1'),
+			path.join(home, '.lasagna', 'worktrees', 'repo', 'STA-1'),
 			'--main-root',
 			path.join(home, 'repo'),
 			'--title=-x',

@@ -33,7 +33,7 @@ get_workspace_name = update_status_module.get_workspace_name
 update_status = update_status_module.update_status
 get_status_dir = update_status_module.get_status_dir
 
-SPACE_999 = "/Users/charlie/.worktrees/stardust-labs/STA-999"
+SPACE_999 = "/Users/charlie/.lasagna/worktrees/stardust-labs/STA-999"
 # With the flag on a status is named by the stored space, always repo-qualified.
 STATUS_999 = "stardust-labs-STA-999" if SQLITE_RUN else "STA-999"
 
@@ -61,13 +61,13 @@ class TestGetWorkspaceName:
     """Tests for workspace name extraction from cwd."""
 
     def test_extracts_linear_issue_from_worktree_path(self):
-        """Should extract STA-123 from ~/.worktrees/stardust-labs/STA-123/..."""
-        with patch("os.getcwd", return_value="/Users/charlie/.worktrees/stardust-labs/STA-123/hooks"):
+        """Should extract STA-123 from ~/.lasagna/worktrees/stardust-labs/STA-123/..."""
+        with patch("os.getcwd", return_value="/Users/charlie/.lasagna/worktrees/stardust-labs/STA-123/hooks"):
             assert get_workspace_name() == "STA-123"
 
     def test_extracts_linear_issue_with_different_prefix(self):
         """Should extract ABC-45 from path with different prefix."""
-        with patch("os.getcwd", return_value="/home/user/.worktrees/repo/ABC-45"):
+        with patch("os.getcwd", return_value="/home/user/.lasagna/worktrees/repo/ABC-45"):
             assert get_workspace_name() == "ABC-45"
 
     def test_returns_unknown_when_getcwd_raises_oserror(self):
@@ -78,13 +78,13 @@ class TestGetWorkspaceName:
     def test_uses_explicit_cwd_parameter(self):
         """Should use provided cwd without calling os.getcwd()."""
         with patch("os.getcwd") as mock_getcwd:
-            result = get_workspace_name(cwd="/Users/x/.worktrees/repo/STA-456")
+            result = get_workspace_name(cwd="/Users/x/.lasagna/worktrees/repo/STA-456")
             assert result == "STA-456"
             mock_getcwd.assert_not_called()
 
     def test_explicit_cwd_none_falls_back_to_getcwd(self):
         """When cwd is None, should fall back to os.getcwd()."""
-        with patch("os.getcwd", return_value="/Users/x/.worktrees/repo/STA-789"):
+        with patch("os.getcwd", return_value="/Users/x/.lasagna/worktrees/repo/STA-789"):
             assert get_workspace_name(cwd=None) == "STA-789"
 
     def test_returns_unknown_for_non_worktree_path_without_git(self):
@@ -101,7 +101,7 @@ class TestGetWorkspaceName:
     def test_returns_unknown_for_lowercase_prefix_without_git(self):
         """Should not match lowercase prefixes like sta-123 and git fails."""
         with (
-            patch("os.getcwd", return_value="/Users/charlie/.worktrees/stardust-labs/sta-123"),
+            patch("os.getcwd", return_value="/Users/charlie/.lasagna/worktrees/stardust-labs/sta-123"),
             patch(
                 "subprocess.run",
                 return_value=type("Result", (), {"returncode": 1, "stdout": ""})(),
@@ -293,7 +293,7 @@ class TestStatusDetermination:
         notification_type: Optional[str] = None,
         message: Optional[str] = None,
         session_id: str = "test-session",
-        cwd: str = "/Users/charlie/.worktrees/stardust-labs/STA-999",
+        cwd: str = "/Users/charlie/.lasagna/worktrees/stardust-labs/STA-999",
     ) -> dict[str, Any]:
         """Helper to create hook input dict."""
         data: dict[str, Any] = {
@@ -322,7 +322,7 @@ class TestStatusDetermination:
         with (
             patch.object(sys, "stdin", stdin_mock),
             patch.object(us, "get_status_dir", return_value=temp_dir),
-            patch("os.getcwd", return_value="/Users/charlie/.worktrees/stardust-labs/STA-999"),
+            patch("os.getcwd", return_value="/Users/charlie/.lasagna/worktrees/stardust-labs/STA-999"),
         ):
 
             # Reset argv to simulate no command line args
@@ -570,13 +570,13 @@ class TestStatusDetermination:
         """Status file should include the working directory."""
         input_data = self._create_hook_input(
             hook_event="UserPromptSubmit",
-            cwd="/Users/charlie/.worktrees/stardust-labs/STA-999",
+            cwd="/Users/charlie/.lasagna/worktrees/stardust-labs/STA-999",
         )
 
         result = self._run_hook_with_input(input_data, tmp_path)
 
         assert result is not None
-        assert result.get("cwd") == "/Users/charlie/.worktrees/stardust-labs/STA-999"
+        assert result.get("cwd") == "/Users/charlie/.lasagna/worktrees/stardust-labs/STA-999"
 
     def test_permission_prompt_reports_the_files_of_unfinished_file_calls(self, tmp_path):
         """The prompt doesn't name its file, so the supervisor gets every pending one, resolved against cwd."""
@@ -586,7 +586,7 @@ class TestStatusDetermination:
         result = self._run_hook_with_input(self._permission_prompt(), tmp_path)
 
         assert result is not None
-        assert result["pendingFiles"] == ["/Users/charlie/.worktrees/stardust-labs/STA-999/a.ts", "/tmp/b.ts"]
+        assert result["pendingFiles"] == ["/Users/charlie/.lasagna/worktrees/stardust-labs/STA-999/a.ts", "/tmp/b.ts"]
 
     def test_a_finished_file_call_is_no_longer_pending(self, tmp_path):
         """A file from a call that already ran never stands in for the prompt's."""
@@ -655,7 +655,7 @@ class TestCommandLineArgs:
         with (
             patch.object(sys, "stdin", stdin_mock),
             patch.object(us, "get_status_dir", return_value=tmp_path),
-            patch("os.getcwd", return_value="/Users/charlie/.worktrees/stardust-labs/STA-999"),
+            patch("os.getcwd", return_value="/Users/charlie/.lasagna/worktrees/stardust-labs/STA-999"),
         ):
 
             original_argv = sys.argv
@@ -682,7 +682,7 @@ class TestCommandLineArgs:
         with (
             patch.object(sys, "stdin", stdin_mock),
             patch.object(us, "get_status_dir", return_value=tmp_path),
-            patch("os.getcwd", return_value="/Users/charlie/.worktrees/stardust-labs/STA-999"),
+            patch("os.getcwd", return_value="/Users/charlie/.lasagna/worktrees/stardust-labs/STA-999"),
         ):
 
             original_argv = sys.argv
@@ -723,12 +723,12 @@ class TestAtomicWrite:
         check is a deterministic structural signal that the writer is atomic.
         """
         with patch.object(update_status_module, "get_status_dir", return_value=tmp_path):
-            update_status("processing", cwd="/Users/charlie/.worktrees/stardust-labs/STA-9101")
+            update_status("processing", cwd="/Users/charlie/.lasagna/worktrees/stardust-labs/STA-9101")
             status_file = tmp_path / "STA-9101.json"
             assert status_file.exists()
             inode_before = status_file.stat().st_ino
 
-            update_status("running_tool", cwd="/Users/charlie/.worktrees/stardust-labs/STA-9101")
+            update_status("running_tool", cwd="/Users/charlie/.lasagna/worktrees/stardust-labs/STA-9101")
             inode_after = status_file.stat().st_ino
 
         assert inode_before != inode_after, "rewrite must replace the inode (atomic rename), not truncate in place"
@@ -736,8 +736,8 @@ class TestAtomicWrite:
     def test_no_tmp_files_remain_after_successful_write(self, tmp_path):
         """After a happy-path write the temp sibling must be consumed by the rename."""
         with patch.object(update_status_module, "get_status_dir", return_value=tmp_path):
-            update_status("processing", cwd="/Users/charlie/.worktrees/stardust-labs/STA-9102")
-            update_status("running_tool", cwd="/Users/charlie/.worktrees/stardust-labs/STA-9102")
+            update_status("processing", cwd="/Users/charlie/.lasagna/worktrees/stardust-labs/STA-9102")
+            update_status("running_tool", cwd="/Users/charlie/.lasagna/worktrees/stardust-labs/STA-9102")
 
         stragglers = [p.name for p in tmp_path.iterdir() if ".tmp." in p.name]
         assert stragglers == [], f"tmp file(s) leaked: {stragglers}"
@@ -747,7 +747,7 @@ class TestAtomicWrite:
         before the exception propagates — otherwise a crashy writer would
         leave orphan ``*.tmp.<pid>`` files in the status dir forever.
         """
-        cwd = "/Users/charlie/.worktrees/stardust-labs/STA-9104"
+        cwd = "/Users/charlie/.lasagna/worktrees/stardust-labs/STA-9104"
 
         with (
             patch.object(update_status_module, "get_status_dir", return_value=tmp_path),
@@ -776,7 +776,7 @@ class TestAtomicWrite:
             patch.object(update_status_module, "get_status_dir", return_value=tmp_path),
             patch("builtins.open", side_effect=recording_open),
         ):
-            update_status("processing", cwd="/Users/charlie/.worktrees/stardust-labs/STA-9103")
+            update_status("processing", cwd="/Users/charlie/.lasagna/worktrees/stardust-labs/STA-9103")
 
         write_opens_on_target = [(p, m) for (p, m) in opens if p == str(target) and "w" in m]
         assert write_opens_on_target == [], (
@@ -810,7 +810,7 @@ def _no_space_env(monkeypatch):
 class TestSpaceEnvironment:
     def test_space_env_wins_over_worktree_path(self, monkeypatch):
         monkeypatch.setenv("LASAGNA_SPACE", "STA-42")
-        with patch("os.getcwd", return_value="/Users/x/.worktrees/repo/STA-999"):
+        with patch("os.getcwd", return_value="/Users/x/.lasagna/worktrees/repo/STA-999"):
             assert get_workspace_name() == "STA-42"
 
     def test_space_env_wins_over_main_checkout_cwd(self, monkeypatch):
@@ -828,7 +828,7 @@ class TestSpaceEnvironment:
 
     def test_empty_space_env_falls_back_to_cwd(self, monkeypatch):
         monkeypatch.setenv("LASAGNA_SPACE", "  ")
-        with patch("os.getcwd", return_value="/Users/x/.worktrees/repo/STA-7"):
+        with patch("os.getcwd", return_value="/Users/x/.lasagna/worktrees/repo/STA-7"):
             assert get_workspace_name() == "STA-7"
 
     def test_slash_in_branch_name_is_flattened(self):
@@ -862,7 +862,7 @@ class TestRepoEnvironment:
     @pytest.mark.usefixtures("flag_off")
     def test_repo_qualifies_an_issue_key_from_the_worktree_path(self, monkeypatch):
         monkeypatch.setenv("LASAGNA_REPO", "repo-a")
-        with patch("os.getcwd", return_value="/Users/x/.worktrees/repo-a/STA-7"):
+        with patch("os.getcwd", return_value="/Users/x/.lasagna/worktrees/repo-a/STA-7"):
             assert get_workspace_name() == "repo-a-STA-7"
 
     @pytest.mark.usefixtures("flag_off")
@@ -1009,7 +1009,7 @@ def _run_hook(event: dict[str, Any], env: dict[str, str]) -> subprocess.Complete
 
 
 class TestStatusDaemon:
-    CWD = "/Users/charlie/.worktrees/stardust-labs/STA-9200"
+    CWD = "/Users/charlie/.lasagna/worktrees/stardust-labs/STA-9200"
 
     @pytest.fixture
     def status_dir(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
@@ -1066,7 +1066,7 @@ class TestStatusDaemon:
         monkeypatch.setenv("LASAGNA_REPO", "stardust-labs")
         monkeypatch.setenv("LASAGNA_SQLITE_STATE", "0")
         update_status("processing", cwd=self.CWD)
-        update_status("processing", cwd="/Users/charlie/.worktrees/stardust-labs/STA-9201")
+        update_status("processing", cwd="/Users/charlie/.lasagna/worktrees/stardust-labs/STA-9201")
         monkeypatch.setenv("LASAGNA_SQLITE_STATE", "1")
 
         update_status("waiting_for_input", cwd=self.CWD)

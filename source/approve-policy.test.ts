@@ -1,7 +1,7 @@
 import {test, expect} from 'bun:test';
 import {checkApproval, placeOf, type ApprovalPolicy} from './approve-policy.ts';
 
-const worktree = '/home/u/.worktrees/repo/STA-1';
+const worktree = '/home/u/.lasagna/worktrees/repo/STA-1';
 const directories = new Set([
 	'/',
 	'/tmp',
@@ -13,8 +13,9 @@ const directories = new Set([
 	'/tmp/q-a/s',
 	'/home',
 	'/home/u',
-	'/home/u/.worktrees',
-	'/home/u/.worktrees/repo',
+	'/home/u/.lasagna',
+	'/home/u/.lasagna/worktrees',
+	'/home/u/.lasagna/worktrees/repo',
 	worktree,
 	`${worktree}/dist`,
 ]);
@@ -221,6 +222,41 @@ test('an agent cannot approve its own hold', () => {
 	expect(approved('lasagna send STA-2 "rebase please"')).toBe(true);
 	expect(approved('tmux -S /tmp/q-a/s send-keys -t x y')).toBe(true);
 	expect(approved('qtmux a send-keys -t x y')).toBe(true);
+});
+
+// Worktrees are under the state directory: ~/.lasagna/worktrees/<repo>/<KEY>.
+test("a space's own worktree is not Lasagna's state, and nothing else under ~/.lasagna is the worktree", () => {
+	for (const command of [
+		`ls ${worktree}`,
+		`cat ${worktree}/README.md`,
+		`git -C ${worktree} status`,
+		`rm -rf "${worktree}/build"`,
+		`OUT=${worktree}/dist; rm -rf $OUT`,
+		`cp ${worktree}/a.txt ${worktree}/b.txt`,
+	]) {
+		expect(approved(command), command).toBe(true);
+	}
+
+	for (const command of [
+		// Another space's worktree, and one whose key starts with this one's.
+		'cat /home/u/.lasagna/worktrees/repo/STA-2/README.md',
+		`cat ${worktree}2/README.md`,
+		// Out of the worktree again, into the state beside it.
+		`cat ${worktree}/../../../state.db`,
+		`echo x > ${worktree}/../../../repos/r/holds/h1.json`,
+		`ls ${worktree}/{..,}/STA-2`,
+		// Through the worktree's link to the home directory.
+		`echo x > ${worktree}/h/.lasagna/repos/r/holds/h1.json`,
+		// A path that only contains the worktree's.
+		`cat /mnt${worktree}/README.md`,
+		'ls /home/u/.lasagna/worktrees',
+		'ls /home/u/.lasagna/worktrees/repo',
+	]) {
+		expect(approved(command), command).toBe(false);
+	}
+
+	// The main checkout has no worktree of its own to leave out.
+	expect(approved(`cat ${worktree}/README.md`, main)).toBe(false);
 });
 
 test('a push to main or the default branch holds, in any form', () => {

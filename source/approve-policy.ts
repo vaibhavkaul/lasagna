@@ -681,6 +681,45 @@ function below(target: string, directory: string): string | null {
 	return target.startsWith(`${base}/`) ? target.slice(base.length + 1) : null;
 }
 
+/** The rest of a path inside a command: up to white space or a shell operator. */
+const PATH_REST = /^[^\s;&|()<>`]*/;
+
+/**
+ * `spelled` with the space's own worktree taken out wherever a path names it
+ * in full. Worktrees live under the state directory (~/.lasagna/worktrees),
+ * so a command naming its own worktree would otherwise read as reaching
+ * Lasagna's state. A path that may climb back out of the worktree is left as
+ * written, and so is every other space's worktree.
+ */
+function withoutOwnWorktree(spelled: string, policy: ApprovalPolicy): string {
+	if (!policy.worktree) return spelled;
+	let result = spelled;
+	for (const worktree of new Set([
+		policy.worktree,
+		resolveReal(policy.worktree, policy),
+	])) {
+		const base = worktree.replace(/\/+$/, '');
+		let from = 0;
+		for (;;) {
+			const at = result.indexOf(base, from);
+			if (at === -1) break;
+			const rest = PATH_REST.exec(result.slice(at + base.length))![0];
+			// /x/home/u/… and STA-12 only contain the worktree's path.
+			const named =
+				!/[\w./~$}-]/.test(result[at - 1] ?? '') &&
+				(rest === '' || rest.startsWith('/'));
+			if (named && !mayClimb(rest)) {
+				result = result.slice(0, at) + result.slice(at + base.length);
+				from = at;
+			} else {
+				from = at + base.length;
+			}
+		}
+	}
+
+	return result;
+}
+
 /**
  * Files that decide what the space's agent may do, or that hold its git
  * metadata. idow copies settings.local.json into every worktree, so an edit
@@ -1100,8 +1139,9 @@ export function checkApproval(
 	}
 
 	// Any spelling of ~/.lasagna: "$HOME"/.lasagna, ~/./.lasagna,
-	// .lasa"gna", .lasa{gna,}, and a glob such as ~/.las* or .[l]a*.
-	const spelled = bare(text);
+	// .lasa"gna", .lasa{gna,}, and a glob such as ~/.las* or .[l]a*. The
+	// space's own worktree is under it and is not state.
+	const spelled = withoutOwnWorktree(bare(text), policy);
 	if (
 		STATE_DIR_REACHED.test(spelled) ||
 		[...spelled.matchAll(/(?:^|[\s/='"])(\.[\w.-]*)[*?[{]/g)].some(match =>

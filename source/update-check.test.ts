@@ -351,7 +351,7 @@ test('the two stores leave the same cache file', async () => {
 
 test('isLocalMode: true when project dir is outside ~/.lasagna/repo', () => {
 	const projectDir =
-		'/Users/charlie/.worktrees/x/STA-864/_dev/scripts/pappardelle';
+		'/Users/charlie/.lasagna/worktrees/x/STA-864/_dev/scripts/pappardelle';
 	expect(isLocalMode(projectDir)).toBe(true);
 });
 

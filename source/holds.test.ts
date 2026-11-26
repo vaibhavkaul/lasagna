@@ -8,7 +8,7 @@ const prompt: HeldPrompt = {
 	tool: 'Bash command',
 	command: 'doctl account get',
 	filePath: null,
-	cwd: '/home/u/.worktrees/repo/STA-1',
+	cwd: '/home/u/.lasagna/worktrees/repo/STA-1',
 	approvable: true,
 };
 

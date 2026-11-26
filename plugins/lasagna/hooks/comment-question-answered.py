@@ -73,7 +73,7 @@ def get_issue_key() -> Optional[str]:
 
     With experimental.sqliteState on it is the stored space whose worktree
     holds cwd. Without it, the key is read from the path
-    (~/.worktrees/stardust-labs/STA-123/...).
+    (~/.lasagna/worktrees/stardust-labs/STA-123/...).
     """
     db_path = state_db_path()
     if db_path is None:
@@ -181,7 +181,7 @@ def post_comment(issue_key: str, body: str) -> bool:
     if provider == "beads":
         tmp_path = None
         try:
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".md", prefix="pappardelle-comment-", delete=False) as f:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".md", prefix="lasagna-comment-", delete=False) as f:
                 tmp_path = f.name
                 f.write(body)
             cmd = ["bd"]
@@ -204,7 +204,7 @@ def post_comment(issue_key: str, body: str) -> bool:
         tmp_path = None
         try:
             with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".json", prefix="pappardelle-comment-", delete=False
+                mode="w", suffix=".json", prefix="lasagna-comment-", delete=False
             ) as f:
                 tmp_path = f.name
                 f.write(adf_json)

@@ -15,8 +15,8 @@ const request = {
 	tool: 'Bash command',
 	description: 'Build the app',
 	command: 'bun run build',
-	worktree: '/home/u/.worktrees/repo/STA-1',
-	cwd: '/home/u/.worktrees/repo/STA-1',
+	worktree: '/home/u/.lasagna/worktrees/repo/STA-1',
+	cwd: '/home/u/.lasagna/worktrees/repo/STA-1',
 	tempRoots: ['/tmp/'],
 };
 
@@ -92,8 +92,8 @@ test('the model is told the tool, where the agent works and which dirs are temp'
 		[
 			'Tool: Bash command',
 			'Purpose: Build the app',
-			'Worktree: /home/u/.worktrees/repo/STA-1',
-			'Working directory: /home/u/.worktrees/repo/STA-1',
+			'Worktree: /home/u/.lasagna/worktrees/repo/STA-1',
+			'Working directory: /home/u/.lasagna/worktrees/repo/STA-1',
 			'Temp directories: /tmp/',
 			'Call:',
 			'bun run build',

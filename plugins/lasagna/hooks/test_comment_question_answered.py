@@ -37,7 +37,7 @@ class TestGetIssueKey:
         monkeypatch.setenv("LASAGNA_SQLITE_STATE", "0")
 
     def test_extracts_from_worktree_path(self):
-        with patch("os.getcwd", return_value="/Users/x/.worktrees/repo/STA-123/src"):
+        with patch("os.getcwd", return_value="/Users/x/.lasagna/worktrees/repo/STA-123/src"):
             assert get_issue_key() == "STA-123"
 
     def test_returns_none_for_no_issue(self):

@@ -155,7 +155,7 @@ test('with no LASAGNA_SPACE, the worktree path names the space for the server an
 			{encoding: 'utf8'},
 		);
 	git('commit', '--quiet', '--allow-empty', '-m', 'init');
-	const tree = path.join(f.home, '.worktrees', 'project', 'KEY-9');
+	const tree = path.join(f.home, '.lasagna', 'worktrees', 'project', 'KEY-9');
 	git('worktree', 'add', '--quiet', tree, '-b', 'KEY-9');
 	prepareSpace(f, 'KEY-9', tree);
 	const client = await connect({...f, repo: tree});

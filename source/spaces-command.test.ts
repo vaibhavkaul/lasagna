@@ -332,17 +332,17 @@ test('sessions match on the full worktree prefix and the newest wins', async () 
 	const sessions = path.join(home, '.claude', 'sessions');
 	writeJson(path.join(sessions, 'stale.json'), {
 		pid: 11_111,
-		cwd: `${home}/.worktrees/${REPO}/STA-400`,
+		cwd: `${home}/.lasagna/worktrees/${REPO}/STA-400`,
 		startedAt: '2026-01-01T00:00:00Z',
 	});
 	writeJson(path.join(sessions, 'fresh.json'), {
 		pid: 22_222,
-		cwd: `${home}/.worktrees/${REPO}/STA-400/sub`,
+		cwd: `${home}/.lasagna/worktrees/${REPO}/STA-400/sub`,
 		startedAt: '2026-04-01T00:00:00Z',
 	});
 	writeJson(path.join(sessions, 'other-repo.json'), {
 		pid: 99_999,
-		cwd: `${home}/.worktrees/${REPO}-api/STA-500`,
+		cwd: `${home}/.lasagna/worktrees/${REPO}-api/STA-500`,
 	});
 	const spaces = await gather(home);
 	const byName = new Map(spaces.map(s => [s.name, s]));
@@ -353,7 +353,7 @@ test('sessions match on the full worktree prefix and the newest wins', async () 
 test('the newest top-level jsonl is the conversation log', async () => {
 	const home = tempHome();
 	openSpaces(home, ['STA-800']);
-	const encoded = `${home}/.worktrees/${REPO}/STA-800`
+	const encoded = `${home}/.lasagna/worktrees/${REPO}/STA-800`
 		.replaceAll('/', '-')
 		.replaceAll('.', '-');
 	const dir = path.join(home, '.claude', 'projects', encoded);

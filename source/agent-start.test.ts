@@ -8,7 +8,13 @@ function fixture() {
 	const state = testState();
 	const {daos, stateDir: dir} = state;
 	const statusKey = 'test-repo-TEST-1';
-	const worktree = path.join(dir, '.worktrees', 'test-repo', 'TEST-1');
+	const worktree = path.join(
+		dir,
+		'.lasagna',
+		'worktrees',
+		'test-repo',
+		'TEST-1',
+	);
 	const since = Date.now();
 	const write = async (
 		status: Pick<ClaudeSessionState, 'event' | 'cwd' | 'lastUpdate'>,
@@ -68,7 +74,7 @@ test("another repo's space with the same key does not count", async () => {
 	const f = fixture();
 	await f.write({
 		event: 'SessionStart',
-		cwd: path.join(f.dir, '.worktrees', 'test-repo-other', 'TEST-1'),
+		cwd: path.join(f.dir, '.lasagna', 'worktrees', 'test-repo-other', 'TEST-1'),
 		lastUpdate: f.since,
 	});
 	expect(await f.wait()).toBe(false);

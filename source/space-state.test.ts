@@ -572,13 +572,19 @@ test('extractRecapFromJsonl skips malformed lines without crashing', async () =>
 
 test('findLatestSessionJsonl returns null when project dir is missing', async () => {
 	const projectsDir = tempDir('pappardelle-space-state-');
-	const worktree = path.join('/Users/x', '.worktrees', 'repo', 'STA-111');
+	const worktree = path.join(
+		'/Users/x',
+		'.lasagna',
+		'worktrees',
+		'repo',
+		'STA-111',
+	);
 	expect(await findLatestSessionJsonl(worktree, projectsDir)).toBe(null);
 });
 
 test('findLatestSessionJsonl returns the newest top-level jsonl', async () => {
 	const projectsDir = tempDir('pappardelle-space-state-');
-	const worktree = '/Users/x/.worktrees/repo/STA-222';
+	const worktree = '/Users/x/.lasagna/worktrees/repo/STA-222';
 	const encoded = worktree.replaceAll('/', '-').replaceAll('.', '-');
 	const projectDir = path.join(projectsDir, encoded);
 	fs.mkdirSync(projectDir, {recursive: true});
@@ -597,7 +603,7 @@ test('findLatestSessionJsonl returns the newest top-level jsonl', async () => {
 
 test('findLatestSessionJsonl ignores subagent jsonls in nested dirs', async () => {
 	const projectsDir = tempDir('pappardelle-space-state-');
-	const worktree = '/Users/x/.worktrees/repo/STA-333';
+	const worktree = '/Users/x/.lasagna/worktrees/repo/STA-333';
 	const encoded = worktree.replaceAll('/', '-').replaceAll('.', '-');
 	const projectDir = path.join(projectsDir, encoded);
 	fs.mkdirSync(path.join(projectDir, 'subagents'), {recursive: true});

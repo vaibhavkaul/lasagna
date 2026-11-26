@@ -302,7 +302,7 @@ When you create a workspace, Pappardelle runs through these steps:
 
 2. **Issue creation/fetch** — For new descriptions, a Linear (or Jira, or beads) issue is created with the description as its title, on one line and cut to 80 characters with an ellipsis. For existing issue keys, the issue is fetched.
 
-3. **Git worktree** — An isolated worktree is created at `~/.worktrees/{repo-name}/{issue-key}/`. This is a full working copy of your repo on a new branch, completely isolated from your main checkout.
+3. **Git worktree** — An isolated worktree is created at `~/.lasagna/worktrees/{repo-name}/{issue-key}/`. This is a full working copy of your repo on a new branch, completely isolated from your main checkout.
 
 4. **PR/MR lookup** — When opening workspace apps and links (`o` or `idow --open`), an existing PR (GitHub) or MR (GitLab) is resolved into `${PR_URL}`. Setup-only creation skips this network request, as does opening a profile whose commands, apps, links, and hooks do not use `${PR_URL}` or `${MR_URL}`. When lookup is skipped, the final workspace summary also omits the `PR:` line. Claude and companion sessions start before any PR/MR lookup. Provisioning never _opens_ a PR: the agent opens it at its first real commit. Anything keyed off `${PR_URL}` should be gated with `if_set: PR_URL`.
 
@@ -351,7 +351,7 @@ Pappardelle is configured via a `.pappardelle.yml` file at your repo root. The k
 - **Custom keybindings** — Bind single keys to bash commands (`run`), skills (`send_skill`) or text for the agent (`send_to_claude`).
 - **Providers** — Pluggable issue trackers (Linear, Jira, beads) and VCS hosts (GitHub, GitLab). Defaults to Linear + GitHub.
 - **Built-in file copies** — `.pappardelle.local.yml` and `.claude/settings.local.json` are automatically copied from the main repo to new worktrees (if they exist), and `CLAUDE.local.md` is symlinked to the main checkout's copy.
-- **Workspace lifecycle hooks** — `post_workspace_init` commands run after worktree creation (e.g., copying `.env` files, installing dependencies). Initialization hooks with `background: true` continue without delaying workspace readiness; their output goes to that workspace's idow log in `~/Library/Logs/stardust-workspace/` (see [Logging](#logging)). `pre_workspace_deinit` commands run before workspace deletion (e.g., closing issues, removing worktrees).
+- **Workspace lifecycle hooks** — `post_workspace_init` commands run after worktree creation (e.g., copying `.env` files, installing dependencies). Initialization hooks with `background: true` continue without delaying workspace readiness; their output goes to that workspace's idow log in `~/Library/Logs/lasagna/` (see [Logging](#logging)). `pre_workspace_deinit` commands run before workspace deletion (e.g., closing issues, removing worktrees).
 
 For the full schema, all fields, and examples, see the [configuration reference](pappardelle-config.md).
 
@@ -563,7 +563,7 @@ lasagna plugin install  # installs the plugin (skills, hooks and MCP tools) into
 | `~/.lasagna/state.db`                          | State database, with [`experimental.sqliteState`](pappardelle-config.md#experimental-sqlite-state) on |
 | `~/.lasagna/status-1.sock`                     | [Status daemon](pappardelle-config.md#status-daemon) socket, with `experimental.sqliteState` on       |
 | `~/.lasagna/logs/`                             | Daily log files (7-day retention)                                                                     |
-| `~/.worktrees/`                                | Git worktrees for all your workspaces                                                                 |
+| `~/.lasagna/worktrees/`                        | Git worktrees for all your workspaces                                                                 |
 
 > **Multi-repo support:** State is namespaced per repository under `~/.lasagna/repos/{repoName}/`.
 > Running pappardelle in two different repos keeps their workspace registries completely separate.
@@ -642,19 +642,19 @@ grep '\[ERROR\]' ~/.lasagna/logs/*.log
 
 Warnings and errors also appear in a red box at the bottom of the TUI. Press `e` to view them.
 
-Workspace setup (`idow`) logs go to `~/Library/Logs/stardust-workspace/`. Every launch of a workspace, including `--resume` and `--open`, writes its own file named `idow-<issue key>-<YYYYMMDD>-<6 random characters>.log`, so one workspace can have several. Output from background `post_workspace_init` and `post_workspace_create` hooks and profile `commands` is written to the same file. Use the issue key as the TUI shows it (beads keys are lowercase). Files not written to for 8 days are deleted the next time `idow` starts.
+Workspace setup (`idow`) logs go to `~/Library/Logs/lasagna/`. Every launch of a workspace, including `--resume` and `--open`, writes its own file named `idow-<issue key>-<YYYYMMDD>-<6 random characters>.log`, so one workspace can have several. Output from background `post_workspace_init` and `post_workspace_create` hooks and profile `commands` is written to the same file. Use the issue key as the TUI shows it (beads keys are lowercase). Files not written to for 8 days are deleted the next time `idow` starts.
 
 ```bash
 KEY=STA-123
 
 # List a workspace's setup logs, newest first
-ls -t ~/Library/Logs/stardust-workspace/idow-$KEY-????????-??????.log
+ls -t ~/Library/Logs/lasagna/idow-$KEY-????????-??????.log
 
 # Tail the latest one
-tail -f "$(ls -t ~/Library/Logs/stardust-workspace/idow-$KEY-????????-??????.log | head -1)"
+tail -f "$(ls -t ~/Library/Logs/lasagna/idow-$KEY-????????-??????.log | head -1)"
 
 # Runs that stopped before the issue was fetched keep the name without a key
-grep -lF "[$KEY]" ~/Library/Logs/stardust-workspace/idow-????????-??????.log
+grep -lF "[$KEY]" ~/Library/Logs/lasagna/idow-????????-??????.log
 ```
 
 ### Development

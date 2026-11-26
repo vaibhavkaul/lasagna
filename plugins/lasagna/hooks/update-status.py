@@ -125,7 +125,7 @@ def get_workspace_name(cwd: Optional[str] = None) -> Optional[str]:
     if db_path is not None:
         row = space_at_path(db_path, cwd)
         return _qualify(row.repo, row.key) if row else None
-    # Expected path: ~/.worktrees/stardust-labs/STA-123/...
+    # Expected path: ~/.lasagna/worktrees/stardust-labs/STA-123/...
     issue_key = find_issue_key(cwd)
     if issue_key:
         return _qualify(repo, issue_key) if repo else issue_key

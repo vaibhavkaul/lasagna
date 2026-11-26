@@ -57,7 +57,7 @@ function timerId(job: Job): string {
 }
 
 export function systemdUnitName(repo: string, job: Job): string {
-	return `pappardelle-${repo.replaceAll(/[^\w:.-]/g, '_')}-${timerId(job)}`;
+	return `lasagna-${repo.replaceAll(/[^\w:.-]/g, '_')}-${timerId(job)}`;
 }
 
 export function systemdBackend(context: TimerContext): TimerBackend {
@@ -112,7 +112,7 @@ export function systemdBackend(context: TimerContext): TimerBackend {
 }
 
 export function launchdLabel(repo: string, job: Job): string {
-	return `dev.pappardelle.${repo.replaceAll(/[^\w.-]/g, '_')}.${timerId(job)}`;
+	return `dev.lasagna.${repo.replaceAll(/[^\w.-]/g, '_')}.${timerId(job)}`;
 }
 
 function plistValue(value: unknown, indent: string): string {

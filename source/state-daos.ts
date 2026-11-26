@@ -143,7 +143,7 @@ export type StateDaoOptions = {
 	sqlite?: boolean;
 	/** The time recorded on a write. */
 	clock?: () => Date;
-	/** The home whose `~/.worktrees` holds the spaces idow creates. */
+	/** The home whose `~/.lasagna/worktrees` holds the spaces idow creates. */
 	home?: string;
 	/** The environment that names the inner tmux socket. */
 	env?: NodeJS.ProcessEnv;

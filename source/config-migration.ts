@@ -731,7 +731,7 @@ export function applyConfigMigrations(migrations: ConfigMigration[]): void {
 			fs.accessSync(target, fs.constants.W_OK);
 			const temporary = path.join(
 				path.dirname(target),
-				`.${path.basename(target)}.pappardelle-migration`,
+				`.${path.basename(target)}.lasagna-migration`,
 			);
 			const {mode} = fs.statSync(target);
 			fs.writeFileSync(temporary, content);
@@ -913,7 +913,7 @@ export async function runConfigFix(
 	run: (command: string) => Promise<number | undefined>,
 	paths: ConfigPaths = defaultConfigPaths(),
 ): Promise<number | undefined> {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pappardelle-config-fix-'));
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lasagna-config-fix-'));
 	try {
 		const promptFile = path.join(dir, 'prompt.md');
 		fs.writeFileSync(promptFile, buildConfigFixPrompt(reason, paths));

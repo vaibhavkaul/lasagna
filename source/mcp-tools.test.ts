@@ -151,7 +151,7 @@ test('space_get maps onto space get, and all onto space list', async () => {
 		newSpaceIdentity({
 			repo: state.repo,
 			key: 'STA-1',
-			worktreePath: '/home/u/.worktrees/repo/STA-1',
+			worktreePath: '/home/u/.lasagna/worktrees/repo/STA-1',
 			socket: 'lasagna_inner',
 		}),
 	);

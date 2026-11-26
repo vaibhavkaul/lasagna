@@ -40,10 +40,10 @@ T() { env -u TMUX -u TMUX_PANE tmux -L lasagna_inner "$@"; }
 
 cleanup() {
     local status=$?
-    for unit in $(systemctl --user list-units --all --plain --no-legend "pappardelle-$REPO_NAME-*" | awk '{print $1}'); do
+    for unit in $(systemctl --user list-units --all --plain --no-legend "lasagna-$REPO_NAME-*" | awk '{print $1}'); do
         systemctl --user stop "$unit" 2>/dev/null
     done
-    systemctl --user reset-failed "pappardelle-$REPO_NAME-*" 2>/dev/null
+    systemctl --user reset-failed "lasagna-$REPO_NAME-*" 2>/dev/null
     if [[ -n "$SOCKET" && "$SOCKET" == "$TMUX_TMPDIR"/* ]]; then
         env -u TMUX -u TMUX_PANE tmux -S "$SOCKET" kill-server 2>/dev/null
     fi
@@ -106,7 +106,7 @@ if lasagna schedule QA-1 --at "$at" --message hello-from-a-timer >/dev/null; the
 else
     fail "schedule exited $?"
 fi
-units="$(systemctl --user list-timers --all --plain --no-legend "pappardelle-$REPO_NAME-*" | wc -l)"
+units="$(systemctl --user list-timers --all --plain --no-legend "lasagna-$REPO_NAME-*" | wc -l)"
 if [[ "$units" -eq 1 ]]; then pass "one timer loaded"; else fail "expected one timer, found $units"; fi
 if [[ "$SQLITE_STATE" == 1 ]]; then
     jobs="$(stored_jobs)"
@@ -142,7 +142,7 @@ fi
 echo "unschedule"
 id="$(lasagna schedule QA-1 --at "$(date -d '+10 minutes' --iso-8601=seconds)" --message later | awk '{print $2}')"
 if lasagna unschedule "$id" >/dev/null; then pass "unscheduled $id"; else fail "unschedule failed"; fi
-units="$(systemctl --user list-timers --all --plain --no-legend "pappardelle-$REPO_NAME-*" | wc -l)"
+units="$(systemctl --user list-timers --all --plain --no-legend "lasagna-$REPO_NAME-*" | wc -l)"
 if [[ "$units" -eq 0 ]]; then pass "no timer left"; else fail "$units timers left"; fi
 
 echo

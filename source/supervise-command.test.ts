@@ -38,7 +38,7 @@ const permission = (command: string) =>
 		' Esc to cancel · Tab to amend',
 	].join('\n');
 
-const worktree = '/home/u/.worktrees/repo/STA-1';
+const worktree = '/home/u/.lasagna/worktrees/repo/STA-1';
 const policy: ApprovalPolicy = {
 	worktree,
 	roots: ['/tmp/'],

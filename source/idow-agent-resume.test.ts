@@ -46,9 +46,12 @@ test('a reopened space resumes the session its agent recorded', async () => {
 	await fixture.run({profile: 'other'});
 	expect(launchArg('--agent-resume-args')).toBe('resume thread-1');
 
-	fs.mkdirSync(path.join(fixture.home, '.worktrees/main checkout/test-abc'), {
-		recursive: true,
-	});
+	fs.mkdirSync(
+		path.join(fixture.home, '.lasagna/worktrees/main checkout/test-abc'),
+		{
+			recursive: true,
+		},
+	);
 	record({codex: 'thread-1'});
 	await fixture.run({open: true});
 	expect(launchArg('--agent-resume-args')).toBe('resume thread-1');
@@ -94,9 +97,12 @@ if (sqliteRun) {
 		const db = new Database(path.join(fixture.home, '.lasagna/state.db'));
 		db.query('DELETE FROM json_sync WHERE path = ?').run(stateFile);
 		db.close();
-		fs.mkdirSync(path.join(fixture.home, '.worktrees/main checkout/test-abc'), {
-			recursive: true,
-		});
+		fs.mkdirSync(
+			path.join(fixture.home, '.lasagna/worktrees/main checkout/test-abc'),
+			{
+				recursive: true,
+			},
+		);
 
 		const output = await fixture.run();
 		expect(output.includes('Profile:   Other'), output).toBe(true);
@@ -132,9 +138,12 @@ test('a reopened claude space with no recorded session continues its conversatio
 	await fixture.run({});
 	expect(launchArg('--agent-resume-args')).toBe('--continue');
 
-	fs.mkdirSync(path.join(fixture.home, '.worktrees/main checkout/test-abc'), {
-		recursive: true,
-	});
+	fs.mkdirSync(
+		path.join(fixture.home, '.lasagna/worktrees/main checkout/test-abc'),
+		{
+			recursive: true,
+		},
+	);
 	await fixture.run({open: true});
 	expect(launchArg('--agent-resume-args')).toBe('--continue');
 });

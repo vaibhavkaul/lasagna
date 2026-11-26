@@ -264,7 +264,7 @@ def _key_candidates(cwd: str) -> list[tuple[str, str]]:
     Deepest first: the repo directory sits above the workspace directory and can
     be key-shaped itself, since a beads prefix defaults to a repo directory name
     and may be a strict prefix of it (`vendor` under
-    ~/.worktrees/vendor-sdk/vendor-sdk-a1b2). Scanning root-first returned the
+    ~/.lasagna/worktrees/vendor-sdk/vendor-sdk-a1b2). Scanning root-first returned the
     repo directory and filed status and comments against a nonexistent issue.
     """
     segments = cwd.split("/")
@@ -297,7 +297,7 @@ def _find_beads_key(candidates: list[tuple[str, str]], cwd: str) -> Optional[str
 def find_issue_key(cwd: Optional[str] = None) -> Optional[str]:
     """Recover the workspace's issue key from a worktree path.
 
-    Expected shape: ~/.worktrees/<repo>/<issue-key>/...
+    Expected shape: ~/.lasagna/worktrees/<repo>/<issue-key>/...
     Returns None for the main worktree or any path with no issue in it.
 
     The Linear/Jira shape is checked first because it needs no file I/O, and

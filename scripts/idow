@@ -14,7 +14,7 @@
 #   1. Parses input (issue key, URL, or description)
 #   2. Creates/fetches issue as needed
 #   3. Selects project profile from .pappardelle.yml
-#   4. Creates the space's git worktree, at ~/.worktrees/<repo>/<issue-key> for a new space
+#   4. Creates the space's git worktree, at ~/.lasagna/worktrees/<repo>/<issue-key> for a new space
 #   5. Creates PR/MR (if new)
 #   6. Opens terminal with the agent (if --open)
 #   7. Opens profile-configured apps, links, and commands (if --open)
@@ -33,7 +33,7 @@ done
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_SOURCE")" && pwd)"
 
 # Logging setup
-LOG_DIR="$HOME/Library/Logs/stardust-workspace"
+LOG_DIR="$HOME/Library/Logs/lasagna"
 mkdir -p "$LOG_DIR"
 # Each invocation owns its file so background hooks cannot mix workspaces.
 # Rotate on launch and retain a week of completed invocations.
@@ -290,9 +290,9 @@ pappardelle_state check-config --project-root "$REPO_ROOT" --main-root "$MAIN_RE
 # From here on, read the merged config so home and local layers apply to
 # every field (profiles, team_prefix, providers, apps, links, hooks, ...),
 # not only the Claude settings that resolve-agent-config.sh layers itself.
-MERGED_CONFIG_PATH=$(mktemp -t pappardelle-config.XXXXXX)
-CONFIG_RECORDS_PATH=$(mktemp -t pappardelle-records.XXXXXX)
-STATE_CLI_ERRORS=$(mktemp -t pappardelle-state-cli.XXXXXX)
+MERGED_CONFIG_PATH=$(mktemp -t lasagna-config.XXXXXX)
+CONFIG_RECORDS_PATH=$(mktemp -t lasagna-records.XXXXXX)
+STATE_CLI_ERRORS=$(mktemp -t lasagna-state-cli.XXXXXX)
 trap 'rm -f "$MERGED_CONFIG_PATH" "$CONFIG_RECORDS_PATH" "$STATE_CLI_ERRORS"' EXIT
 merge_config_layers "$HOME_CONFIG_PATH" "$PROJECT_CONFIG_PATH" "$LOCAL_CONFIG_PATH" > "$MERGED_CONFIG_PATH"
 CONFIG_PATH="$MERGED_CONFIG_PATH"

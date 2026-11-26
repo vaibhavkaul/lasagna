@@ -84,7 +84,7 @@ if (process.env.IDOW_TEST_STATUS_DIR) {
     workspaceName: 'project-' + key,
     status: 'waiting_for_input',
     event: 'SessionStart',
-    cwd: process.env.HOME + '/.worktrees/project/' + key,
+    cwd: process.env.HOME + '/.lasagna/worktrees/project/' + key,
     lastUpdate: Date.now(),
   }));
 }
@@ -164,13 +164,19 @@ setTimeout(() => {
 	 * identities were stored has it.
 	 */
 	const worktreeOnly = (key: string) => {
-		fs.mkdirSync(path.join(home, '.worktrees', 'project', key), {
+		fs.mkdirSync(path.join(home, '.lasagna', 'worktrees', 'project', key), {
 			recursive: true,
 		});
 	};
 	/** A worktree an earlier idow run created and recorded. */
 	const existingWorktree = async (key: string) => {
-		const worktreePath = path.join(home, '.worktrees', 'project', key);
+		const worktreePath = path.join(
+			home,
+			'.lasagna',
+			'worktrees',
+			'project',
+			key,
+		);
 		fs.mkdirSync(worktreePath, {recursive: true});
 		const stateDir = path.join(home, '.lasagna');
 		const daos = createStateDaos({
@@ -300,7 +306,7 @@ test('CLI saves a normalized issue from a non-TTY sous-chef invocation', async (
 			workspaceName: 'project-STE-20',
 			status: 'waiting_for_input',
 			event: 'SessionStart',
-			cwd: path.join(f.home, '.worktrees', 'project', 'STE-20'),
+			cwd: path.join(f.home, '.lasagna', 'worktrees', 'project', 'STE-20'),
 			lastUpdate: Date.now(),
 		});
 

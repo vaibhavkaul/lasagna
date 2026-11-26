@@ -282,25 +282,25 @@ profiles:
 
 The following variables are available for use in templates:
 
-| Variable              | Description                                   | Example                                                  |
-| --------------------- | --------------------------------------------- | -------------------------------------------------------- |
-| `${ISSUE_KEY}`        | Issue key                                     | `STA-361`                                                |
-| `${ISSUE_NUMBER}`     | Numeric part of issue key                     | `361`                                                    |
-| `${ISSUE_URL}`        | Full issue URL (tracker-specific)             | `https://linear.app/...` or `https://jira.../browse/...` |
-| `${TITLE}`            | Issue title                                   | `Add dark mode`                                          |
-| `${DESCRIPTION}`      | Issue description                             | (full text)                                              |
-| `${WORKTREE_PATH}`    | Full path to worktree                         | `/Users/charlie/.worktrees/stardust-labs/STA-361`        |
-| `${REPO_ROOT}`        | Git working tree pappardelle is running in    | `/Users/charlie/code/stardust-labs`                      |
-| `${MAIN_REPO_ROOT}`   | Main checkout (differs only under a worktree) | `/Users/charlie/code/stardust-labs`                      |
-| `${REPO_NAME}`        | Repository directory name                     | `stardust-labs`                                          |
-| `${PR_URL}`           | GitHub PR URL (may be empty)                  | `https://github.com/...`                                 |
-| `${MR_URL}`           | GitLab MR URL (may be empty)                  | `https://gitlab.com/.../merge_requests/1`                |
-| `${SCRIPT_DIR}`       | Directory containing dow/idow scripts         | `/path/to/_dev/scripts/pappardelle/scripts`              |
-| `${HOME}`             | User home directory                           | `/Users/charlie`                                         |
-| `${VCS_LABEL}`        | VCS label from profile (provider-agnostic)    | `stardust_jams`                                          |
-| `${GITHUB_LABEL}`     | Deprecated alias for `${VCS_LABEL}`           | `stardust_jams`                                          |
-| `${TRACKER_PROVIDER}` | Issue tracker provider name                   | `linear`, `jira`, or `beads`                             |
-| `${VCS_PROVIDER}`     | VCS host provider name                        | `github` or `gitlab`                                     |
+| Variable              | Description                                   | Example                                                   |
+| --------------------- | --------------------------------------------- | --------------------------------------------------------- |
+| `${ISSUE_KEY}`        | Issue key                                     | `STA-361`                                                 |
+| `${ISSUE_NUMBER}`     | Numeric part of issue key                     | `361`                                                     |
+| `${ISSUE_URL}`        | Full issue URL (tracker-specific)             | `https://linear.app/...` or `https://jira.../browse/...`  |
+| `${TITLE}`            | Issue title                                   | `Add dark mode`                                           |
+| `${DESCRIPTION}`      | Issue description                             | (full text)                                               |
+| `${WORKTREE_PATH}`    | Full path to worktree                         | `/Users/charlie/.lasagna/worktrees/stardust-labs/STA-361` |
+| `${REPO_ROOT}`        | Git working tree pappardelle is running in    | `/Users/charlie/code/stardust-labs`                       |
+| `${MAIN_REPO_ROOT}`   | Main checkout (differs only under a worktree) | `/Users/charlie/code/stardust-labs`                       |
+| `${REPO_NAME}`        | Repository directory name                     | `stardust-labs`                                           |
+| `${PR_URL}`           | GitHub PR URL (may be empty)                  | `https://github.com/...`                                  |
+| `${MR_URL}`           | GitLab MR URL (may be empty)                  | `https://gitlab.com/.../merge_requests/1`                 |
+| `${SCRIPT_DIR}`       | Directory containing dow/idow scripts         | `/path/to/_dev/scripts/pappardelle/scripts`               |
+| `${HOME}`             | User home directory                           | `/Users/charlie`                                          |
+| `${VCS_LABEL}`        | VCS label from profile (provider-agnostic)    | `stardust_jams`                                           |
+| `${GITHUB_LABEL}`     | Deprecated alias for `${VCS_LABEL}`           | `stardust_jams`                                           |
+| `${TRACKER_PROVIDER}` | Issue tracker provider name                   | `linear`, `jira`, or `beads`                              |
+| `${VCS_PROVIDER}`     | VCS host provider name                        | `github` or `gitlab`                                      |
 
 Additionally, any keys defined in a profile's `vars` section become template variables. For example, `vars: { IOS_APP_DIR: "_ios/MyApp" }` makes `${IOS_APP_DIR}` available in all templates.
 
@@ -311,7 +311,7 @@ Variables are expanded using `${VAR_NAME}` syntax. Environment variables are als
 ```yaml
 # All of these work:
 path: '${WORKTREE_PATH}'
-path: '${HOME}/.worktrees/${REPO_NAME}/${ISSUE_KEY}'
+path: '${HOME}/.lasagna/worktrees/${REPO_NAME}/${ISSUE_KEY}'
 run: "echo ${ISSUE_KEY} | tr '[:upper:]' '[:lower:]'"
 ```
 

@@ -277,7 +277,7 @@ signal.pause()
                         'commit', '--allow-empty', '-qm', 'Fixture'], cwd=repo, env=env, check=True)
         keys = [f'bench-{i+1}' for i in range(workspaces)]
         for key in keys:
-            worktree = home / '.worktrees/repo' / key
+            worktree = home / '.lasagna/worktrees/repo' / key
             worktree.parent.mkdir(parents=True, exist_ok=True)
             subprocess.run([real_tools['git'], 'worktree', 'add', '-qb', key, str(worktree)],
                            cwd=repo, env=env, check=True)
