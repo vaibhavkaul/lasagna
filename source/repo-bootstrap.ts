@@ -102,9 +102,11 @@ function bootstrapOwnRepo(): BootstrappedRepo {
 	// launched from a shell or tmux server that didn't have direnv hooked: the
 	// TUI's bulk GraphQL fetch reads LINCTL_API_KEY from this environment, so
 	// it uses the right workspace's key instead of falling back to
-	// ~/.linctl-auth.json. Variables the process already has win; .envrc only
-	// fills gaps. It is an environment of the repo's own, not process.env: a
-	// process that serves two repos must not hand one's keys to the other.
+	// ~/.linctl-auth.json. In the checkout the process was started in,
+	// variables it already has win and .envrc only fills gaps; a process
+	// pointed at another repo takes that repo's .envrc first (RepoContext.env).
+	// It is an environment of the repo's own, not process.env: a process that
+	// serves two repos must not hand one's keys to the other.
 	const own = defaultRepoContext();
 	setProviderEnv(own.env);
 

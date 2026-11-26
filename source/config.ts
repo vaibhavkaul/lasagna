@@ -551,6 +551,20 @@ export function setDefaultRepo(repo: RepoRoots | undefined): void {
 }
 
 /**
+ * Whether `root` is the working tree the process was started in and still
+ * answers for: not once `setDefaultRepo` pointed it at another repo or at a
+ * work dir, and not outside a checkout.
+ */
+export function startedIn(root: string): boolean {
+	if (defaultRepo) return false;
+	try {
+		return path.resolve(getRepoRoot()) === path.resolve(root);
+	} catch {
+		return false;
+	}
+}
+
+/**
  * Get the root of the working tree we are standing in. Inside a linked
  * worktree that is the worktree itself, not the main checkout — use
  * `getMainRepoRoot` when you specifically need the latter.

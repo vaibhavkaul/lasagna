@@ -11,6 +11,7 @@ import {
 	readConfig,
 	repoConfigPaths,
 	repoRootsAt,
+	startedIn,
 	workdirRepoRoots,
 	type ConfigLoad,
 	type ConfigPaths,
@@ -27,8 +28,15 @@ export type RepoContext = RepoRoots & {
 	/**
 	 * The environment of this repo's providers and of everything spawned for
 	 * its spaces: the process's own, with the plain `export KEY=VALUE` lines of
-	 * the repo's `.envrc` filling the variables that aren't set. Nothing is
-	 * written to `process.env`, so one repo's keys never reach another's.
+	 * the repo's `.envrc`. Nothing is written to `process.env`, so one repo's
+	 * keys never reach another's.
+	 *
+	 * In the checkout the process was started in, the `.envrc` only fills the
+	 * variables that aren't set: the shell that started it is the repo's own.
+	 * For any other repo (one of a work dir's, or the one a command was
+	 * pointed at) the `.envrc` wins, as it does where idow sources it. What
+	 * the process inherited there belongs to wherever it was started, and
+	 * must not stand in for this repo's keys.
 	 */
 	readonly env: NodeJS.ProcessEnv;
 	/** The work dir whose config applies to the repo, if any. */
@@ -44,7 +52,9 @@ function build(roots: RepoRoots, paths: () => ConfigPaths): RepoContext {
 		get env() {
 			if (!env) {
 				env = {...process.env};
-				loadEnvrcIntoProcessEnv(roots.root, env);
+				loadEnvrcIntoProcessEnv(roots.root, env, {
+					override: !startedIn(roots.root),
+				});
 			}
 
 			return env;

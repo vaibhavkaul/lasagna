@@ -14,8 +14,7 @@ import {MAIN_WORKTREE_KEY} from './space-utils.ts';
  * records the space before it starts any session.
  *
  * `env` is the repo's own environment (`RepoContext.env`): the process's,
- * with the repo's `.envrc` filling what isn't set. It defaults to the
- * process's alone.
+ * with the repo's `.envrc`. It defaults to the process's alone.
  */
 export function buildSpawnEnv(
 	repoRoot: string,

@@ -1,4 +1,5 @@
 import {test, expect} from 'bun:test';
+import {spawnSync} from 'node:child_process';
 import path from 'node:path';
 import {teardown} from '../test/helpers/teardown.ts';
 import {tempDir} from '../test/helpers/temp-dir.ts';
@@ -27,6 +28,7 @@ import {
 	resetRepoContexts,
 	workdirRepoContext,
 } from './repo-context.ts';
+import {bunIsolationArgs} from './runtime.ts';
 
 const PROFILES = 'profiles:\n  t:\n    display_name: T\n';
 
@@ -126,11 +128,64 @@ test("a variable in a command template is read from the repo's environment, .env
 	expect(expandTemplate(template, vars)).toBe('deploy API-1 --token ');
 });
 
-test('a variable the process already has wins over .envrc', () => {
+/** What a process started in `cwd` has for `names` in its own repo's environment. */
+function ownEnvironment(
+	cwd: string,
+	inherited: Record<string, string>,
+	names: string[],
+): Array<string | undefined> {
+	const script = `
+		import {defaultRepoContext} from ${JSON.stringify(path.join(import.meta.dirname, 'repo-context.ts'))};
+		const {env} = defaultRepoContext();
+		console.log(JSON.stringify(${JSON.stringify(names)}.map(name => env[name] ?? null)));
+	`;
+	const result = spawnSync(
+		process.execPath,
+		[...bunIsolationArgs, '--eval', script],
+		{cwd, encoding: 'utf8', env: {...process.env, ...inherited}},
+	);
+	expect(result.stderr).toBe('');
+	return (JSON.parse(result.stdout) as Array<string | null>).map(
+		value => value ?? undefined,
+	);
+}
+
+test('in the checkout the process was started in, a variable it already has wins over .envrc', () => {
 	const {repos} = twoRepos();
-	const {env} = repoContext(repos['api']!.root);
-	expect(env['HOME']).toBe(process.env['HOME']);
-	expect(env['PATH']).toBe(process.env['PATH']);
+	expect(
+		ownEnvironment(repos['api']!.root, {TRACKER_TOKEN: 'from-the-shell'}, [
+			'TRACKER_TOKEN',
+			'ONLY_API',
+		]),
+	).toEqual(['from-the-shell', '1']);
+});
+
+test('the .envrc of a repo the process was not started in wins over what the process inherited', () => {
+	const {repos} = twoRepos();
+	process.env['TRACKER_TOKEN'] = 'inherited-from-elsewhere';
+	teardown(() => {
+		delete process.env['TRACKER_TOKEN'];
+	});
+	// As idow has it, which sources the file.
+	expect(repoContext(repos['api']!.root).env['TRACKER_TOKEN']).toBe(
+		'token-of-api',
+	);
+	expect(repoContext(repos['web']!.root).env['TRACKER_TOKEN']).toBe(
+		'token-of-web',
+	);
+	// What no .envrc sets is still the process's.
+	expect(repoContext(repos['web']!.root).env['PATH']).toBe(process.env['PATH']);
+});
+
+test('a process pointed at a repo takes that repo\u2019s .envrc over what it inherited', () => {
+	const {repos} = twoRepos();
+	teardown(() => {
+		setDefaultRepo(undefined);
+		delete process.env['TRACKER_TOKEN'];
+	});
+	process.env['TRACKER_TOKEN'] = 'inherited-from-elsewhere';
+	setDefaultRepo(repoRootsAt(repos['web']!.root));
+	expect(defaultRepoContext().env['TRACKER_TOKEN']).toBe('token-of-web');
 });
 
 test('a directory outside a checkout has no repo context', () => {

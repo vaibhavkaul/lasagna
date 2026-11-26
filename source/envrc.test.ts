@@ -120,3 +120,35 @@ test('loadEnvrcIntoProcessEnv: skips unsupported direnv stdlib calls', () => {
 	loadEnvrcIntoProcessEnv(repo, env);
 	expect(env['LINCTL_API_KEY']).toBe('lin_api_xyz');
 });
+
+test('loadEnvrcIntoProcessEnv: with override, .envrc wins over a variable that is set', () => {
+	const dir = makeTmpRepo('export TOKEN=of-the-repo\nexport NEW=1\n');
+	const env: NodeJS.ProcessEnv = {TOKEN: 'inherited'};
+	loadEnvrcIntoProcessEnv(dir, env, {override: true});
+	expect(env).toStrictEqual({TOKEN: 'of-the-repo', NEW: '1'});
+});
+
+test('loadEnvrcIntoProcessEnv: with override, a value the shell would expand leaves a set variable alone', () => {
+	const dir = makeTmpRepo(
+		[
+			'export PATH="$PWD/bin:$PATH"',
+			'export STAMP=`date`',
+			"export LITERAL='pa$$word'",
+			'export GOPATH=$HOME/go',
+		].join('\n'),
+	);
+	const env: NodeJS.ProcessEnv = {
+		PATH: '/usr/bin',
+		STAMP: 'kept',
+		LITERAL: 'inherited',
+	};
+	loadEnvrcIntoProcessEnv(dir, env, {override: true});
+	expect(env).toStrictEqual({
+		PATH: '/usr/bin',
+		STAMP: 'kept',
+		// Single quotes make it the text itself, in the shell too.
+		LITERAL: 'pa$$word',
+		// Unset, so filled as it always was.
+		GOPATH: '$HOME/go',
+	});
+});
