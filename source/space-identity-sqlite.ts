@@ -1,8 +1,8 @@
 // Space identities as rows. A row outlives its space, so a key opened again
 // keeps its names, and a closed space can still be named.
 
-import fs from 'node:fs';
 import path from 'node:path';
+import {mainCheckoutHasConfig} from './repo-config-files.ts';
 import {
 	defaultIdentity,
 	identityAt,
@@ -176,7 +176,7 @@ export class SqliteSpaceIdentityDao implements SpaceIdentityDao {
 		}
 
 		if (path.basename(mainRoot) !== this.defaults.repo) return;
-		const hasConfig = fs.existsSync(path.join(mainRoot, '.pappardelle.yml'));
+		const hasConfig = mainCheckoutHasConfig(mainRoot);
 		if (!hasConfig) {
 			const hasSpaces = state.db
 				.query<{found: number}, [string]>(

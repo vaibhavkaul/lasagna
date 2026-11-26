@@ -14,7 +14,7 @@ import type {AgentSessionsDao, SpaceStateDao} from './space-state.ts';
 import {MAIN_WORKTREE_KEY} from './space-utils.ts';
 import {
 	buildConfigFromLayers,
-	configLayerFiles,
+	HOME_CONFIG_LABEL,
 	defaultConfigPaths,
 	getAgentProfile,
 	getDefaultHomeConfigDir,
@@ -29,6 +29,7 @@ import {
 	readConfigLayers,
 	resolveAgentProfileName,
 	type ConfigLayerFile,
+	type ConfigLayerRole,
 	type ConfigPaths,
 	type PappardelleConfig,
 } from './config.ts';
@@ -51,6 +52,7 @@ type Fields = Record<string, unknown>;
 
 /** A config file still on the pre-agent-profile format, with its rewrite. */
 export type ConfigMigration = {
+	role: ConfigLayerRole;
 	label: string;
 	/** Where the file is, with the home directory shown as `~`. */
 	displayPath: string;
@@ -79,10 +81,6 @@ export type ConfigMigrationPlan =
 	  }
 	/** The old format is in use but can't be rewritten automatically. */
 	| {kind: 'unsupported'; reason: string};
-
-const [HOME_LABEL, PROJECT_LABEL] = configLayerFiles({}).map(
-	({label}) => label,
-);
 
 type LayerFile = {
 	label: string;
@@ -603,7 +601,9 @@ function planRewrite(
 	if (repeated) return {kind: 'unsupported', reason: repeated};
 	const migrations: ConfigMigration[] = [];
 	const rewritten = files.map((file, index) => {
-		if (!file.layer) return file;
+		// A workdir file holds several repos' sections, and setup writes it
+		// in the current format; it's never rewritten here.
+		if (!file.layer || file.role === 'workdir') return file;
 		const {content, removesBuiltinDefaults} = migrateLayer(
 			file as LayerFile & {layer: Fields},
 			layersUpTo(files, index),
@@ -617,6 +617,7 @@ function planRewrite(
 		);
 		if (content === file.content) return file;
 		migrations.push({
+			role: file.role,
 			label: file.label,
 			displayPath: displayPath(file.path),
 			path: file.path,
@@ -656,7 +657,10 @@ function planRewrite(
 	if (leftover) {
 		return {
 			kind: 'unsupported',
-			reason: `${leftover.label} has a setting that can't be rewritten`,
+			reason:
+				leftover.role === 'workdir'
+					? `${leftover.label} uses the old format, and the workdir config is only edited by hand`
+					: `${leftover.label} has a setting that can't be rewritten`,
 		};
 	}
 
@@ -814,8 +818,9 @@ export function buildConfigMigrationConfirmContent(
 	migrations: ConfigMigration[],
 ) {
 	const movesHome = migrations.some(
-		m => m.label === HOME_LABEL && m.movesLaunchSettings,
+		m => m.role === 'home' && m.movesLaunchSettings,
 	);
+	const project = migrations.find(m => m.role === 'project');
 	return {
 		title: 'Update Config Format',
 		message:
@@ -827,14 +832,14 @@ export function buildConfigMigrationConfirmContent(
 				: '',
 			// Each file's agent profiles get the values they launched with, and
 			// some of those came from the home config.
-			movesHome && migrations.some(m => m.label === PROJECT_LABEL)
-				? `Settings from ${HOME_LABEL} are copied into ${PROJECT_LABEL} so every profile launches as it does now. That file is usually committed, so check the diff before you share it.`
+			movesHome && project
+				? `Settings from ${HOME_CONFIG_LABEL} are copied into ${project.label} so every profile launches as it does now. That file is usually committed, so check the diff before you share it.`
 				: '',
 			// An agent profile's own model or effort beats the claude.* fallback
 			// of a repo still on the old format, and that repo's rewrite then
 			// compares against the changed launch.
 			movesHome
-				? `${HOME_LABEL} is shared by every repo. A repo still on the old format stops using its own claude.model and claude.effort wherever the rewritten home config sets them, and rewriting that repo later won't bring them back.`
+				? `${HOME_CONFIG_LABEL} is shared by every repo. A repo still on the old format stops using its own claude.model and claude.effort wherever the rewritten home config sets them, and rewriting that repo later won't bring them back.`
 				: '',
 		]
 			.filter(Boolean)
@@ -872,8 +877,8 @@ export function buildConfigFixPrompt(
 		'',
 		[
 			'Config files, lowest priority first; they deep-merge in this order',
-			files.some(({label}) => label === HOME_LABEL)
-				? `, and ${HOME_LABEL} is shared by every repo:`
+			files.some(({role}) => role === 'home')
+				? `, and ${HOME_CONFIG_LABEL} is shared by every repo:`
 				: ':',
 		].join(''),
 		...files.map(({label, path: filePath}) => `- ${filePath} (${label})`),

@@ -135,17 +135,20 @@ REPO_NAME=$(basename "$MAIN_REPO_ROOT")
 
 # Untracked project config may exist only in the main checkout, while a linked
 # worktree can carry its own local overrides. Resolve each file independently.
+# Nothing when neither has the file: a repo configured only in its workdir
+# config has no project file. Mirrors configLayerFiles in source/config.ts.
 resolve_repo_config() {
     local filename="$1"
     if [[ -f "$REPO_ROOT/$filename" ]]; then
         echo "$REPO_ROOT/$filename"
-    else
+    elif [[ -f "$MAIN_REPO_ROOT/$filename" ]]; then
         echo "$MAIN_REPO_ROOT/$filename"
     fi
 }
 
+# Only resolve-agent-config.sh reads these files on their own, to name the file
+# a deprecation warning is about. Everything else reads the merged config below.
 PROJECT_CONFIG_PATH=$(resolve_repo_config .pappardelle.yml)
-CONFIG_PATH="$PROJECT_CONFIG_PATH"
 # Personal defaults shared across every repo. Must stay in step with
 # getDefaultHomeConfigDir() in source/config.ts, which is what the TUI reads.
 HOME_CONFIG_PATH="$HOME/.lasagna/.pappardelle.yml"
@@ -160,17 +163,6 @@ if [[ -f "$REPO_ROOT/.envrc" ]]; then
     # shellcheck source=/dev/null
     source "$REPO_ROOT/.envrc"
     set -e
-fi
-
-# Check for config file
-if [[ ! -f "$CONFIG_PATH" ]]; then
-    echo -e "${YELLOW}Error: No .pappardelle.yml found at repository root.${NC}" >&2
-    echo "" >&2
-    echo "Lasagna requires a configuration file to operate." >&2
-    echo "Please create .pappardelle.yml at: $REPO_ROOT/.pappardelle.yml" >&2
-    echo "" >&2
-    echo "See _dev/scripts/pappardelle/pappardelle-config.md for the configuration schema." >&2
-    exit 1
 fi
 
 # Check for yq (YAML processor)
@@ -282,19 +274,17 @@ space_get() {
     esac
 }
 
-# The TUI rejects the whole config when any part of it is invalid, so idow does
-# too, before it fetches the issue or makes a worktree. Run before the yq merge
-# below so a YAML error is reported by the validator, not by yq.
-pappardelle_state check-config --project-root "$REPO_ROOT" --main-root "$MAIN_REPO_ROOT" || exit 1
-
-# From here on, read the merged config so home and local layers apply to
-# every field (profiles, team_prefix, providers, apps, links, hooks, ...),
-# not only the Claude settings that resolve-agent-config.sh layers itself.
 MERGED_CONFIG_PATH=$(mktemp -t lasagna-config.XXXXXX)
 CONFIG_RECORDS_PATH=$(mktemp -t lasagna-records.XXXXXX)
 STATE_CLI_ERRORS=$(mktemp -t lasagna-state-cli.XXXXXX)
 trap 'rm -f "$MERGED_CONFIG_PATH" "$CONFIG_RECORDS_PATH" "$STATE_CLI_ERRORS"' EXIT
-merge_config_layers "$HOME_CONFIG_PATH" "$PROJECT_CONFIG_PATH" "$LOCAL_CONFIG_PATH" > "$MERGED_CONFIG_PATH"
+
+# Every field (profiles, team_prefix, providers, apps, links, hooks, ...) is
+# read from one merge of every layer that applies: home, workdir, project and
+# local. The binary merges and validates them as the TUI does, so idow refuses
+# the same configs, before it fetches the issue or makes a worktree, and a repo
+# configured only in its workdir config works too.
+pappardelle_state merged-config --project-root "$REPO_ROOT" --main-root "$MAIN_REPO_ROOT" > "$MERGED_CONFIG_PATH" || exit 1
 CONFIG_PATH="$MERGED_CONFIG_PATH"
 TERMINAL_OPEN_FAILED=false
 

@@ -4,6 +4,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {scriptsDir} from './runtime.ts';
+import {
+	WORKDIR_CONFIG_FILE,
+	findWorkdir,
+	workdirListsRepo,
+} from './repo-config-files.ts';
 import {parse as parseYaml, parseDocument} from 'yaml';
 import {
 	railGroupsFromConfig,
@@ -721,14 +726,66 @@ export function loadConfigFromPaths(opts: ConfigPaths): PappardelleConfig {
 	return buildConfigFromLayers(layers);
 }
 
-const HOME_CONFIG_LABEL = `~/${STATE_DIR_NAME}/.pappardelle.yml`;
+/**
+ * The merged config as the files spell it, for idow and its helpers to read
+ * with yq: the layers merged after the same checks loadConfigFromPaths makes,
+ * but without the defaults validation fills in, so a field nobody set stays
+ * unset for idow's own fallbacks. Throws ConfigNotFoundError when the repo
+ * has neither a project config nor a section in its workdir config.
+ */
+export function loadRawMergedConfig(
+	opts: ConfigPaths,
+): Record<string, unknown> {
+	const files = readConfigLayers(opts);
+	const errors = layerErrors(files);
+	if (errors.length > 0) throw new ConfigValidationError(errors);
+	const configured = files.some(
+		file =>
+			file.kind === 'read' &&
+			(file.role === 'project' ||
+				(file.role === 'workdir' && file.section !== 'top')),
+	);
+	if (!configured) {
+		throw new ConfigNotFoundError(opts.projectDir ?? '(no project dir)');
+	}
 
-/** The three config files, lowest priority first; `path` is unset for a missing file. */
+	const layers = parsedLayers(files);
+	buildConfigFromLayers(
+		layers.map(({label, layer}) => ({label, layer: structuredClone(layer)})),
+	);
+	return mergeConfigLayers(
+		layers.map(({layer}) => {
+			if (!layer) return null;
+			const copy = structuredClone(layer);
+			renameDeprecatedInitializationCommand(copy);
+			return copy;
+		}),
+	);
+}
+
+export const HOME_CONFIG_LABEL = `~/${STATE_DIR_NAME}/.pappardelle.yml`;
+
+/** How config errors name the workdir config file. */
+export const WORKDIR_CONFIG_LABEL = '.lasagna/workdir.yml';
+
+/**
+ * What a config layer is. The workdir file gives up to three layers: its
+ * top level, then the repo section's `inferred.config`, then the rest of the
+ * repo section.
+ */
+export type ConfigLayerRole = 'home' | 'workdir' | 'project' | 'local';
+
+/** The config files, lowest priority first; `path` is unset for a missing file. */
 export function configLayerFiles({
 	homeConfigDir,
+	workdir,
 	projectDir,
 	fallbackProjectDir,
-}: ConfigPaths): Array<{label: string; path: string | undefined}> {
+}: ConfigPaths): Array<{
+	role: ConfigLayerRole;
+	label: string;
+	path: string | undefined;
+}> {
 	const resolveProjectFile = (filename: string): string | undefined => {
 		if (projectDir) {
 			const candidate = path.join(projectDir, filename);
@@ -747,13 +804,28 @@ export function configLayerFiles({
 	const homePath = homeConfigDir
 		? path.join(homeConfigDir, '.pappardelle.yml')
 		: undefined;
+	const workdirRoot = workdir?.();
+	const workdirPath = workdirRoot
+		? path.join(workdirRoot, WORKDIR_CONFIG_FILE)
+		: undefined;
 	return [
 		{
+			role: 'home',
 			label: HOME_CONFIG_LABEL,
 			path: homePath && fs.existsSync(homePath) ? homePath : undefined,
 		},
-		{label: '.pappardelle.yml', path: resolveProjectFile('.pappardelle.yml')},
 		{
+			role: 'workdir',
+			label: WORKDIR_CONFIG_LABEL,
+			path: workdirPath && fs.existsSync(workdirPath) ? workdirPath : undefined,
+		},
+		{
+			role: 'project',
+			label: '.pappardelle.yml',
+			path: resolveProjectFile('.pappardelle.yml'),
+		},
+		{
+			role: 'local',
 			label: '.pappardelle.local.yml',
 			path: resolveProjectFile('.pappardelle.local.yml'),
 		},
@@ -1029,6 +1101,10 @@ export function readConfig(paths?: ConfigPaths): ConfigLoad {
 
 export type ConfigPaths = {
 	homeConfigDir?: string;
+	/** The work dir holding `.lasagna/workdir.yml`, if any. */
+	workdir?: () => string | undefined;
+	/** The repo whose section of the workdir config applies. */
+	repoName?: () => string | undefined;
 	projectDir?: string;
 	fallbackProjectDir?: () => string | undefined;
 };
@@ -1036,8 +1112,27 @@ export type ConfigPaths = {
 export function defaultConfigPaths(): ConfigPaths {
 	return {
 		homeConfigDir: getDefaultHomeConfigDir(),
+		workdir: () => findWorkdir(getMainRepoRoot()),
+		repoName: getRepoName,
 		projectDir: getRepoRoot(),
 		fallbackProjectDir: getMainRepoRoot,
+	};
+}
+
+/**
+ * The paths idow and its helpers use: the roots they were given, with the
+ * repo named after the main checkout as idow names it.
+ */
+export function rootConfigPaths(
+	projectDir: string,
+	mainRoot: string,
+): ConfigPaths {
+	return {
+		homeConfigDir: getDefaultHomeConfigDir(),
+		workdir: () => findWorkdir(mainRoot),
+		repoName: () => path.basename(mainRoot),
+		projectDir,
+		fallbackProjectDir: () => mainRoot,
 	};
 }
 
@@ -1047,48 +1142,189 @@ export function defaultConfigPaths(): ConfigPaths {
  * level isn't a map.
  */
 export type ConfigLayerFile =
-	| {kind: 'missing'; label: string}
+	| {kind: 'missing'; role: ConfigLayerRole; label: string}
 	| {
 			kind: 'read';
+			role: ConfigLayerRole;
 			label: string;
 			path: string;
+			/** The whole file, for a layer that is only part of it too. */
 			content: string;
 			layer: Record<string, unknown> | null;
+			/** Set when the layer is one section of a workdir file. */
+			section?: 'top' | 'inferred' | 'repo';
 	  }
-	| {kind: 'invalid'; label: string; path: string; errors: string[]};
+	| {
+			kind: 'invalid';
+			role: ConfigLayerRole;
+			label: string;
+			path: string;
+			errors: string[];
+	  };
 
 /**
- * The config files, always home, project and local in that order, labeled
- * the way config errors name them. An invalid file is reported rather than
- * thrown, so callers that only need part of the config keep working while
+ * The config layers, lowest priority first (home, workdir, project, local),
+ * labeled the way config errors name them. An invalid file is reported rather
+ * than thrown, so callers that only need part of the config keep working while
  * another section is broken.
  */
 export function readConfigLayers(paths: ConfigPaths): ConfigLayerFile[] {
-	return configLayerFiles(paths).map(({label, path: filePath}) => {
-		if (!filePath) return {kind: 'missing', label};
-		try {
-			const content = fs.readFileSync(filePath, 'utf8');
-			return {
-				kind: 'read',
-				label,
-				path: filePath,
-				content,
-				layer: parseConfigLayer(label, content),
-			};
-		} catch (error) {
-			return {
-				kind: 'invalid',
-				label,
-				path: filePath,
-				errors:
-					error instanceof ConfigValidationError
-						? error.errors
-						: [
-								`${label}: ${error instanceof Error ? error.message : String(error)}`,
-							],
-			};
-		}
+	return configLayerFiles(paths).flatMap(
+		({role, label, path: filePath}): ConfigLayerFile[] => {
+			if (!filePath) return [{kind: 'missing', role, label}];
+			try {
+				const content = fs.readFileSync(filePath, 'utf8');
+				const layer = parseConfigLayer(label, content);
+				if (role === 'workdir') {
+					return workdirLayers(layer, paths.repoName?.(), filePath, content);
+				}
+
+				return [{kind: 'read', role, label, path: filePath, content, layer}];
+			} catch (error) {
+				return [
+					{
+						kind: 'invalid',
+						role,
+						label,
+						path: filePath,
+						errors:
+							error instanceof ConfigValidationError
+								? error.errors
+								: [
+										`${label}: ${error instanceof Error ? error.message : String(error)}`,
+									],
+					},
+				];
+			}
+		},
+	);
+}
+
+const INFERRED_CONFIDENCES = ['high', 'medium', 'low'];
+
+/**
+ * Split a workdir file into the layers that apply to one repo: the top
+ * level without `repos`, then `repos.<repo>.inferred.config`, then the rest
+ * of `repos.<repo>`. `inferred.sources` records where setup found each value
+ * and is checked here but merged nowhere. Throws ConfigValidationError when
+ * the file's shape is wrong anywhere, for any repo, so a mistake in one
+ * repo's section isn't left for that repo alone to find.
+ */
+function workdirLayers(
+	document: Record<string, unknown> | null,
+	repoName: string | undefined,
+	filePath: string,
+	content: string,
+): ConfigLayerFile[] {
+	const label = WORKDIR_CONFIG_LABEL;
+	const read = (
+		layerLabel: string,
+		layer: Record<string, unknown> | null,
+		section: 'top' | 'inferred' | 'repo',
+	): ConfigLayerFile => ({
+		kind: 'read',
+		role: 'workdir',
+		label: layerLabel,
+		path: filePath,
+		content,
+		layer,
+		section,
 	});
+
+	if (!document) return [read(label, null, 'top')];
+	const {repos, ...top} = document;
+	const errors: string[] = [];
+	if (repos !== undefined && repos !== null && !isPlainMap(repos)) {
+		errors.push(`${label}: repos must map repo names to their config`);
+	}
+
+	const sections = isPlainMap(repos) ? repos : {};
+	for (const [name, section] of Object.entries(sections)) {
+		const where = `${label}: repos.${name}`;
+		if (section === null) continue;
+		if (!isPlainMap(section)) {
+			errors.push(`${where} must be a map`);
+			continue;
+		}
+
+		const {inferred} = section;
+		if (inferred === undefined || inferred === null) continue;
+		if (!isPlainMap(inferred)) {
+			errors.push(`${where}.inferred must be a map`);
+			continue;
+		}
+
+		for (const key of Object.keys(inferred)) {
+			if (key !== 'config' && key !== 'sources')
+				errors.push(
+					`${where}.inferred.${key} is not a setting: inferred holds only config and sources`,
+				);
+		}
+
+		const {config, sources} = inferred;
+		if (config !== undefined && config !== null && !isPlainMap(config))
+			errors.push(`${where}.inferred.config must be a map`);
+		if (sources !== undefined && sources !== null) {
+			if (isPlainMap(sources)) {
+				errors.push(...inferredSourceErrors(`${where}.inferred`, sources));
+			} else {
+				errors.push(`${where}.inferred.sources must be a map`);
+			}
+		}
+	}
+
+	if (errors.length > 0) throw new ConfigValidationError(errors);
+
+	const layers = [read(label, nonEmpty(top), 'top')];
+	if (!repoName || !Object.hasOwn(sections, repoName)) return layers;
+	// A repo listed with nothing under it is still listed.
+	const {inferred, ...own} = (sections[repoName] ?? {}) as Record<
+		string,
+		unknown
+	>;
+	const inferredConfig = isPlainMap(inferred) ? inferred['config'] : undefined;
+	if (isPlainMap(inferredConfig)) {
+		layers.push(
+			read(
+				`${label} repos.${repoName}.inferred.config`,
+				inferredConfig,
+				'inferred',
+			),
+		);
+	}
+
+	layers.push(read(`${label} repos.${repoName}`, nonEmpty(own), 'repo'));
+	return layers;
+}
+
+/** An empty map adds nothing to the merge, so it counts as no layer. */
+function nonEmpty(
+	layer: Record<string, unknown>,
+): Record<string, unknown> | null {
+	return Object.keys(layer).length > 0 ? layer : null;
+}
+
+function inferredSourceErrors(
+	where: string,
+	sources: Record<string, unknown>,
+): string[] {
+	return Object.entries(sources).flatMap(([key, entry]) => {
+		const at = `${where}.sources.${key}`;
+		if (!isPlainMap(entry))
+			return [`${at} must be a map with source and confidence`];
+		const problems: string[] = [];
+		if (typeof entry['source'] !== 'string' || !entry['source'])
+			problems.push(`${at}.source must be a non-empty string`);
+		if (!INFERRED_CONFIDENCES.includes(entry['confidence'] as string))
+			problems.push(
+				`${at}.confidence must be one of ${INFERRED_CONFIDENCES.join(', ')}`,
+			);
+		return problems;
+	});
+}
+
+function isPlainMap(value: unknown): value is Record<string, unknown> {
+	return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
 /** What a file adds to the merge: nothing unless it was read and holds a document. */
@@ -1177,11 +1413,14 @@ export function loadAgentProfileSources(
 }
 
 /**
- * Check if a .pappardelle.yml exists at the repo root
+ * Whether this repo is configured: it has a project config, or the
+ * workdir config has a section for it.
  */
 export function configExists(): boolean {
 	try {
-		return findRepoConfig('.pappardelle.yml') !== undefined;
+		if (findRepoConfig('.pappardelle.yml') !== undefined) return true;
+		const workdir = findWorkdir(getMainRepoRoot());
+		return workdir !== undefined && workdirListsRepo(workdir, getRepoName());
 	} catch {
 		return false;
 	}

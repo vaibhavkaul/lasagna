@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {test, expect} from 'bun:test';
 import {teardown} from '../test/helpers/teardown.ts';
-import {parse} from 'yaml';
+import {parse, stringify} from 'yaml';
 import {repoNameFromGitCommonDir} from './config.ts';
 import {newSpaceIdentity, protectedSessionNames} from './space-identity.ts';
 import {createStateDaos} from './state-daos.ts';
@@ -95,6 +95,40 @@ test('idow creates a session using main config and worktree-local overrides', as
 			'FROM_MAIN=1\n',
 		);
 	}
+});
+
+test('idow runs for a repo configured only in its workdir config', async () => {
+	const fixture = setup();
+	const repoName = path.basename(fixture.main);
+	const workdir = path.dirname(fixture.main);
+	fs.rmSync(path.join(fixture.main, '.pappardelle.yml'));
+	fs.mkdirSync(path.join(workdir, '.lasagna'));
+	fs.writeFileSync(
+		path.join(workdir, '.lasagna', 'workdir.yml'),
+		stringify({
+			repos: {
+				[repoName]: {
+					inferred: {config: parse(fixture.config('Inferred config'))},
+				},
+			},
+		}),
+	);
+
+	const output = await fixture.run();
+
+	expect(output.includes('Workspace test-abc is ready!'), output).toBe(true);
+	expect(output.includes('Profile:   Inferred config'), output).toBe(true);
+	expect(
+		fs
+			.readFileSync(fixture.launchArgs, 'utf8')
+			.includes('--agent-launch-flags\n--model main-model\n'),
+	).toBe(true);
+	expect(
+		fs.readFileSync(
+			path.join(fixture.workspace, '.pappardelle.local.yml'),
+			'utf8',
+		),
+	).toBe('claude:\n  model: main-model\n');
 });
 
 test('idow opens from a linked checkout and expands both repository roots', async () => {

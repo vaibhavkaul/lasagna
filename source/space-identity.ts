@@ -4,6 +4,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import {mainCheckoutHasConfig} from './repo-config-files.ts';
 import {statusSocket} from './program-status-monitor.ts';
 import {sameFile} from './same-file.ts';
 import {MAIN_WORKTREE_KEY} from './space-utils.ts';
@@ -256,7 +257,7 @@ export class JsonSpaceIdentityDao implements SpaceIdentityDao {
 	}
 
 	private isPappardelleRepo(mainRoot: string): boolean {
-		if (fs.existsSync(path.join(mainRoot, '.pappardelle.yml'))) return true;
+		if (mainCheckoutHasConfig(mainRoot)) return true;
 		return this.registry.openSpaces() !== null;
 	}
 
