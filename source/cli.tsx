@@ -14,7 +14,6 @@ import {
 	cleanupOrphanedInnerSessions,
 	liveInnerSessions,
 	sharedSessionListingRunner,
-	cleanupOrphanedOuterSessions,
 	migrateLegacyAgentSessions,
 	exactSessionTarget,
 	killSession,
@@ -113,6 +112,7 @@ import {exitAfterFlush} from './exit-after-flush.ts';
 import {retargetProcess} from './cli-repo-target.ts';
 import {defaultRepoContext} from './repo-context.ts';
 import {isWorkdirRepoName} from './repo-config-files.ts';
+import {clearStaleOuterSessions} from './startup-sessions.ts';
 
 const SCRIPTS_DIR = scriptsDir;
 const REARM_SCHEDULES_DELAY_MS = 5000;
@@ -784,9 +784,10 @@ async function maintainSessions() {
 	// the inner socket on demand. Runs every startup (fast no-op once drained);
 	// the phrasing used to say "one-time migration" but the call is unconditional.
 	const cleanupDone = startupTrace.current?.begin('outer-cleanup');
-	let killed = 0;
-	for (const repo of tuiRepos)
-		killed += cleanupOrphanedOuterSessions(repo.repoName);
+	const killed = clearStaleOuterSessions({
+		own: repoName,
+		listed: workdir?.repos.map(repo => repo.name) ?? [],
+	});
 	cleanupDone?.();
 	if (killed > 0) {
 		console.error(
