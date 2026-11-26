@@ -1556,16 +1556,23 @@ export interface TemplateVars {
 /**
  * Expand template variables in a string
  * Supports ${VAR_NAME} syntax and falls back to environment variables
+ *
+ * `env` is the environment of the repo the template is for
+ * (`RepoContext.env`), which holds its `.envrc`; the process's own by default.
  */
-export function expandTemplate(template: string, vars: TemplateVars): string {
+export function expandTemplate(
+	template: string,
+	vars: TemplateVars,
+	env: NodeJS.ProcessEnv = process.env,
+): string {
 	return template.replace(/\$\{(\w+)\}/g, (_match, varName: string) => {
 		// First check provided vars
 		if (vars[varName] !== undefined) {
 			return vars[varName]!;
 		}
 		// Then check environment variables
-		if (process.env[varName] !== undefined) {
-			return process.env[varName]!;
+		if (env[varName] !== undefined) {
+			return env[varName]!;
 		}
 		// Return empty string for unset variables
 		return '';
@@ -1578,11 +1585,12 @@ export function expandTemplate(template: string, vars: TemplateVars): string {
 export function shouldInclude(
 	ifSet: string | undefined,
 	vars: TemplateVars,
+	env: NodeJS.ProcessEnv = process.env,
 ): boolean {
 	if (!ifSet) {
 		return true;
 	}
-	const value = vars[ifSet] ?? process.env[ifSet];
+	const value = vars[ifSet] ?? env[ifSet];
 	return value !== undefined && value !== '';
 }
 

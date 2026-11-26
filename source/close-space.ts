@@ -14,6 +14,7 @@ import {
 	type PappardelleConfig,
 } from './config.ts';
 import type {TrackerIssue} from './providers/types.ts';
+import {defaultRepoContext} from './repo-context.ts';
 import {
 	runPreWorkspaceDeinit,
 	type DeinitContext,
@@ -84,6 +85,9 @@ export const defaultCloseHooksDeps: CloseHooksDeps = {
 		repoRoot: getRepoRoot(),
 		mainRepoRoot: getMainRepoRoot(),
 		repoName: getRepoName(),
+		// The repo's `.envrc` reaches its hooks, as it does everything else
+		// started for the repo.
+		env: defaultRepoContext().env,
 	}),
 };
 

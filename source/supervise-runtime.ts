@@ -5,12 +5,13 @@ import {spawnSync} from 'node:child_process';
 import {realpathSync} from 'node:fs';
 import {homedir, tmpdir, userInfo} from 'node:os';
 import path from 'node:path';
-import {classifyCommand, defaultClassifierRun} from './approve-classifier.ts';
+import {classifierRun, classifyCommand} from './approve-classifier.ts';
 import type {ApprovalPolicy} from './approve-policy.ts';
 import {newHoldId} from './holds.ts';
 import {MAIN_WORKTREE_KEY} from './space-utils.ts';
 import {spaceStatusKey} from './claude-status.ts';
 import {getMainRepoRoot, getRepoName} from './config.ts';
+import {defaultRepoContext} from './repo-context.ts';
 import {selfLaunchArgs} from './runtime.ts';
 import {rearmMissingTimers, type ScheduleDao} from './schedule.ts';
 import {
@@ -242,7 +243,8 @@ export function defaultSuperviseDeps(
 					cwd: request.cwd ?? agentCwd(key),
 					tempRoots: tempRoots(),
 				},
-				defaultClassifierRun,
+				// `claude` starts with the repo's `.envrc`, as the agents do.
+				classifierRun(defaultRepoContext().env),
 			);
 		},
 		policy: approvalPolicy,

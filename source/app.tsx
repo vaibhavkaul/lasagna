@@ -1548,13 +1548,14 @@ export default function App({
 			undefined,
 			spaceRepoRoots(space.name),
 		);
-		const expandedCommand = expandTemplate(kb.run!, vars);
+		const {env} = spaceRepo(space.name);
+		const expandedCommand = expandTemplate(kb.run!, vars, env);
 
 		const child = spawn('bash', ['-c', expandedCommand], {
 			cwd: worktreePath,
 			detached: true,
 			stdio: ['ignore', 'pipe', 'pipe'],
-			env: {...spaceRepo(space.name).env},
+			env: {...env},
 		});
 		child.stdout?.resume();
 		child.stderr?.resume();

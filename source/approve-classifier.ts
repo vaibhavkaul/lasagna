@@ -136,43 +136,49 @@ export async function classifyCommand(
 	return first.kind === 'unavailable' ? classifyOnce(request, run) : first;
 }
 
-/** Runs `claude` away from any space, so its hooks can't report as one. */
-export const defaultClassifierRun: ClassifierRun = async (
-	args,
-	input,
-	timeoutMs,
-) =>
-	new Promise((resolve, reject) => {
-		const env = Object.fromEntries(
-			Object.entries(process.env).filter(
-				([name]) =>
-					!name.startsWith('LASAGNA_') &&
-					name !== 'TMUX' &&
-					name !== 'TMUX_PANE',
-			),
-		);
-		const child = spawn('claude', args, {
-			cwd: tmpdir(),
-			env,
-			stdio: ['pipe', 'pipe', 'ignore'],
+/**
+ * Runs `claude` away from any space, so its hooks can't report as one.
+ * `environment` is the one `claude` starts in: the repo's own
+ * (`RepoContext.env`), which holds its `.envrc`, or the process's when the
+ * check runs.
+ */
+export const classifierRun =
+	(environment?: NodeJS.ProcessEnv): ClassifierRun =>
+	async (args, input, timeoutMs) =>
+		new Promise((resolve, reject) => {
+			const env = Object.fromEntries(
+				Object.entries(environment ?? process.env).filter(
+					([name]) =>
+						!name.startsWith('LASAGNA_') &&
+						name !== 'TMUX' &&
+						name !== 'TMUX_PANE',
+				),
+			);
+			const child = spawn('claude', args, {
+				cwd: tmpdir(),
+				env,
+				stdio: ['pipe', 'pipe', 'ignore'],
+			});
+			// Settles on the deadline itself: a child of claude that keeps stdout
+			// open would otherwise hold the answer past it.
+			const timer = setTimeout(() => {
+				child.kill();
+				reject(new Error(`timed out after ${timeoutMs / 1000}s`));
+			}, timeoutMs);
+			let stdout = '';
+			child.stdout.on('data', (chunk: Uint8Array) => {
+				stdout += String(chunk);
+			});
+			child.on('error', error => {
+				clearTimeout(timer);
+				reject(error);
+			});
+			child.on('close', status => {
+				clearTimeout(timer);
+				resolve({status, stdout});
+			});
+			child.stdin.end(input);
 		});
-		// Settles on the deadline itself: a child of claude that keeps stdout
-		// open would otherwise hold the answer past it.
-		const timer = setTimeout(() => {
-			child.kill();
-			reject(new Error(`timed out after ${timeoutMs / 1000}s`));
-		}, timeoutMs);
-		let stdout = '';
-		child.stdout.on('data', (chunk: Uint8Array) => {
-			stdout += String(chunk);
-		});
-		child.on('error', error => {
-			clearTimeout(timer);
-			reject(error);
-		});
-		child.on('close', status => {
-			clearTimeout(timer);
-			resolve({status, stdout});
-		});
-		child.stdin.end(input);
-	});
+
+/** The check in the process's own environment. */
+export const defaultClassifierRun: ClassifierRun = classifierRun();

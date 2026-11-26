@@ -10,12 +10,14 @@ import {
 } from '../test/helpers/workdir-fixture.ts';
 import {
 	configExists,
+	expandTemplate,
 	getMainRepoRoot,
 	getRepoName,
 	getRepoRoot,
 	getTeamPrefix,
 	repoRootsAt,
 	setDefaultRepo,
+	shouldInclude,
 	workdirRepoRoots,
 } from './config.ts';
 import {NotInGitRepoError} from './config-errors.ts';
@@ -101,6 +103,27 @@ test("a repo's .envrc is not written into the process's environment", () => {
 	expect(repoContext(repos['api']!.root).env['ONLY_API']).toBe('1');
 	expect(process.env['TRACKER_TOKEN']).toBeUndefined();
 	expect(process.env['ONLY_API']).toBeUndefined();
+});
+
+test("a variable in a command template is read from the repo's environment, .envrc included", () => {
+	const {repos} = twoRepos();
+	const {env} = repoContext(repos['api']!.root);
+	const vars = {
+		ISSUE_KEY: 'API-1',
+		WORKTREE_PATH: '/wt',
+		REPO_ROOT: '/r',
+		MAIN_REPO_ROOT: '/r',
+		REPO_NAME: 'api',
+	};
+	// eslint-disable-next-line no-template-curly-in-string -- a keybinding template
+	const template = 'deploy ${ISSUE_KEY} --token ${TRACKER_TOKEN}';
+	expect(expandTemplate(template, vars, env)).toBe(
+		'deploy API-1 --token token-of-api',
+	);
+	expect(shouldInclude('ONLY_API', vars, env)).toBe(true);
+	expect(shouldInclude('ONLY_WEB', vars, env)).toBe(false);
+	// Without the repo's environment only the process's own is read.
+	expect(expandTemplate(template, vars)).toBe('deploy API-1 --token ');
 });
 
 test('a variable the process already has wins over .envrc', () => {
