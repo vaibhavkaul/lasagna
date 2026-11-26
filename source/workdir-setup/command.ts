@@ -1403,16 +1403,40 @@ export async function runSetupCommand(
 	const changes: RepoChange[] = [];
 	for (const proposal of proposals) {
 		if (proposal.problems.length > 0) continue;
-		const {kept, left} = options.yes
+		const picked = options.yes
 			? highConfidenceValues(proposal)
 			: {kept: proposedValues(proposal), left: []};
-		const attempt = candidate.clone();
-		setInferred(attempt, proposal.repo.name, inferredSection(kept));
-		const errors = mergedConfigErrors(
-			documentText(attempt),
-			proposal.repo,
-			homeConfigDir,
-		);
+		const {left} = picked;
+		const errorsWith = (values: InferredValue[]) => {
+			const attempt = candidate.clone();
+			setInferred(attempt, proposal.repo.name, inferredSection(values));
+			return mergedConfigErrors(
+				documentText(attempt),
+				proposal.repo,
+				homeConfigDir,
+			);
+		};
+
+		let {kept} = picked;
+		let errors = errorsWith(kept);
+		// When the repo's own config is fine without them, leave out the
+		// inferred values that clash with it (a repo still on
+		// post_worktree_init, say) and keep the rest.
+		if (errors.length > 0 && errorsWith([]).length === 0) {
+			for (const value of kept) {
+				const without = kept.filter(other => other !== value);
+				const remaining = errorsWith(without);
+				if (remaining.length < errors.length) {
+					proposal.notes.push(
+						`left out ${keyOf(value)}: with the repo's own config it gives ${errors[0]}`,
+					);
+					kept = without;
+					errors = remaining;
+					if (errors.length === 0) break;
+				}
+			}
+		}
+
 		if (errors.length > 0) {
 			proposal.problems.push(
 				...errors.map(error => `the merged config would be invalid: ${error}`),

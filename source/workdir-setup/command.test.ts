@@ -168,6 +168,30 @@ describe('lasagna setup', () => {
 		expect(written().repos.api.inferred.config.team_prefix).toBe('SECOND');
 	});
 
+	test("an inferred value that clashes with the repo's own config is left out, and the rest written", async () => {
+		const {run, fixture, written} = setup({
+			api: {
+				values: [
+					value('team_prefix', 'API'),
+					value('post_workspace_init', [{name: 'Install', run: 'make'}]),
+				],
+			},
+		});
+		// Still on the old spelling, which can't sit beside the new one.
+		fs.writeFileSync(
+			path.join(fixture.work, 'api', '.pappardelle.yml'),
+			'version: 1\nprofiles:\n  api:\n    display_name: API\npost_worktree_init:\n  - name: Old\n    run: "true"\n',
+		);
+
+		const {exit, out} = await run(['--yes', '--repo', 'api']);
+
+		expect(exit, out).toBe(0);
+		const {config} = written().repos.api.inferred;
+		expect(config.team_prefix).toBe('API');
+		expect(config.post_workspace_init).toBeUndefined();
+		expect(out).toContain('left out post_workspace_init');
+	});
+
 	test('an answer that is not JSON is reported and leaves the repo as it was', async () => {
 		const {run, workdirYml} = setup({}, {FAKE_CLAUDE_MODE: 'invalid'});
 
