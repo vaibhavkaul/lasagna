@@ -1,5 +1,6 @@
 import {test, expect, beforeEach} from 'bun:test';
 import {teardown} from '../test/helpers/teardown.ts';
+import {clearRecentErrors, getRecentErrors} from './logger.ts';
 import type {ProgramStatusInfo} from './program-status.ts';
 import {
 	issueTrackerFor,
@@ -132,6 +133,46 @@ test('every repoâ€™s spaces land in one list, named repo:KEY, with the work dirâ
 		'api:STA-1',
 		'web:main',
 		'web:STA-1',
+	]);
+});
+
+test('a repo whose tracker cannot be built still shows its spaces, and the other repos keep theirs', async () => {
+	clearRecentErrors();
+	teardown(clearRecentErrors);
+	// Listed with a Jira tracker and no base_url: nothing can be built from
+	// that, and the rail asks for the tracker inside its state updates.
+	const bad = {
+		name: 'bad',
+		tag: 'ba',
+		isWorkdir: false,
+		context: {root: '/work/bad', mainRoot: '/work/bad', name: 'bad'},
+		daos: {
+			registry: {
+				async settle() {},
+				openSpacesAsync: async () => ['BAD-1'],
+			} as unknown as SpaceRegistryDao,
+		},
+	} as unknown as WorkdirRepo;
+	setRepoProviderSources('bad', {trackerConfig: {provider: 'jira'}, env: {}});
+	const h = setup([...twoRepos(), bad]);
+	await h.settle();
+	expect(h.errors).toEqual([]);
+	expect(h.spaces.map(space => space.name)).toEqual([
+		'@work:main',
+		'api:main',
+		'api:STA-9',
+		'api:STA-1',
+		'web:main',
+		'web:STA-1',
+		'bad:main',
+		'bad:BAD-1',
+	]);
+	// The others still have their issues, and the repo is named once.
+	expect(
+		h.spaces.find(space => space.name === 'web:STA-1')?.linearIssue?.title,
+	).toBe('STA-1 of web');
+	expect(getRecentErrors().map(entry => entry.message)).toEqual([
+		'The issue tracker of bad could not be set up; using the default: issue_tracker.base_url is required when provider is "jira"',
 	]);
 });
 
