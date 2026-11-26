@@ -2,8 +2,10 @@ import {test, expect} from 'bun:test';
 import {
 	AUTO_REMOVE_STATE_TYPES,
 	findDoneSpaces,
+	findRepoSpacesToAutoRemove,
 	findSpacesToAutoRemove,
 } from './auto-remove.ts';
+import type {PappardelleConfig} from './config.ts';
 import {mapJiraIssue} from './providers/jira-provider.ts';
 import type {TrackerIssue} from './providers/types.ts';
 import type {SpaceData} from './types.ts';
@@ -170,4 +172,67 @@ test('leaves a Jira space alone while its status category is In Progress', () =>
 	});
 	const spaces: SpaceData[] = [makeSpace('CHEX-2', {trackerIssue: jiraIssue})];
 	expect(findDoneSpaces(spaces)).toStrictEqual([]);
+});
+
+// ============================================================================
+// A rail of several repos: each space answers for its own repo
+// ============================================================================
+
+const config = (autoRemove: boolean | undefined): PappardelleConfig => ({
+	version: 1,
+	profiles: {},
+	...(autoRemove === undefined ? {} : {auto_remove_when_done: autoRemove}),
+});
+
+test('on a rail of several repos only the spaces of a repo with the flag on are removed', () => {
+	const done = makeIssue('completed', 'Done');
+	const spaces: SpaceData[] = [
+		makeSpace('@work:main', {repo: '@work', isMainWorktree: true}),
+		makeSpace('api:STA-1', {repo: 'api', trackerIssue: done}),
+		makeSpace('api:STA-2', {
+			repo: 'api',
+			trackerIssue: makeIssue('started', 'In Progress'),
+		}),
+		makeSpace('web:STA-1', {repo: 'web', trackerIssue: done}),
+		makeSpace('docs:DOC-4', {repo: 'docs', trackerIssue: done}),
+	];
+	// The work dir's own setting is on, web's is off, docs has no config that loads.
+	const configs: Record<string, PappardelleConfig | null> = {
+		'@work': config(true),
+		api: config(true),
+		web: config(false),
+		docs: null,
+	};
+	const read: string[] = [];
+	const removed = findRepoSpacesToAutoRemove(spaces, {
+		configOf: space => configs[space.repo!] ?? null,
+		currentConfig(space) {
+			read.push(space.repo!);
+			return {kind: 'valid', config: configs[space.repo!]!};
+		},
+	});
+	expect(removed.map(space => space.name)).toStrictEqual(['api:STA-1']);
+	// Only a repo with something to remove has its config read again.
+	expect(read).toStrictEqual(['api']);
+});
+
+test('a repo whose config no longer loads keeps its done spaces, and the other repos lose theirs', () => {
+	const done = makeIssue('canceled', 'Cancelled');
+	const spaces: SpaceData[] = [
+		makeSpace('api:STA-1', {repo: 'api', trackerIssue: done}),
+		makeSpace('api:STA-2', {repo: 'api', trackerIssue: done}),
+		makeSpace('web:WEB-9', {repo: 'web', trackerIssue: done}),
+	];
+	const read: string[] = [];
+	const removed = findRepoSpacesToAutoRemove(spaces, {
+		configOf: () => config(true),
+		currentConfig(space) {
+			read.push(space.repo!);
+			return space.repo === 'api'
+				? {kind: 'invalid', errors: ['profiles: must be a map']}
+				: {kind: 'valid', config: config(true)};
+		},
+	});
+	expect(removed.map(space => space.name)).toStrictEqual(['web:WEB-9']);
+	expect(read).toStrictEqual(['api', 'web']);
 });

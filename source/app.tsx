@@ -144,7 +144,10 @@ import {
 	type RailRow,
 } from './rail-groups.ts';
 import RailGroupHeader from './components/RailGroupHeader.tsx';
-import {findSpacesToAutoRemove} from './auto-remove.ts';
+import {
+	findRepoSpacesToAutoRemove,
+	findSpacesToAutoRemove,
+} from './auto-remove.ts';
 import {
 	buildKillDoneConfirmContent,
 	findDoneSpaces,
@@ -2562,15 +2565,25 @@ export default function App({
 	const autoRemoveInFlightRef = useRef(new Set<string>());
 	const autoRemoveFailedRef = useRef(new Set<string>());
 	useEffect(() => {
-		const autoRemoveWhenDone = configMemo
-			? getAutoRemoveWhenDone(configMemo)
-			: false;
-		if (!autoRemoveWhenDone) return;
-		// Nobody asked for these closes, so they wait for a config that can say
-		// which deinit commands to run.
-		if (readReportedConfig().kind === 'invalid') return;
+		let candidates: SpaceData[];
+		if (workdir) {
+			// Each space answers for its own repo: the work dir's own setting
+			// says nothing of a repo's spaces.
+			candidates = findRepoSpacesToAutoRemove(spaces, {
+				configOf,
+				currentConfig: space => spaceReportedConfig(space.name),
+			});
+		} else {
+			const autoRemoveWhenDone = configMemo
+				? getAutoRemoveWhenDone(configMemo)
+				: false;
+			if (!autoRemoveWhenDone) return;
+			// Nobody asked for these closes, so they wait for a config that can
+			// say which deinit commands to run.
+			if (readReportedConfig().kind === 'invalid') return;
+			candidates = findSpacesToAutoRemove(spaces, true);
+		}
 
-		const candidates = findSpacesToAutoRemove(spaces, true);
 		for (const space of candidates) {
 			if (autoRemoveInFlightRef.current.has(space.name)) continue;
 			if (autoRemoveFailedRef.current.has(space.name)) continue;
@@ -2595,7 +2608,14 @@ export default function App({
 					autoRemoveInFlightRef.current.delete(space.name);
 				});
 		}
-	}, [spaces, configMemo, deleteSpace, setHeaderWithTimeout]);
+	}, [
+		spaces,
+		configMemo,
+		workdir,
+		configOf,
+		deleteSpace,
+		setHeaderWithTimeout,
+	]);
 
 	const hasRailTargets = spaces.some(
 		s => !s.isMainWorktree && !s.isPending && s.name.length > 0,
