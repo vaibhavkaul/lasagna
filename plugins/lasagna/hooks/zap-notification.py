@@ -67,6 +67,11 @@ def main() -> None:
     if not LASAGNA_NTFY_TOPIC:
         sys.exit(0)
 
+    # A session Pappardelle started: its own hook sends the notification
+    # (in_pappardelle_session in state_db.py, which this hook does not load).
+    if os.environ.get("PAPPARDELLE_REPO") and not os.environ.get("LASAGNA_REPO"):
+        sys.exit(0)
+
     hook_event = input_data.get("hook_event_name", "")
     tool_name = input_data.get("tool_name", "")
 

@@ -64,6 +64,7 @@ if _state_db_spec and _state_db_spec.loader:
     _state_db_spec.loader.exec_module(_state_db_mod)
     state_db_path = _state_db_mod.state_db_path
     space_at_path = _state_db_mod.space_at_path
+    in_pappardelle_session = _state_db_mod.in_pappardelle_session
 else:
     raise ImportError("Could not load state_db")
 
@@ -251,6 +252,9 @@ def post_comment(issue_key: str, body: str) -> bool:
 
 
 def main() -> None:
+    if in_pappardelle_session():
+        sys.exit(0)
+
     # Read hook input from stdin
     try:
         input_data = json.load(sys.stdin)

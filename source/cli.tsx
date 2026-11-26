@@ -31,6 +31,7 @@ import {
 	getMainWorktreeInfo,
 	INNER_SOCKET,
 } from './tmux.ts';
+import {dropPappardelleEnv} from './pappardelle-env.ts';
 import type {PaneLayout} from './types.ts';
 import {
 	configExists,
@@ -108,6 +109,9 @@ import {exitAfterFlush} from './exit-after-flush.ts';
 
 const SCRIPTS_DIR = scriptsDir;
 const REARM_SCHEDULES_DELAY_MS = 5000;
+
+// Before anything is started: tmux servers, idow and agents inherit this.
+dropPappardelleEnv();
 
 const gate = subcommandGate(process.argv.slice(2));
 if (gate.action === 'help') {

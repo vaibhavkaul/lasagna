@@ -25,6 +25,7 @@ const log = createLogger('mcp');
 import {companionRules} from './companion-rules.ts';
 import {MCP_TOOLS, type CliCall} from './mcp-tools.ts';
 import {bunIsolationArgs, isStandalone} from './runtime.ts';
+import {startedInPappardelleSession} from './pappardelle-env.ts';
 import {callerSpace, readCheckout} from './space-target.ts';
 import {createStateDaos} from './state-daos.ts';
 import {MAIN_WORKTREE_KEY} from './space-utils.ts';
@@ -241,7 +242,10 @@ export async function runMcpServer(): Promise<void> {
 		checkout.kind === 'checkout' ? checkout.checkout.repoName : undefined;
 	const load = readConfig();
 	const config = load.kind === 'valid' ? load.config : null;
-	const awareness = workspaceAwareness(load);
+	// In a session of Pappardelle's, its own server answers for the space.
+	const awareness: WorkspaceAwareness = startedInPappardelleSession
+		? {kind: 'off'}
+		: workspaceAwareness(load);
 	if (awareness.kind === 'invalid-config')
 		log.error(invalidConfigInstructions(awareness.errors));
 	const sousChef =

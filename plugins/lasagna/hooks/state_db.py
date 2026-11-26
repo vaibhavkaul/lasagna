@@ -35,6 +35,17 @@ def state_dir() -> Path:
     return Path.home() / STATE_DIR_NAME
 
 
+def in_pappardelle_session(environ: Mapping[str, str] = os.environ) -> bool:
+    """Whether the hook runs in a session an installed Pappardelle started.
+
+    Both tools' plugins run their hooks in every agent session on the machine.
+    Pappardelle marks its own sessions with PAPPARDELLE_REPO and its hooks
+    report for them, so Lasagna's do nothing there: no second status, no
+    second comment on the issue. Lasagna's own sessions carry LASAGNA_REPO.
+    """
+    return bool(environ.get("PAPPARDELLE_REPO")) and not environ.get("LASAGNA_REPO")
+
+
 def _recorded_flag() -> dict[str, Any]:
     """What the CLI last read from the home config (source/state-flag.ts)."""
     try:

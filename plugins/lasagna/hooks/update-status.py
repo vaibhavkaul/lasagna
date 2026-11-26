@@ -55,6 +55,7 @@ if _state_db_spec and _state_db_spec.loader:
     state_db_path = _state_db_mod.state_db_path
     space_at_path = _state_db_mod.space_at_path
     state_dir = _state_db_mod.state_dir
+    in_pappardelle_session = _state_db_mod.in_pappardelle_session
 else:
     raise ImportError("Could not load state_db")
 
@@ -288,6 +289,9 @@ def write_status_file(status_file: Path, state: dict[str, Any]) -> None:
 
 
 def main() -> None:
+    if in_pappardelle_session():
+        sys.exit(0)
+
     # Read hook input from stdin
     try:
         input_data = json.load(sys.stdin)
