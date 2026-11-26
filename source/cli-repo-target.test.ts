@@ -13,11 +13,14 @@ import {
 } from '../test/helpers/workdir-fixture.ts';
 import {
 	defaultRetargetDeps,
+	idArg,
+	repoHasId,
 	repoHasSpace,
 	retargetCli,
 	spaceKeyArgs,
 	type RetargetResult,
 } from './cli-repo-target.ts';
+import {MCP_TOOLS} from './mcp-tools.ts';
 import {repoContext, resetRepoContexts} from './repo-context.ts';
 import {bunIsolationArgs} from './runtime.ts';
 import {createStateDaos} from './state-daos.ts';
@@ -42,6 +45,10 @@ test('each verb names its space where its own parser reads it', () => {
 		'api:STA-1',
 		'api:STA-2',
 	]);
+	// A flag's value is not a key, wherever the keys are.
+	expect(
+		keysOf('watch', '--until', 'blocked', 'api:STA-1', '--timeout', '5'),
+	).toEqual(['api:STA-1']);
 	expect(keysOf('companion', 'run', '--space', 'api:STA-1', 'ls')).toEqual([
 		'api:STA-1',
 	]);
@@ -49,6 +56,44 @@ test('each verb names its space where its own parser reads it', () => {
 		'api:STA-1',
 	]);
 	expect(keysOf('--profile', 'p', 'api:STA-1')).toEqual(['api:STA-1']);
+});
+
+test('the watch the MCP tool runs names its spaces after its flags', () => {
+	const watch = MCP_TOOLS.find(tool => tool.name === 'space_watch')!;
+	const {args} = watch.toCli({
+		keys: ['api:STA-1', 'web:STA-2'],
+		until: ['blocked', 'idle'],
+		since: 'cursor',
+		timeout_seconds: 20,
+	});
+	expect(spaceKeyArgs(args).map(key => key.value)).toEqual([
+		'api:STA-1',
+		'web:STA-2',
+	]);
+	expect(args.slice(-3)).toEqual(['--', 'api:STA-1', 'web:STA-2']);
+});
+
+test('the id a timer fires, and the ids of the other id verbs, are not spaces', () => {
+	expect(keysOf('schedule', 'fire', 'a1b2c3d4')).toEqual([]);
+	expect(idArg(['schedule', 'fire', 'a1b2c3d4'])).toEqual({
+		kind: 'schedule',
+		id: 'a1b2c3d4',
+	});
+	expect(idArg(['unschedule', 'a1b2c3d4'])).toEqual({
+		kind: 'schedule',
+		id: 'a1b2c3d4',
+	});
+	expect(idArg(['holds', 'approve', 'h1234567'])).toEqual({
+		kind: 'hold',
+		id: 'h1234567',
+	});
+	expect(idArg(['holds', 'dismiss', 'h1234567'])?.kind).toBe('hold');
+	expect(idArg(['holds'])).toBeUndefined();
+	expect(idArg(['schedule', 'STA-1', '--at', '5pm'])).toBeUndefined();
+	// Scheduling a space still names it.
+	expect(keysOf('schedule', 'api:STA-1', '--after-limit')).toEqual([
+		'api:STA-1',
+	]);
 });
 
 test('arguments that are not a space are left alone', () => {
@@ -72,6 +117,8 @@ type Fixture = WorkdirFixture & {
 		argv: string[],
 		open?: Record<string, string[]>,
 		env?: NodeJS.ProcessEnv,
+		/** The scheduled jobs and holds each repo's stores have, by id. */
+		ids?: Record<string, string[]>,
 	) => RetargetResult;
 };
 
@@ -90,12 +137,13 @@ function fixture(): Fixture {
 		...made,
 		api,
 		web,
-		run: (cwd, argv, open = {}, env = {}) =>
+		run: (cwd, argv, open = {}, env = {}, ids = {}) =>
 			retargetCli(argv, {
 				...defaultRetargetDeps(),
 				cwd,
 				env,
 				hasSpace: (repo, typed) => open[repo.name]?.includes(typed) ?? false,
+				hasId: (repo, {id}) => ids[repo.name]?.includes(id) ?? false,
 			}),
 	};
 }
@@ -114,16 +162,44 @@ test('a command outside every work dir is left as it is', () => {
 	expect(result).toEqual({kind: 'unchanged'});
 });
 
-test('repo:KEY outside a work dir says there is no work dir', () => {
+test('outside a work dir nothing is refused: a colon is whatever the verb takes it for', () => {
 	const outside = tempDir('lasagna-outside-');
 	git(outside, 'init', '-q');
-	const result = retargetCli(['send', 'api:STA-1', 'hi'], {
-		...defaultRetargetDeps(),
-		cwd: outside,
-		env: {},
+	const run = (...argv: string[]) =>
+		retargetCli(argv, {...defaultRetargetDeps(), cwd: outside, env: {}});
+	// A one-word prompt, as it was before there were work dirs.
+	expect(run('fix:typo')).toEqual({kind: 'unchanged'});
+	expect(run('--profile', 'p', 'chore:bump')).toEqual({kind: 'unchanged'});
+	expect(run('send', 'api:STA-1', 'hi')).toEqual({kind: 'unchanged'});
+	expect(run('schedule', 'fire', 'a1b2c3d4')).toEqual({kind: 'unchanged'});
+});
+
+test('in a work dir a one-word prompt with a colon stays a prompt', () => {
+	const {repos, work, run, api} = fixture();
+	// No repo is called fix.
+	expect(run(repos['api']!.root, ['fix:typo'])).toEqual({kind: 'unchanged'});
+	// A repo's name before something that is no issue key.
+	expect(run(repos['web']!.root, [`${api}:typo`])).toEqual({
+		kind: 'unchanged',
 	});
-	expect(result.kind).toBe('error');
-	if (result.kind === 'error') expect(result.message).toContain('work dir');
+	// At the root the prompt reaches the work dir, which says what it needs.
+	expect(run(work, ['fix:typo'])).toMatchObject({
+		kind: 'retargeted',
+		argv: ['fix:typo'],
+	});
+});
+
+test('opening a space by repo:KEY takes a repo of the work dir and an issue key', () => {
+	const {repos, run, api} = fixture();
+	expect(run(repos['web']!.root, [`${api}:STA-9`])).toEqual({
+		kind: 'retargeted',
+		repo: {root: repos['api']!.root, mainRoot: repos['api']!.root, name: api},
+		argv: ['STA-9'],
+	});
+	// A bare number is a key too: it takes the repo's team prefix.
+	expect(run(repos['web']!.root, ['--profile', 't', `${api}:9`])).toMatchObject(
+		{kind: 'retargeted', argv: ['--profile', 't', '9']},
+	);
 });
 
 test('a bare key the command\u2019s own repo has stays there, untouched', () => {
@@ -238,6 +314,177 @@ test('one command does not span two repos', () => {
 		expect(result.message).toContain("one repo's spaces");
 });
 
+test('the watch the MCP tool runs is pointed at the repo its spaces name', () => {
+	const {work, repos, run, web} = fixture();
+	const result = run(work, [
+		'watch',
+		'--until',
+		'blocked',
+		'--timeout',
+		'5',
+		'--json',
+		'--',
+		`${web}:STA-1`,
+		`${web}:STA-2`,
+	]);
+	expect(result).toEqual({
+		kind: 'retargeted',
+		repo: {root: repos['web']!.root, mainRoot: repos['web']!.root, name: web},
+		argv: [
+			'watch',
+			'--until',
+			'blocked',
+			'--timeout',
+			'5',
+			'--json',
+			'--',
+			'STA-1',
+			'STA-2',
+		],
+	});
+});
+
+test('at the work dir\u2019s root a timer\u2019s fire is about the work dir, not a space called fire', () => {
+	const {work, workRepo, run} = fixture();
+	expect(run(work, ['schedule', 'fire', 'a1b2c3d4'])).toEqual({
+		kind: 'retargeted',
+		repo: {root: work, mainRoot: work, name: workRepo},
+		argv: ['schedule', 'fire', 'a1b2c3d4'],
+	});
+});
+
+test('an id only another repo\u2019s stores have points the command at that repo', () => {
+	const {work, repos, run, api, web} = fixture();
+	const toApi = {
+		kind: 'retargeted',
+		repo: {root: repos['api']!.root, mainRoot: repos['api']!.root, name: api},
+	};
+	const ids = {[api]: ['h1234567', 'a1b2c3d4']};
+	expect(run(work, ['holds', 'approve', 'h1234567'], {}, {}, ids)).toEqual({
+		...toApi,
+		argv: ['holds', 'approve', 'h1234567'],
+	});
+	expect(
+		run(work, ['holds', 'dismiss', 'h1234567'], {}, {}, ids),
+	).toMatchObject(toApi);
+	expect(run(work, ['unschedule', 'a1b2c3d4'], {}, {}, ids)).toMatchObject(
+		toApi,
+	);
+	expect(
+		run(work, ['schedule', 'fire', 'a1b2c3d4'], {}, {}, ids),
+	).toMatchObject(toApi);
+	// From another repo's checkout too, when that repo has no such id.
+	expect(
+		run(repos['web']!.root, ['unschedule', 'a1b2c3d4'], {}, {}, ids),
+	).toMatchObject(toApi);
+	// The command's own repo answers for an id it has, and for one nobody has.
+	expect(
+		run(
+			repos['web']!.root,
+			['unschedule', 'a1b2c3d4'],
+			{},
+			{},
+			{
+				...ids,
+				[web]: ['a1b2c3d4'],
+			},
+		),
+	).toEqual({kind: 'unchanged'});
+	expect(run(repos['web']!.root, ['unschedule', 'nobody-has'])).toEqual({
+		kind: 'unchanged',
+	});
+});
+
+test('a repo\u2019s stores answer for the scheduled jobs and holds they have', async () => {
+	const {repos, api} = fixture();
+	const repo = repoContext(repos['api']!.root);
+	const daos = createStateDaos({repo: api, mainRoot: () => repo.mainRoot});
+	teardown(() => daos.disconnectStatusDaemon());
+	await daos.schedules.save({
+		kind: 'at',
+		id: 'a1b2c3d4',
+		key: 'STA-1',
+		at: new Date(Date.now() + 3_600_000).toISOString(),
+		message: 'carry on',
+		arm: 0,
+	});
+	expect(repoHasId(repo, {kind: 'schedule', id: 'a1b2c3d4'})).toBe(true);
+	expect(repoHasId(repo, {kind: 'schedule', id: 'ffffffff'})).toBe(false);
+	expect(repoHasId(repo, {kind: 'hold', id: 'a1b2c3d4'})).toBe(false);
+});
+
+test('a work dir whose root is a checkout of its own is still the work dir there', () => {
+	const {work, workRepo, repos, run, api} = fixture();
+	git(work, 'init', '-q');
+	git(work, 'commit', '-q', '--allow-empty', '-m', 'the work dir is a repo');
+	expect(run(work, ['spaces'])).toEqual({
+		kind: 'retargeted',
+		repo: {root: work, mainRoot: work, name: workRepo},
+		argv: ['spaces'],
+	});
+	expect(run(path.join(work, '.lasagna'), ['spaces'])).toMatchObject({
+		kind: 'retargeted',
+		repo: {name: workRepo},
+	});
+	// Its repos are still theirs.
+	expect(
+		run(repos['api']!.root, ['send', 'STA-1', 'hi'], {[api]: ['STA-1']}),
+	).toEqual({kind: 'unchanged'});
+});
+
+test('a work dir inside a checkout is the work dir at its root, not that checkout', () => {
+	const outer = tempDir('lasagna-outer-');
+	git(outer, 'init', '-q');
+	git(outer, 'commit', '-q', '--allow-empty', '-m', 'outer');
+	const work = path.join(outer, 'work');
+	fs.mkdirSync(path.join(work, '.lasagna'), {recursive: true});
+	fs.writeFileSync(
+		path.join(work, '.lasagna', 'workdir.yml'),
+		`version: 1\n${PROFILES}`,
+	);
+	const run = (cwd: string) =>
+		retargetCli(['spaces'], {...defaultRetargetDeps(), cwd, env: {}});
+	expect(run(work)).toMatchObject({
+		kind: 'retargeted',
+		repo: {root: work, name: '@work'},
+	});
+	// Elsewhere in the outer checkout there is no work dir to be about.
+	expect(run(outer)).toEqual({kind: 'unchanged'});
+});
+
+test('LASAGNA_WORKDIR does not pull a bare key out of a checkout that is none of the work dir\u2019s', () => {
+	const {work, repos, run, api, web} = fixture();
+	const elsewhere = tempDir('lasagna-unrelated-');
+	git(elsewhere, 'init', '-q');
+	git(elsewhere, 'commit', '-q', '--allow-empty', '-m', 'unrelated');
+	const env = {LASAGNA_WORKDIR: work};
+	const open = {[api]: ['STA-1']};
+	const ids = {[api]: ['a1b2c3d4']};
+	expect(run(elsewhere, ['send', 'STA-1', 'hi'], open, env)).toEqual({
+		kind: 'unchanged',
+	});
+	expect(run(elsewhere, ['unschedule', 'a1b2c3d4'], open, env, ids)).toEqual({
+		kind: 'unchanged',
+	});
+	// A repo that is none of the work dir's is not refused there either.
+	expect(run(elsewhere, ['send', 'nope:STA-1', 'hi'], open, env)).toEqual({
+		kind: 'unchanged',
+	});
+	// Typed out, a repo of the work dir is still reached.
+	expect(
+		run(elsewhere, ['send', `${api}:STA-1`, 'hi'], open, env),
+	).toMatchObject({
+		kind: 'retargeted',
+		repo: {name: api},
+		argv: ['send', 'STA-1', 'hi'],
+	});
+	// And a checkout of the work dir still finds its neighbours' spaces.
+	expect(
+		run(repos['web']!.root, ['send', 'STA-1', 'hi'], open, env),
+	).toMatchObject({kind: 'retargeted', repo: {name: api}});
+	expect(web).not.toBe(api);
+});
+
 test('a companion verb\u2019s --space takes repo:KEY in both spellings', () => {
 	const {repos, run, web} = fixture();
 	const spaced = run(repos['api']!.root, [
@@ -294,6 +541,19 @@ test('a repo has a space it has open, its main space, and no other', async () =>
 	expect(repoHasSpace(repo, 'STA-13')).toBe(false);
 });
 
+test('what a closed space left behind does not make it one of the repo\u2019s spaces', async () => {
+	const {repos, api} = fixture();
+	const repo = repoContext(repos['api']!.root);
+	const daos = createStateDaos({repo: api, mainRoot: () => repo.mainRoot});
+	teardown(() => daos.disconnectStatusDaemon());
+	await daos.registry.add('STA-12');
+	await daos.spaceState.write('STA-12', {issueTitle: 'Closed since'});
+	await daos.registry.remove('STA-12');
+	// Its title and PR links outlive it.
+	expect(daos.spaceState.lookup('STA-12').kind).toBe('state');
+	expect(repoHasSpace(repo, 'STA-12')).toBe(false);
+});
+
 /** Run this checkout's CLI in `cwd`, with a HOME of the test's own. */
 function runCli(
 	cwd: string,
@@ -348,6 +608,57 @@ test('the CLI answers for a space named with its repo, from another repo and fro
 	const unknown = field(repos['api']!.root, 'nope:WEB-4', 'repo');
 	expect(unknown.code).toBe(2);
 	expect(unknown.stderr).toContain('No repo nope in this work dir');
+}, 60_000);
+
+test('the CLI takes a one-word prompt with a colon as a prompt, in a lone repo', () => {
+	const lone = tempDir('lasagna-lone-');
+	git(lone, 'init', '-q');
+	git(lone, 'commit', '-q', '--allow-empty', '-m', 'initial');
+	// It gets as far as a prompt does here: this repo has no config to open
+	// a space with.
+	const result = runCli(lone, tempDir('lasagna-cli-home-'), ['fix:typo']);
+	expect(result.stderr).toContain('No .pappardelle.yml found');
+	expect(result.stderr).not.toContain('work dir');
+	expect(result.code).toBe(1);
+}, 60_000);
+
+test('the CLI fires a timer at the work dir\u2019s root, and finds another repo\u2019s hold by its id', async () => {
+	const {work, repos, api} = fixture();
+	const home = tempDir('lasagna-cli-home-');
+	const apiState = testState({
+		repo: api,
+		stateDir: path.join(home, '.lasagna'),
+		mainRoot: () => repos['api']!.root,
+	});
+	await apiState.daos.holds.save({
+		id: 'h1234567',
+		key: 'STA-1',
+		tool: 'Bash command',
+		command: 'git push origin main',
+		filePath: null,
+		cwd: null,
+		approvable: true,
+		reason: 'pushes to main',
+		state: 'open',
+		createdAt: new Date().toISOString(),
+		resolvedAt: null,
+	});
+
+	// What a timer of the work dir's own main space runs, where it runs it.
+	const fired = runCli(work, home, ['schedule', 'fire', 'ffffffff']);
+	expect(fired).toEqual({
+		code: 1,
+		stdout: '',
+		stderr: 'No scheduled job ffffffff',
+	});
+	// A hold of one of its repos is found by its id alone.
+	const dismissed = runCli(work, home, ['holds', 'dismiss', 'h1234567']);
+	expect(dismissed).toEqual({
+		code: 0,
+		stdout: 'Dismissed h1234567',
+		stderr: '',
+	});
+	expect(apiState.daos.holds.load('h1234567')?.state).toBe('dismissed');
 }, 60_000);
 
 test('a command run from a directory that is gone still reaches its own error', () => {

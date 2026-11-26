@@ -51,6 +51,46 @@ export function findWorkdir(
 	}
 }
 
+function real(directory: string): string {
+	try {
+		return fs.realpathSync(directory);
+	} catch {
+		return path.resolve(directory);
+	}
+}
+
+/** Whether `directory` is `ancestor` or below it, whatever symlinks either goes through. */
+export function isAtOrBelow(ancestor: string, directory: string): boolean {
+	const relative = path.relative(real(ancestor), real(directory));
+	return (
+		relative === '' ||
+		(!relative.startsWith('..') && !path.isAbsolute(relative))
+	);
+}
+
+/**
+ * The work dir a directory stands in without standing in one of its repos:
+ * the nearest one at or above it, unless a checkout below the work dir's root
+ * holds the directory. `checkoutRoot` is the working tree the directory is
+ * in, if any. A checkout that holds the work dir itself (the work dir's root
+ * is a git repo of its own, or sits inside one) is not one of its repos, so
+ * there a command and the TUI are about the work dir, as they are where its
+ * root is no checkout.
+ */
+export function workdirStoodIn(
+	directory: string,
+	checkoutRoot: string | undefined,
+	env: NodeJS.ProcessEnv = process.env,
+): string | undefined {
+	const workdir = findWorkdir(directory, env);
+	// LASAGNA_WORKDIR can name a work dir the directory is nowhere near.
+	if (workdir === undefined || !isAtOrBelow(workdir, directory))
+		return undefined;
+	if (checkoutRoot !== undefined && !isAtOrBelow(checkoutRoot, workdir))
+		return undefined;
+	return workdir;
+}
+
 /**
  * Whether the workdir config has a section for `repoName`. A workdir's
  * top-level settings apply to every repo in it, but only a section of its

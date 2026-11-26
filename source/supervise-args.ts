@@ -111,7 +111,7 @@ export const superviseHelp = `
 	Watch and answer the agent in another space. KEY is a space key such as
 	STA-696, a bare number with the team prefix, or main. In a work dir,
 	repo:KEY names a space of another of its repos; one command acts on one
-	repo's spaces.
+	repo's spaces. An ID is found in whichever of its repos has it.
 
 	Commands
 	  screen      Print the agent's screen (or its companion's) with scrollback

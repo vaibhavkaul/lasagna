@@ -5,6 +5,9 @@
 // that repo before anything reads the repo it was started in.
 
 import {
+	DEFAULT_TEAM_PREFIX,
+	getBeadsPrefixes,
+	getTeamPrefix,
 	loadProviderConfigs,
 	readBeadsIssuePrefix,
 	repoRootsAt,
@@ -13,8 +16,14 @@ import {
 	type RepoRoots,
 } from './config.ts';
 import {cliSpaceKey} from './cli-space-key.ts';
-import {findWorkdir} from './repo-config-files.ts';
+import {
+	isIssueKey,
+	isIssueNumber,
+	normalizeIssueIdentifier,
+} from './issue-utils.ts';
+import {findWorkdir, isAtOrBelow, workdirStoodIn} from './repo-config-files.ts';
 import {repoContextOf, type RepoContext} from './repo-context.ts';
+import {sameFile} from './same-file.ts';
 import {parseSpaceRef, resolveSpaceRef, spaceRefError} from './space-ref.ts';
 import {MAIN_WORKTREE_KEY} from './space-utils.ts';
 import {createStateDaos} from './state-daos.ts';
@@ -22,7 +31,46 @@ import {SUPERVISE_VERBS} from './supervise-args.ts';
 import {readWorkdir, type Workdir} from './workdir.ts';
 
 /** A space key in argv: where it is, and the text before it in that argument. */
-type KeyArg = {index: number; value: string; prefix: string};
+type KeyArg = {
+	index: number;
+	value: string;
+	prefix: string;
+	/**
+	 * A lone word where a prompt goes. It names a space only when it reads as
+	 * `repo:KEY` for a repo of the work dir; anything else is the prompt it
+	 * always was (`fix:typo`).
+	 */
+	prompt?: boolean;
+};
+
+/**
+ * The arguments from `start` that are neither a flag nor a flag's value, and
+ * every argument after a `--`.
+ */
+function positionals(
+	argv: readonly string[],
+	start: number,
+	valueFlags: readonly string[] = [],
+): KeyArg[] {
+	const found: KeyArg[] = [];
+	let onlyPositionals = false;
+	for (let index = start; index < argv.length; index++) {
+		const arg = argv[index]!;
+		if (onlyPositionals || !arg.startsWith('-'))
+			found.push({index, value: arg, prefix: ''});
+		else if (arg === '--') onlyPositionals = true;
+		else if (valueFlags.includes(arg)) index++;
+	}
+
+	return found;
+}
+
+/** The first argument from `start` that is neither a flag nor a flag's value. */
+const firstPositional = (
+	argv: readonly string[],
+	start: number,
+	valueFlags: readonly string[] = [],
+): KeyArg[] => positionals(argv, start, valueFlags).slice(0, 1);
 
 const plain = (argv: readonly string[], index: number): KeyArg[] => {
 	const value = argv[index];
@@ -30,21 +78,6 @@ const plain = (argv: readonly string[], index: number): KeyArg[] => {
 		? []
 		: [{index, value, prefix: ''}];
 };
-
-/** The first argument from `start` that is neither a flag nor a flag's value. */
-function firstPositional(
-	argv: readonly string[],
-	start: number,
-	valueFlags: readonly string[] = [],
-): KeyArg[] {
-	for (let index = start; index < argv.length; index++) {
-		const arg = argv[index]!;
-		if (valueFlags.includes(arg)) index++;
-		else if (!arg.startsWith('-')) return [{index, value: arg, prefix: ''}];
-	}
-
-	return [];
-}
 
 const SUBCOMMANDS = new Set<string>([
 	...SUPERVISE_VERBS,
@@ -81,9 +114,13 @@ export function spaceKeyArgs(argv: readonly string[]): KeyArg[] {
 		case 'wait':
 		case 'answer':
 		case 'queue':
-		case 'schedule':
 		case 'schedules': {
 			return plain(argv, 1);
+		}
+
+		case 'schedule': {
+			// `schedule fire ID` is what a timer runs: an id, not a space.
+			return second === 'fire' ? [] : plain(argv, 1);
 		}
 
 		case 'holds': {
@@ -91,13 +128,9 @@ export function spaceKeyArgs(argv: readonly string[]): KeyArg[] {
 		}
 
 		case 'watch': {
-			const keys: KeyArg[] = [];
-			for (let index = 1; index < argv.length; index++) {
-				if (argv[index]!.startsWith('-')) break;
-				keys.push({index, value: argv[index]!, prefix: ''});
-			}
-
-			return keys;
+			// Its keys come before, between or after its flags; the MCP tool
+			// puts them last, behind `--`.
+			return positionals(argv, 1, ['--until', '--since', '--timeout']);
 		}
 
 		case 'close':
@@ -132,21 +165,37 @@ export function spaceKeyArgs(argv: readonly string[]): KeyArg[] {
 
 		default: {
 			// Opening a space: `lasagna [flags] <issue-key>`. Only a lone
-			// `repo:KEY` names a repo; a prompt is free text.
+			// `repo:KEY` can name a repo; a prompt is free text.
 			if (SUBCOMMANDS.has(verb)) return [];
-			const positionals = argv
-				.map((value, index) => ({index, value, prefix: ''}))
+			const words = argv
+				.map((value, index) => ({index, value, prefix: '', prompt: true}))
 				.filter(
 					({value, index}) =>
 						!value.startsWith('-') &&
 						!['--profile', '--agent-profile'].includes(argv[index - 1] ?? ''),
 				);
-			return positionals.length === 1 &&
-				parseSpaceRef(positionals[0]!.value).repo !== undefined
-				? positionals
+			return words.length === 1 &&
+				parseSpaceRef(words[0]!.value).repo !== undefined
+				? words
 				: [];
 		}
 	}
+}
+
+/** A stored thing a verb names by id alone, which says nothing of its repo. */
+export type IdArg = {kind: 'schedule' | 'hold'; id: string};
+
+/** The scheduled job or hold an invocation names by its id. */
+export function idArg(argv: readonly string[]): IdArg | undefined {
+	const [verb, second] = argv;
+	const first = (start: number) => firstPositional(argv, start)[0]?.value;
+	let found: {kind: IdArg['kind']; id: string | undefined} | undefined;
+	if (verb === 'unschedule') found = {kind: 'schedule', id: first(1)};
+	else if (verb === 'schedule' && second === 'fire')
+		found = {kind: 'schedule', id: first(2)};
+	else if (verb === 'holds' && (second === 'approve' || second === 'dismiss'))
+		found = {kind: 'hold', id: first(2)};
+	return found?.id === undefined ? undefined : {kind: found.kind, id: found.id};
 }
 
 export type RetargetResult =
@@ -167,6 +216,10 @@ export type RetargetDeps = {
 	readWorkdir: (root: string) => Workdir;
 	/** Whether a repo has a space the user typed this way. */
 	hasSpace: (repo: RepoContext, typed: string) => boolean;
+	/** Whether a repo would open `typed` as an issue key, not as a prompt. */
+	readsAsKey: (repo: RepoContext, typed: string) => boolean;
+	/** Whether a repo's stores hold the scheduled job or hold with this id. */
+	hasId: (repo: RepoContext, id: IdArg) => boolean;
 };
 
 function checkoutAt(directory: string): RepoRoots | undefined {
@@ -177,24 +230,62 @@ function checkoutAt(directory: string): RepoRoots | undefined {
 	}
 }
 
-/** Whether a repo's stores know a space the user typed as `typed`. */
+const trackerOf = (repo: RepoContext) =>
+	loadProviderConfigs(repo.configPaths()).issue_tracker?.provider ?? 'linear';
+
+const storesOf = (repo: RepoContext) =>
+	createStateDaos({repo: repo.name, mainRoot: () => repo.mainRoot});
+
+/**
+ * Whether a repo has the space the user typed as `typed` open, or being set
+ * up. What a closed space left behind (its title, its PR links) is not a
+ * space: counted, an old key would point a command at a repo that no longer
+ * has it, or make a key one repo has open look like two repos'.
+ */
 export function repoHasSpace(repo: RepoContext, typed: string): boolean {
 	try {
-		const provider =
-			loadProviderConfigs(repo.configPaths()).issue_tracker?.provider ??
-			'linear';
-		const resolved = cliSpaceKey(typed, repo.readConfig(), provider, () =>
-			readBeadsIssuePrefix(repo.mainRoot),
+		const resolved = cliSpaceKey(
+			typed,
+			repo.readConfig(),
+			trackerOf(repo),
+			() => readBeadsIssuePrefix(repo.mainRoot),
 		);
 		if (resolved.kind !== 'key') return false;
 		if (resolved.key === MAIN_WORKTREE_KEY) return true;
-		const daos = createStateDaos({
-			repo: repo.name,
-			mainRoot: () => repo.mainRoot,
-		});
+		const lookup = storesOf(repo).registry.phase(resolved.key);
+		return lookup.kind === 'phase' && lookup.phase !== 'closing';
+	} catch {
+		return false;
+	}
+}
+
+/** Whether a repo's tracker would read `typed` as one of its issue keys. */
+export function repoReadsAsKey(repo: RepoContext, typed: string): boolean {
+	try {
+		const load = repo.readConfig();
+		const config = load.kind === 'valid' ? load.config : undefined;
 		return (
-			daos.registry.has(resolved.key) ||
-			daos.spaceState.lookup(resolved.key).kind === 'state'
+			normalizeIssueIdentifier(
+				typed,
+				config ? getTeamPrefix(config) : DEFAULT_TEAM_PREFIX,
+				trackerOf(repo),
+				config
+					? getBeadsPrefixes(config, readBeadsIssuePrefix(repo.mainRoot))
+					: [],
+			) !== null
+		);
+	} catch {
+		return isIssueKey(typed) || isIssueNumber(typed);
+	}
+}
+
+/** Whether a repo's stores hold a scheduled job or a hold by this id. */
+export function repoHasId(repo: RepoContext, {kind, id}: IdArg): boolean {
+	try {
+		const daos = storesOf(repo);
+		return (
+			(kind === 'schedule' ? daos.schedules.load(id) : daos.holds.load(id)) !==
+			null
 		);
 	} catch {
 		return false;
@@ -207,19 +298,22 @@ export const defaultRetargetDeps = (): RetargetDeps => ({
 	checkoutAt,
 	readWorkdir,
 	hasSpace: repoHasSpace,
+	readsAsKey: repoReadsAsKey,
+	hasId: repoHasId,
 });
 
 /**
  * Decide which repo `argv` is about. Nothing is looked up for a command that
  * names no repo and runs outside a work dir, so a single repo's commands pay
- * nothing for this.
+ * nothing for this, and outside a work dir nothing is ever refused: there
+ * `a:b` is whatever the verb always took it for.
  */
 export function retargetCli(
 	argv: readonly string[],
 	deps: RetargetDeps,
 ): RetargetResult {
-	const keys = spaceKeyArgs(argv);
-	const named = keys.some(key => parseSpaceRef(key.value).repo !== undefined);
+	const typed = spaceKeyArgs(argv);
+	const named = typed.some(key => parseSpaceRef(key.value).repo !== undefined);
 	// A space's worktree is outside the work dir, so its session's main
 	// checkout is tried too.
 	const injectedMain = deps.env['LASAGNA_MAIN_REPO_ROOT'];
@@ -232,51 +326,80 @@ export function retargetCli(
 		workdirRoot = checkout && findWorkdir(checkout.mainRoot, deps.env);
 	}
 
-	if (workdirRoot === undefined)
-		return named
-			? {
-					kind: 'error',
-					message:
-						'repo:KEY names a repo of a work dir, and this directory is in none (no .lasagna/workdir.yml above it)',
-				}
-			: {kind: 'unchanged'};
+	if (workdirRoot === undefined) return {kind: 'unchanged'};
 
 	checkout ??= deps.checkoutAt(deps.cwd);
+	// A checkout that holds the work dir itself is not one of its repos: at
+	// the work dir's root the command is about the work dir, as the TUI is.
+	if (checkout && workdirStoodIn(deps.cwd, checkout.root, deps.env))
+		checkout = undefined;
 	const workdir = deps.readWorkdir(workdirRoot);
 	const workdirRepo = workdirRepoRoots(workdir.root);
 	// Outside every checkout the command is about the work dir itself.
 	const own = checkout ?? workdirRepo;
 	const rootsOf = (name: string): RepoRoots | undefined => {
+		if (name === own.name) return own;
 		if (name === workdirRepo.name) return workdirRepo;
 		const listed = workdir.repos.find(repo => repo.name === name);
 		return listed && deps.checkoutAt(listed.root);
 	};
 
-	const repos = [workdirRepo.name, ...workdir.repos.map(repo => repo.name)];
-	const hasSpace = (repo: string, typed: string) => {
-		const roots = repo === own.name ? own : rootsOf(repo);
-		return roots !== undefined && deps.hasSpace(repoContextOf(roots), typed);
+	const contextOf = (name: string) => {
+		const roots = rootsOf(name);
+		return roots && repoContextOf(roots);
 	};
 
-	const resolutions = keys.map(key => {
-		const resolution = resolveSpaceRef(key.value, {
-			ownRepo: own.name,
-			repos,
-			hasSpace,
+	const repos = [workdirRepo.name, ...workdir.repos.map(repo => repo.name)];
+	// LASAGNA_WORKDIR names a work dir wherever the command runs. A
+	// checkout that is none of its repos keeps its bare keys and ids to itself:
+	// only a repo typed out reaches into the work dir from there.
+	const belongs =
+		checkout === undefined ||
+		isAtOrBelow(workdir.root, checkout.root) ||
+		isAtOrBelow(workdir.root, checkout.mainRoot) ||
+		workdir.repos.some(
+			repo =>
+				repo.name === checkout.name && sameFile(repo.root, checkout.mainRoot),
+		);
+	const hasSpace = (repo: string, key: string) => {
+		const context = contextOf(repo);
+		return context !== undefined && deps.hasSpace(context, key);
+	};
+
+	const names = (key: KeyArg): boolean => {
+		const ref = parseSpaceRef(key.value);
+		const known = ref.repo !== undefined && repos.includes(ref.repo);
+		if (key.prompt) {
+			// A one-word prompt with a colon in it stays a prompt.
+			const context = known ? contextOf(ref.repo!) : undefined;
+			return context !== undefined && deps.readsAsKey(context, ref.key);
+		}
+
+		return belongs || known;
+	};
+
+	const resolutions = typed
+		.filter(key => names(key))
+		.map(key => {
+			const resolution = resolveSpaceRef(key.value, {
+				ownRepo: own.name,
+				repos,
+				hasSpace,
+			});
+			// A key no repo has falls to the command's own repo, which says so.
+			// The work dir is nobody's repo to fall to: the answer names the
+			// repos.
+			return {
+				key,
+				resolution:
+					!checkout &&
+					resolution.kind === 'own' &&
+					parseSpaceRef(key.value).repo === undefined &&
+					!hasSpace(own.name, key.value)
+						? ({kind: 'not-found', key: key.value, repos} as const)
+						: resolution,
+			};
 		});
-		// A key no repo has falls to the command's own repo, which says so. The
-		// work dir is nobody's repo to fall to: the answer names the repos.
-		return {
-			key,
-			resolution:
-				!checkout &&
-				resolution.kind === 'own' &&
-				parseSpaceRef(key.value).repo === undefined &&
-				!hasSpace(own.name, key.value)
-					? ({kind: 'not-found', key: key.value, repos} as const)
-					: resolution,
-		};
-	});
 
 	const rewritten = [...argv];
 	const targets = new Set<string>();
@@ -287,13 +410,29 @@ export function retargetCli(
 		rewritten[key.index] = `${key.prefix}${resolution.key}`;
 	}
 
+	// An id says nothing of its repo. The command's own repo answers when it
+	// has it; else the one repo of the work dir that does. With none, the
+	// command's own repo says so, as it always did.
+	const id = belongs && typed.length === 0 ? idArg(argv) : undefined;
+	if (id) {
+		const hasId = (repo: string) => {
+			const context = contextOf(repo);
+			return context !== undefined && deps.hasId(context, id);
+		};
+
+		if (!hasId(own.name)) {
+			const holders = repos.filter(repo => repo !== own.name && hasId(repo));
+			if (holders.length === 1) targets.add(holders[0]!);
+		}
+	}
+
 	if (targets.size > 1)
 		return {
 			kind: 'error',
 			message: `One command acts on one repo's spaces; these are in ${[...targets].join(' and ')}`,
 		};
 	const [target = own.name] = targets;
-	const roots = target === own.name ? own : rootsOf(target);
+	const roots = rootsOf(target);
 	if (!roots)
 		return {
 			kind: 'error',
