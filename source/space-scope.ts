@@ -20,9 +20,11 @@ import {
 	issueTrackerFor,
 	vcsHostFor,
 	type IssueTrackerProvider,
+	type RailStatus,
 	type VcsHostProvider,
 } from './providers/index.ts';
 import {defaultRepoContext, type RepoContext} from './repo-context.ts';
+import {formatSpaceRef} from './space-ref.ts';
 import {MAIN_WORKTREE_KEY} from './space-utils.ts';
 
 export type SpaceScope = {
@@ -103,6 +105,56 @@ export function spaceReportedConfig(name: string): ConfigLoad {
 export function spaceTracker(name: string): IssueTrackerProvider {
 	const scope = scopedSpace(name);
 	return scope ? issueTrackerFor(scope.repo.name) : createIssueTracker();
+}
+
+/**
+ * The name a repo's space goes by in this process: its key where every space
+ * is the process's own repo's, `repo:KEY` where names carry their repo.
+ */
+export function spaceNameIn(repo: string, key: string): string {
+	return resolver ? formatSpaceRef(repo, key) : key;
+}
+
+/**
+ * PR status for several spaces at once, each repo's from its own VCS host in
+ * one bulk request. `worktreePaths` and the answer are keyed by space name.
+ */
+export async function spacesRailStatus(
+	names: readonly string[],
+	worktreePaths: ReadonlyMap<string, string>,
+): Promise<Map<string, RailStatus>> {
+	const byRepo = new Map<string, Array<{name: string; key: string}>>();
+	for (const name of names) {
+		const scope = scopedSpace(name);
+		if (!scope) continue;
+		const mine = byRepo.get(scope.repo.name) ?? [];
+		mine.push({name, key: scope.key});
+		byRepo.set(scope.repo.name, mine);
+	}
+
+	if (byRepo.size === 0)
+		return createVcsHost().getBulkRailStatus([...names], worktreePaths);
+
+	const result = new Map<string, RailStatus>();
+	await Promise.all(
+		[...byRepo].map(async ([repo, spaces]) => {
+			const paths = new Map(
+				spaces.flatMap(({name, key}) => {
+					const worktree = worktreePaths.get(name);
+					return worktree === undefined ? [] : [[key, worktree] as const];
+				}),
+			);
+			const statuses = await vcsHostFor(repo).getBulkRailStatus(
+				spaces.map(({key}) => key),
+				paths,
+			);
+			for (const {name, key} of spaces) {
+				const status = statuses.get(key);
+				if (status) result.set(name, status);
+			}
+		}),
+	);
+	return result;
 }
 
 /** The VCS host of the space's repo. */

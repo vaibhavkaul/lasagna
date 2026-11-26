@@ -91,6 +91,27 @@ export const defaultCloseHooksDeps: CloseHooksDeps = {
 	}),
 };
 
+/**
+ * The hooks of a space named on a rail that shows several repos: its own
+ * repo's config and roots. Run them for the space's key within that repo.
+ */
+export function closeHooksDepsFor(repo: {
+	root: string;
+	mainRoot: string;
+	name: string;
+	readConfig: () => ConfigLoad;
+}): CloseHooksDeps {
+	return {
+		readConfig: () => repo.readConfig(),
+		runDeinit: runPreWorkspaceDeinit,
+		context: () => ({
+			repoRoot: repo.root,
+			mainRepoRoot: repo.mainRoot,
+			repoName: repo.name,
+		}),
+	};
+}
+
 export type CloseHooksOutcome =
 	| {kind: 'ran'}
 	| {kind: 'failed'; failedCommand?: string}

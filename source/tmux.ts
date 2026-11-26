@@ -215,8 +215,10 @@ import {
 	scopedSpace,
 	spaceBareKey,
 	spaceConfig,
+	spaceNameIn,
 	spaceReportedConfig,
 } from './space-scope.ts';
+import {isWorkdirRepoName} from './repo-config-files.ts';
 import {
 	calculateIdealListHeightForCount,
 	calculateLayoutForSize,
@@ -1156,8 +1158,14 @@ export const defaultOuterTmuxRunner = spawnTmuxRunner(args => [...args]);
 // Outer TUI sessions are named `lasagna-<repo>`.
 export const OUTER_SESSION_PREFIX = 'lasagna-';
 
+/** A work dir's TUI, which runs for its pseudo-repo `@<workdir>`, is `lasagna-wd-<workdir>`. */
+export const WORKDIR_SESSION_PREFIX = 'wd-';
+
 export function outerSessionName(repoName: string): string {
-	return `${OUTER_SESSION_PREFIX}${tmuxSessionRepo(repoName)}`;
+	const name = isWorkdirRepoName(repoName)
+		? `${WORKDIR_SESSION_PREFIX}${repoName.slice(1)}`
+		: repoName;
+	return `${OUTER_SESSION_PREFIX}${tmuxSessionRepo(name)}`;
 }
 
 // The rail's header already names the repo, so the user's status bar would
@@ -1194,7 +1202,9 @@ export function newOuterSessionArgs(
 		'-t',
 		target,
 		'set-titles-string',
-		tmuxFormatLiteral(`🍝 ${repoName}`),
+		tmuxFormatLiteral(
+			`🍝 ${isWorkdirRepoName(repoName) ? repoName.slice(1) : repoName}`,
+		),
 	];
 }
 
@@ -1550,7 +1560,9 @@ export function cleanupOrphanedInnerSessions(
 		// status it reports is the space's own.
 		for (const key of reapedKeys)
 			if (!failedKeys.has(key) && !owned.keys.has(key))
-				void programStatus().remove(key);
+				void programStatus().remove(
+					repoName === undefined ? key : spaceNameIn(repoName, key),
+				);
 		return killed;
 	} catch {
 		return 0;
@@ -3939,7 +3951,10 @@ export async function getWorktreePathAsync(
  * The main worktree is the original git checkout (not a `git worktree add` worktree).
  * Returns null if detection fails.
  */
-export async function getMainWorktreeInfo(): Promise<{
+export async function getMainWorktreeInfo(
+	/** A directory of the repo to ask about; the process's own by default. */
+	cwd?: string,
+): Promise<{
 	path: string;
 	branch: string;
 } | null> {
@@ -3957,6 +3972,7 @@ export async function getMainWorktreeInfo(): Promise<{
 			{
 				encoding: 'utf-8',
 				timeout: 5000,
+				...(cwd ? {cwd} : {}),
 			},
 		);
 

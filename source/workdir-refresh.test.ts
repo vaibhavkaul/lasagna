@@ -1,0 +1,270 @@
+import {test, expect, beforeEach} from 'bun:test';
+import {teardown} from '../test/helpers/teardown.ts';
+import type {ProgramStatusInfo} from './program-status.ts';
+import {
+	issueTrackerFor,
+	resetProviders,
+	setRepoProviderSources,
+} from './providers/index.ts';
+import type {SpaceRegistryDao} from './space-registry.ts';
+import type {SpaceData, TrackerIssue} from './types.ts';
+import {WorkdirRefresh, type WorkdirRefreshDeps} from './workdir-refresh.ts';
+import type {WorkdirRepo, WorkdirRuntime} from './workdir-runtime.ts';
+
+beforeEach(() => {
+	resetProviders();
+});
+
+const issue = (key: string, title = key): TrackerIssue => ({
+	identifier: key,
+	title,
+	url: '',
+	state: {name: 'Open', type: 'unstarted', color: '#fff'},
+});
+
+/** A repo whose registry lists `keys`, and whose tracker titles each issue by repo. */
+function repo(
+	name: string,
+	keys: string[] | null,
+	options: {isWorkdir?: boolean; tag?: string} = {},
+): WorkdirRepo & {keys: string[] | null; fetched: string[][]} {
+	const made = {
+		name,
+		tag: options.tag ?? name.slice(0, 2),
+		isWorkdir: options.isWorkdir ?? false,
+		keys,
+		fetched: [] as string[][],
+		context: {root: `/work/${name}`, mainRoot: `/work/${name}`, name},
+		daos: {
+			registry: {
+				async settle() {},
+				openSpacesAsync: async () => made.keys,
+			} as unknown as SpaceRegistryDao,
+		},
+	};
+	setRepoProviderSources(name, {});
+	const tracker = issueTrackerFor(name);
+	tracker.getIssueCached = key => issue(key, `${key} of ${name}`);
+	tracker.getIssues = async wanted => {
+		made.fetched.push(wanted);
+		return new Map(wanted.map(key => [key, issue(key, `${key} of ${name}`)]));
+	};
+	return made as unknown as WorkdirRepo & typeof made;
+}
+
+function setup(
+	repos: WorkdirRepo[],
+	overrides: Partial<WorkdirRefreshDeps> = {},
+) {
+	const [own, ...listed] = repos;
+	const runtime: Pick<WorkdirRuntime, 'all' | 'repos'> = {
+		all: repos,
+		repos: listed,
+	};
+	let spaces: SpaceData[] = [];
+	let loaded = 0;
+	const errors: unknown[] = [];
+	const statusReads: string[] = [];
+	const deps: WorkdirRefreshDeps = {
+		statusReader: () => async (statusKey, name) => {
+			statusReads.push(`${statusKey} <- ${name}`);
+			return {status: 'idle'};
+		},
+		claudeStatus: {
+			mainKeyedByBranch: false,
+			readableKey: async (repoName, name) => `${repoName}-${name}`,
+		},
+		settle: {closing: new Set(), liveSessions: () => new Set()},
+		readWorktreePath: async name => `/worktrees/${name}`,
+		readMainWorktree: async mainRoot => ({path: mainRoot, branch: 'master'}),
+		readDirty: async () => false,
+		readEmoji: () => undefined,
+		readConfig: () => null,
+		onSettleError() {},
+		setSpaces(update) {
+			spaces = update(spaces);
+		},
+		onLoaded() {
+			loaded++;
+		},
+		onError(error) {
+			errors.push(error);
+		},
+		...overrides,
+	};
+	const refresh = new WorkdirRefresh(runtime, deps);
+	teardown(() => refresh.stop());
+	return {
+		refresh,
+		errors,
+		statusReads,
+		own: own!,
+		get spaces() {
+			return spaces;
+		},
+		get loaded() {
+			return loaded;
+		},
+		set(update: (spaces: SpaceData[]) => SpaceData[]) {
+			spaces = update(spaces);
+		},
+		async settle() {
+			await refresh.refresh();
+			await refresh.idle();
+		},
+	};
+}
+
+const twoRepos = () => [
+	repo('@work', null, {isWorkdir: true, tag: ''}),
+	repo('api', ['STA-1', 'STA-9']),
+	repo('web', ['STA-1']),
+];
+
+test('every repo’s spaces land in one list, named repo:KEY, with the work dir’s own main space first', async () => {
+	const h = setup(twoRepos());
+	await h.settle();
+	expect(h.errors).toEqual([]);
+	expect(h.spaces.map(space => space.name)).toEqual([
+		'@work:main',
+		'api:main',
+		'api:STA-9',
+		'api:STA-1',
+		'web:main',
+		'web:STA-1',
+	]);
+});
+
+test('a space carries its repo, its own key and its repo’s tag', async () => {
+	const h = setup(twoRepos());
+	await h.settle();
+	const space = h.spaces.find(each => each.name === 'web:STA-1')!;
+	expect(space.repo).toBe('web');
+	expect(space.key).toBe('STA-1');
+	expect(space.repoTag).toBe('we');
+	// A main space is called by its repo already, and the root is no repo's.
+	expect(
+		h.spaces.find(each => each.name === 'api:main')?.repoTag,
+	).toBeUndefined();
+	expect(h.spaces[0]?.repo).toBe('@work');
+	expect(h.spaces[0]?.repoTag).toBeUndefined();
+});
+
+test('a work dir with one repo shows no tags', async () => {
+	const h = setup([
+		repo('@work', null, {isWorkdir: true, tag: ''}),
+		repo('api', ['STA-1']),
+	]);
+	await h.settle();
+	expect(
+		h.spaces.find(each => each.name === 'api:STA-1')?.repoTag,
+	).toBeUndefined();
+});
+
+test('the same key in two repos is two spaces, each with its own repo’s issue', async () => {
+	const h = setup(twoRepos());
+	await h.settle();
+	const title = (name: string) =>
+		h.spaces.find(each => each.name === name)?.linearIssue?.title;
+	expect(title('api:STA-1')).toBe('STA-1 of api');
+	expect(title('web:STA-1')).toBe('STA-1 of web');
+});
+
+test('each repo’s tracker is asked for its own keys only', async () => {
+	const repos = twoRepos();
+	const h = setup(repos);
+	await h.settle();
+	const fetched = (name: string) =>
+		repos.find(each => each.name === name)!.fetched;
+	expect(
+		fetched('api').every(keys => keys.every(key => !key.includes(':'))),
+	).toBe(true);
+	expect(new Set(fetched('api').flat())).toEqual(new Set(['STA-9', 'STA-1']));
+	expect(new Set(fetched('web').flat())).toEqual(new Set(['STA-1']));
+});
+
+test('the work dir’s own main space is its root, and a repo’s is its main checkout', async () => {
+	const h = setup(twoRepos());
+	await h.settle();
+	const path = (name: string) =>
+		h.spaces.find(each => each.name === name)?.worktreePath;
+	expect(path('@work:main')).toBe('/work/@work');
+	expect(path('api:main')).toBe('/work/api');
+	// A space's worktree is looked up by the name the stores route on.
+	expect(path('web:STA-1')).toBe('/worktrees/web:STA-1');
+});
+
+test('status is read under each repo’s own status key, through the space’s name', async () => {
+	const h = setup(twoRepos());
+	await h.settle();
+	expect(h.statusReads).toContain('api-STA-1 <- api:STA-1');
+	expect(h.statusReads).toContain('web-STA-1 <- web:STA-1');
+	expect(h.statusReads).toContain('@work-main <- @work:main');
+	expect(h.spaces.find(each => each.name === 'web:STA-1')?.statusKey).toBe(
+		'web-STA-1',
+	);
+});
+
+test('a status update reaches the one space whose status key it carries', async () => {
+	const h = setup(twoRepos());
+	await h.settle();
+	const working: ProgramStatusInfo = {status: 'working'};
+	h.refresh.applyStatusUpdates(new Map([['web-STA-1', working]]));
+	const status = (name: string) =>
+		h.spaces.find(each => each.name === name)?.programStatus?.status;
+	expect(status('web:STA-1')).toBe('working');
+	expect(status('api:STA-1')).toBe('idle');
+});
+
+test('what the rail set on a space survives the next refresh', async () => {
+	const h = setup(twoRepos());
+	await h.settle();
+	// The PR status poll writes straight into the list.
+	h.set(spaces =>
+		spaces.map(space =>
+			space.name === 'api:STA-1'
+				? {
+						...space,
+						railStatus: {pipeline: 'passing', unresolvedCommentCount: 2},
+					}
+				: space,
+		),
+	);
+	await h.settle();
+	const space = h.spaces.find(each => each.name === 'api:STA-1')!;
+	expect(space.railStatus?.pipeline).toBe('passing');
+	expect(space.repo).toBe('api');
+	expect(space.key).toBe('STA-1');
+});
+
+test('a refresh that changes nothing hands back the same spaces', async () => {
+	const h = setup(twoRepos());
+	await h.settle();
+	const before = h.spaces;
+	await h.settle();
+	expect(h.spaces).toBe(before);
+	for (const [index, space] of h.spaces.entries())
+		expect(space).toBe(before[index]!);
+});
+
+test('a space closed in one repo leaves the list, and the other repo’s stay', async () => {
+	const repos = twoRepos();
+	const h = setup(repos);
+	await h.settle();
+	repos[1]!.keys = ['STA-9'];
+	await h.settle();
+	expect(h.spaces.map(space => space.name)).toEqual([
+		'@work:main',
+		'api:main',
+		'api:STA-9',
+		'web:main',
+		'web:STA-1',
+	]);
+});
+
+test('the rail is told it is loaded once every repo has listed its spaces', async () => {
+	const h = setup(twoRepos());
+	expect(h.loaded).toBe(0);
+	await h.settle();
+	expect(h.loaded).toBeGreaterThan(0);
+});
