@@ -783,6 +783,37 @@ tmux -L "$SHIM_SOCKET10" kill-server 2>/dev/null || true
 
 # ==========================================================================
 
+# A lead agent that takes over a ticket starts on its handoff: --prompt is the
+# whole first prompt, in place of the init command and the issue key.
+echo -e "\n${BOLD}Test: --prompt replaces the init command and key as the first prompt${RESET}"
+ISSUE_KEY10B="${TEST_PREFIX}-1001"
+WORKTREE_PATH10B="$TMPDIR_ROOT/worktree10b"
+ARGV_LOG10B="$TMPDIR_ROOT/codex-argv-10b.log"
+mkdir -p "$WORKTREE_PATH10B"
+cat > "$SHIM_DIR/codex" <<SHIM
+#!/bin/bash
+printf '%s\n' "\$#" "\$@" >> "$ARGV_LOG10B"
+exit 0
+SHIM
+chmod +x "$SHIM_DIR/codex"
+
+SHIM_SOCKET10B="lasagna_inner_shim10b_$$"
+PATH="$SHIM_DIR:$PATH" HOME="$CODEX_HOME" LASAGNA_TMUX_SOCKET="$SHIM_SOCKET10B" \
+    start_session \
+    --issue-key "$ISSUE_KEY10B" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH10B" \
+    --init-cmd "/idow" --prompt "Read HANDOFF.md first; it's yours & \$HOME stays" \
+    --agent-command codex --agent-args "--yolo" --agent-resume-args "" --agent-is-claude false \
+    2>/dev/null
+
+wait_for_file "$ARGV_LOG10B" || true
+ARGV10B=$(head -3 "$ARGV_LOG10B" 2>/dev/null | paste -sd'|' - || echo "")
+assert_eq "the prompt is one argument, as written, with no init command or key" \
+    "2|--yolo|Read HANDOFF.md first; it's yours & \$HOME stays" "$ARGV10B"
+
+tmux -L "$SHIM_SOCKET10B" kill-server 2>/dev/null || true
+
+# ==========================================================================
+
 # The agent profile's model/effort flags arrive rendered and quoted by
 # resolve-agent-config.sh. They must reach the agent as separate literal
 # arguments, ahead of codex's `resume` subcommand.

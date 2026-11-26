@@ -11,7 +11,11 @@ const helper = fileURLToPath(
 	new URL('../scripts/state-cli.sh', import.meta.url),
 );
 
-function pappardelleState(args: string[], home: string) {
+function pappardelleState(
+	args: string[],
+	home: string,
+	env: Record<string, string> = {},
+) {
 	return spawnSync(
 		'bash',
 		['-c', 'source "$0"; pappardelle_state "$@"', helper, ...args],
@@ -23,6 +27,7 @@ function pappardelleState(args: string[], home: string) {
 				PATH: process.env['PATH'],
 				TMUX_TMPDIR: process.env['TMUX_TMPDIR'],
 				HOME: home,
+				...env,
 			},
 		},
 	);
@@ -325,4 +330,42 @@ test('prepare-space --register without an owner records nothing', () => {
 		expect(testState({stateDir}).daos.spaceIdentities.get('STA-1').kind).toBe(
 			'unknown',
 		);
+});
+
+test("idow run for a work dir itself reads the work dir's top level, and puts its space in a ticket folder", () => {
+	const home = tempDir('papp-state-cli-');
+	const work = path.join(home, 'work');
+	fs.mkdirSync(path.join(work, '.lasagna'), {recursive: true});
+	fs.writeFileSync(
+		path.join(work, '.lasagna', 'workdir.yml'),
+		'version: 1\nteam_prefix: TOP\nprofiles:\n  t:\n    display_name: T\nrepos:\n  api:\n    team_prefix: API\n',
+	);
+	const merged = (env: Record<string, string>) =>
+		pappardelleState(
+			['merged-config', '--project-root', work, '--main-root', work],
+			home,
+			env,
+		);
+
+	// As a repo the directory has no config: it lists itself nowhere.
+	const asRepo = merged({});
+	expect(asRepo.status).toBe(1);
+	expect(asRepo.stderr).toContain('no config for this repo');
+
+	// As the work dir's own pseudo-repo, its top level is its config, and no
+	// repo's section is.
+	const own = merged({LASAGNA_WORKDIR_REPO: '@work'});
+	expect(own.status, `stderr: ${own.stderr}`).toBe(0);
+	expect(own.stdout).toBe(
+		'version: 1\nteam_prefix: TOP\nprofiles:\n  t:\n    display_name: T\n',
+	);
+
+	const worktree = pappardelleState(
+		['worktree-path', '--repo', '@work', 'B2B-5'],
+		home,
+	);
+	expect(worktree.status, `stderr: ${worktree.stderr}`).toBe(0);
+	expect(worktree.stdout.trim()).toBe(
+		path.join(home, '.lasagna', 'worktrees', '_tickets', 'B2B-5'),
+	);
 });

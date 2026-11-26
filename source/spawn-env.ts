@@ -1,3 +1,4 @@
+import {isWorkdirRepoName} from './repo-config-files.ts';
 import {bunForChildren, isStandalone} from './runtime.ts';
 import {MAIN_WORKTREE_KEY} from './space-utils.ts';
 
@@ -40,16 +41,23 @@ export function buildSpawnEnv(
  * with the repo's own environment.
  */
 export function idowSpawnOptions(
-	repo: {root: string; mainRoot: string; env: NodeJS.ProcessEnv},
+	repo: {root: string; mainRoot: string; env: NodeJS.ProcessEnv; name?: string},
 	registerSpace: boolean,
 ): {cwd: string; env: NodeJS.ProcessEnv} {
 	return {
 		cwd: repo.root,
-		env: buildSpawnEnv(repo.root, {
-			mainRepoRoot: repo.mainRoot,
-			registerSpace,
-			env: repo.env,
-		}),
+		env: {
+			...buildSpawnEnv(repo.root, {
+				mainRepoRoot: repo.mainRoot,
+				registerSpace,
+				env: repo.env,
+			}),
+			// A work dir is no checkout for idow to read a name off: its spaces
+			// (ticket spaces) are kept under the pseudo-repo named here.
+			...(repo.name !== undefined && isWorkdirRepoName(repo.name)
+				? {LASAGNA_WORKDIR_REPO: repo.name}
+				: {}),
+		},
 	};
 }
 

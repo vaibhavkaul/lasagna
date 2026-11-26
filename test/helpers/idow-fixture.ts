@@ -201,6 +201,7 @@ jq -n --arg worktree_path "$2" '{worktree_path: $worktree_path}'`,
 			extraEnv = {},
 			profile,
 			agentProfile,
+			worktreeOnly,
 			input,
 			cwd,
 		}: {
@@ -212,6 +213,8 @@ jq -n --arg worktree_path "$2" '{worktree_path: $worktree_path}'`,
 			extraEnv?: Record<string, string>;
 			profile?: string;
 			agentProfile?: string;
+			/** Make the worktree at this path and stop (`--worktree-only`). */
+			worktreeOnly?: string;
 			input?: string;
 		} = {}): Promise<string> {
 			const env = {...process.env};
@@ -231,6 +234,7 @@ jq -n --arg worktree_path "$2" '{worktree_path: $worktree_path}'`,
 						...(open ? ['--resume', '--open'] : []),
 						...(profile ? ['--profile', profile] : []),
 						...(agentProfile ? ['--agent-profile', agentProfile] : []),
+						...(worktreeOnly ? ['--worktree-only', worktreeOnly] : []),
 						...(input
 							? ['--profile', 'dev', input]
 							: ['--issue-key', 'test-abc']),

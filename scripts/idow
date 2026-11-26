@@ -4,7 +4,7 @@
 #
 # A command-line tool that sets up a development workspace.
 #
-# Usage: idow [--resume] [--open] [--profile <name>] [--agent-profile <name>] [--issue-key <key>] <input>
+# Usage: idow [--resume] [--open] [--profile <name>] [--agent-profile <name>] [--worktree-only <path>] [--issue-key <key>] <input>
 #   Input can be:
 #     - Issue key:   idow STA-123 | idow 123
 #     - Linear URL:  idow https://linear.app/stardust-labs/issue/STA-123
@@ -18,6 +18,16 @@
 #   5. Creates PR/MR (if new)
 #   6. Opens terminal with the agent (if --open)
 #   7. Opens profile-configured apps, links, and commands (if --open)
+#
+# --worktree-only <path> stops after step 4, with the worktree at <path>: a
+# ticket space keeps each repo's worktree in its ticket folder, set up with
+# that repo's own commands, and has one agent for all of them. The space is
+# not recorded and no session starts.
+#
+# For that agent idow runs once more, at the work dir's root, with
+# LASAGNA_WORKDIR_REPO naming the work dir's pseudo-repo (@<workdir>):
+# the space is the work dir's own, its "worktree" is the ticket folder, and
+# LASAGNA_AGENT_PROMPT, when set, is the agent's first prompt.
 
 set -e
 
@@ -131,7 +141,8 @@ fi
 # Handed to the workspace's tmux sessions so the hooks running inside them read
 # it instead of walking back out to the main checkout on every tool use.
 export LASAGNA_MAIN_REPO_ROOT="$MAIN_REPO_ROOT"
-REPO_NAME=$(basename "$MAIN_REPO_ROOT")
+# A work dir is no checkout, so its pseudo-repo's name is given, not derived.
+REPO_NAME="${LASAGNA_WORKDIR_REPO:-$(basename "$MAIN_REPO_ROOT")}"
 
 # Untracked project config may exist only in the main checkout, while a linked
 # worktree can carry its own local overrides. Resolve each file independently.
@@ -523,6 +534,17 @@ if [[ "$1" == "--agent-profile" ]]; then
     fi
 fi
 
+# Make the worktree at this path and stop: see the header.
+WORKTREE_ONLY=""
+if [[ "$1" == "--worktree-only" ]]; then
+    WORKTREE_ONLY="$2"
+    if [[ "$WORKTREE_ONLY" != /* ]]; then
+        echo "Error: --worktree-only needs an absolute path" >&2
+        exit 1
+    fi
+    shift 2
+fi
+
 # A beads ID is a content hash, so `myproj-a1b2` and the description `fix-crash`
 # are the same shape. Callers that already hold a resolved key say so rather than
 # leaving the detection below to guess.
@@ -812,8 +834,12 @@ var_is_set() {
 
 # Step 5: Create or find worktree
 print_step 5 "Setting up git worktree..."
-WORKTREE_PATH=$(pappardelle_state worktree-path --repo "$REPO_NAME" "$ISSUE_KEY" 2>"$STATE_CLI_ERRORS") ||
-    error "Could not look up the worktree of $ISSUE_KEY: $(cat "$STATE_CLI_ERRORS")"
+if [[ -n "$WORKTREE_ONLY" ]]; then
+    WORKTREE_PATH="$WORKTREE_ONLY"
+else
+    WORKTREE_PATH=$(pappardelle_state worktree-path --repo "$REPO_NAME" "$ISSUE_KEY" 2>"$STATE_CLI_ERRORS") ||
+        error "Could not look up the worktree of $ISSUE_KEY: $(cat "$STATE_CLI_ERRORS")"
+fi
 FRESH_WORKSPACE=false
 
 WORKTREE_CREATED=false
@@ -859,9 +885,12 @@ if [[ "$FRESH_WORKSPACE" == true ]]; then
     STATE_ARGS+=(--fresh)
 fi
 # The sessions are named and found through the stores, so a space they don't
-# know can't be started. There is nothing to undo yet.
-pappardelle_state prepare-space --repo "$REPO_NAME" "${STATE_ARGS[@]}" "$ISSUE_KEY" 2>"$STATE_CLI_ERRORS" ||
-    error "Could not record workspace $ISSUE_KEY: $(cat "$STATE_CLI_ERRORS")"
+# know can't be started. There is nothing to undo yet. A worktree made for a
+# ticket folder is no space of this repo: the ticket space records it.
+if [[ -z "$WORKTREE_ONLY" ]]; then
+    pappardelle_state prepare-space --repo "$REPO_NAME" "${STATE_ARGS[@]}" "$ISSUE_KEY" 2>"$STATE_CLI_ERRORS" ||
+        error "Could not record workspace $ISSUE_KEY: $(cat "$STATE_CLI_ERRORS")"
+fi
 
 if [[ "$WORKTREE_CREATED" == true ]]; then
     # Copy .pappardelle.local.yml to the new worktree (gitignored personal overrides)
@@ -897,6 +926,14 @@ if [[ "$WORKTREE_CREATED" == true ]]; then
     # post_worktree_init is the legacy name, used only when post_workspace_init is empty
     run_configured_commands '(.post_workspace_init | select(length > 0)) // .post_worktree_init' post_workspace_init 'post_workspace_init[%d]' || true
     run_configured_commands "(.profiles.$SELECTED_PROFILE.post_workspace_init | select(length > 0)) // .profiles.$SELECTED_PROFILE.post_worktree_init" "profile post_workspace_init" 'profile_post_init[%d]' || true
+fi
+
+if [[ -n "$WORKTREE_ONLY" ]]; then
+    echo ""
+    echo -e "${GREEN}Worktree of $REPO_NAME for $ISSUE_KEY is ready${NC}"
+    echo "Worktree:  $WORKTREE_PATH"
+    log "=== $SCRIPT_NAME completed (worktree only) ==="
+    exit 0
 fi
 
 # PR URLs are only needed when opening configured apps and links.
@@ -954,6 +991,11 @@ fi
 # One array for the resolved agent profile, appended to both start-agent-session.sh
 # and the terminal launchers below so the two launch paths can't drift.
 AGENT_FLAG_ARGS=(--agent-command "$AGENT_COMMAND" --agent-args "$AGENT_ARGS" --agent-resume-args "$AGENT_RESUME_ARGS" --agent-prompt-args "$AGENT_PROMPT_ARGS" --agent-is-claude "$AGENT_IS_CLAUDE" --agent-launch-flags "$AGENT_LAUNCH_FLAGS")
+# A ticket folder is no checkout, which most companions (a git UI) need: its
+# companion is a shell there, and the TUI adds a pane for each repo's worktree.
+if [[ -n "${LASAGNA_WORKDIR_REPO:-}" ]]; then
+    COMPANION_COMMAND=""
+fi
 SESSION_NAME_ARGS=(--agent-session "$AGENT_SESSION_NAME" --companion-session "$COMPANION_SESSION_NAME")
 # The terminal launchers attach to the session start-agent-session.sh made,
 # where tmux ignores -e, so only it gets the agent profile's env.
@@ -962,6 +1004,9 @@ AGENT_SESSION_ARGS=(--issue-key "$ISSUE_KEY" --repo-name "$REPO_NAME" --worktree
 # to resume rather than being handed the issue key as a prompt.
 if [[ "$RESUME_MODE" == true ]]; then
     AGENT_SESSION_ARGS+=(--no-prompt)
+elif [[ -n "${LASAGNA_AGENT_PROMPT:-}" ]]; then
+    # A lead agent taking over from a plain space's agent starts on its handoff.
+    AGENT_SESSION_ARGS+=(--prompt "$LASAGNA_AGENT_PROMPT")
 elif [[ -n "$INIT_CMD" ]]; then
     AGENT_SESSION_ARGS+=(--init-cmd "$INIT_CMD")
 fi

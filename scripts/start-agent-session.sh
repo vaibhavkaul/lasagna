@@ -2,7 +2,7 @@
 
 # start-agent-session.sh - Ensure agent and companion tmux sessions exist for an issue
 #
-# Usage: start-agent-session.sh --issue-key <KEY> --repo-name <NAME> --worktree <PATH> --agent-session <NAME> --companion-session <NAME> --legacy-agent-session <NAME> [--init-cmd <CMD>] [--no-prompt] [--companion-command <CMD>] [--no-agent] [--skip-permissions] [--agent-command <CMD>] [--agent-args <ARGS>] [--agent-resume-args <ARGS>] [--agent-prompt-args <TEMPLATE>] [--agent-is-claude <true|false>] [--agent-launch-flags <FLAGS>] [--agent-env <NAME=VALUE>]...
+# Usage: start-agent-session.sh --issue-key <KEY> --repo-name <NAME> --worktree <PATH> --agent-session <NAME> --companion-session <NAME> --legacy-agent-session <NAME> [--init-cmd <CMD>] [--prompt <TEXT>] [--no-prompt] [--companion-command <CMD>] [--no-agent] [--skip-permissions] [--agent-command <CMD>] [--agent-args <ARGS>] [--agent-resume-args <ARGS>] [--agent-prompt-args <TEMPLATE>] [--agent-is-claude <true|false>] [--agent-launch-flags <FLAGS>] [--agent-env <NAME=VALUE>]...
 #
 # Creates detached tmux sessions with the names `lasagna space get` reports
 # for the space:
@@ -21,6 +21,9 @@
 # --no-prompt: launch the agent without a prompt (idow's resume mode), so a
 #              fresh launch after a failed or skipped resume starts idle.
 #              Without it the prompt is "<init-cmd> <KEY>", or the key alone.
+# --prompt: the agent's first prompt, in place of "<init-cmd> <KEY>". A lead
+#           agent that takes over a ticket starts on its handoff, which a
+#           resumed conversation is given too.
 # --agent-prompt-args: how the prompt reaches the agent, with {prompt} standing
 #                     in for it once (agy's "-i {prompt}"). Empty means the
 #                     prompt is the last bare argument.
@@ -61,6 +64,7 @@ AGENT_SESSION=""
 COMPANION_SESSION=""
 LEGACY_AGENT_SESSION=""
 INIT_CMD=""
+PROMPT=""
 NO_AGENT=false
 SKIP_PERMISSIONS=false
 AGENT_COMMAND=""
@@ -105,6 +109,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --init-cmd)
             INIT_CMD="$2"
+            shift 2
+            ;;
+        --prompt)
+            PROMPT="$2"
             shift 2
             ;;
         --companion-command)
@@ -349,7 +357,9 @@ if ! tmux "${TMUX_SOCKET_ARGS[@]}" has-session -t "=$AGENT_SESSION:" 2>/dev/null
         # quoting the replacement behaves differently in bash 3.2.
         PROMPT_WORDS=""
         if [[ "$NO_PROMPT" != true ]]; then
-            if [[ -n "$INIT_CMD" ]]; then
+            if [[ -n "$PROMPT" ]]; then
+                AGENT_ARG="$PROMPT"
+            elif [[ -n "$INIT_CMD" ]]; then
                 AGENT_ARG="${INIT_CMD} ${ISSUE_KEY}"
             else
                 AGENT_ARG="${ISSUE_KEY}"
@@ -362,7 +372,7 @@ if ! tmux "${TMUX_SOCKET_ARGS[@]}" has-session -t "=$AGENT_SESSION:" 2>/dev/null
         LAUNCH_CMD="${AGENT_CMD}${PROMPT_WORDS:+ $PROMPT_WORDS}"
         if [[ -n "$AGENT_RESUME_ARGS" ]]; then
             RESUME_CMD="${AGENT_CMD} ${AGENT_RESUME_ARGS}"
-            if [[ -n "$INIT_CMD" ]]; then
+            if [[ -n "$INIT_CMD" || -n "$PROMPT" ]]; then
                 RESUME_CMD="${RESUME_CMD}${PROMPT_WORDS:+ $PROMPT_WORDS}"
             fi
             new_launch_session "$AGENT_SESSION" "${RESUME_CMD} || { printf '\\033[A\\033[2K'; false; } || ${LAUNCH_CMD}" "${AGENT_SESSION_ENV[@]}"

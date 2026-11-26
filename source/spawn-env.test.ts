@@ -1,5 +1,9 @@
 import {test, expect} from 'bun:test';
-import {buildSessionEnvArgs, buildSpawnEnv} from './spawn-env.ts';
+import {
+	buildSessionEnvArgs,
+	buildSpawnEnv,
+	idowSpawnOptions,
+} from './spawn-env.ts';
 import {MAIN_WORKTREE_KEY} from './space-utils.ts';
 
 test('buildSpawnEnv includes LASAGNA_PROJECT_ROOT', () => {
@@ -100,4 +104,23 @@ test('buildSessionEnvArgs does not name the main space', () => {
 		'-e',
 		'LASAGNA_REPO=repo',
 	]);
+});
+
+test("idow run for a work dir itself is told the pseudo-repo's name, which no checkout gives it", () => {
+	const repo = {root: '/code/api', mainRoot: '/code/api', env: {A: '1'}};
+	const forRepo = idowSpawnOptions({...repo, name: 'api'}, false);
+	expect(forRepo.cwd).toBe('/code/api');
+	expect(forRepo.env['A']).toBe('1');
+	expect(forRepo.env['LASAGNA_MAIN_REPO_ROOT']).toBe('/code/api');
+	expect('LASAGNA_WORKDIR_REPO' in forRepo.env).toBe(false);
+	expect('LASAGNA_WORKDIR_REPO' in idowSpawnOptions(repo, false).env).toBe(
+		false,
+	);
+
+	const forWorkdir = idowSpawnOptions(
+		{root: '/code', mainRoot: '/code', env: {}, name: '@code'},
+		true,
+	);
+	expect(forWorkdir.env['LASAGNA_WORKDIR_REPO']).toBe('@code');
+	expect(forWorkdir.env['LASAGNA_REGISTER_SPACE']).toBe('1');
 });
