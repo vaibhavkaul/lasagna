@@ -177,6 +177,9 @@ async function withTimeout<T>(
 	}
 }
 
+/** What a repo that never had a space reports: its registry was never written. */
+export const NO_SPACES_FILE = 'No open spaces file found';
+
 export async function gatherSpaces(deps: SpacesDeps): Promise<SpacesReport> {
 	const {repoName, home} = deps;
 	const now = deps.now ?? Date.now();
@@ -192,7 +195,7 @@ export async function gatherSpaces(deps: SpacesDeps): Promise<SpacesReport> {
 		};
 	}
 
-	if (!keys) return {error: 'No open spaces file found', spaces: []};
+	if (!keys) return {error: NO_SPACES_FILE, spaces: []};
 
 	const identities = new Map<string, SpaceIdentity>();
 	for (const key of keys) {

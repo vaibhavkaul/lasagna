@@ -121,6 +121,9 @@ jobs:
       - name: Verify the rail's boxes and row layout
         run: bun integration-tests/verify-rail-boxes.ts
 
+      - name: Verify the rail of a work dir with two repos
+        run: bun integration-tests/verify-workdir-rail.ts
+
   tmux-floor:
     name: Program status on tmux 3.4 (sqliteState ${{ matrix.sqlite_state }})
     strategy:

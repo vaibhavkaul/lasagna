@@ -48,7 +48,11 @@ import {
 	getTeamPrefix,
 	getProfileTeamPrefix,
 	validateHomeOnlySqliteState,
+	repoRootsAt,
+	setDefaultRepo,
+	workdirRepoRoots,
 } from './config.ts';
+import {workdirMode} from './workdir-mode.ts';
 import {
 	formatConfigErrors,
 	ConfigNotFoundError,
@@ -127,9 +131,47 @@ if (gate.action === 'reject') {
 	process.exit(2);
 }
 
-// Before anything reads the repo the process was started in: a space named
-// with its repo (`repo:KEY`) points the process at that repo, and a command
-// run at a work dir's root is about the work dir.
+function workdirModeOfProcess(): ReturnType<typeof workdirMode> {
+	let cwd: string;
+	try {
+		cwd = process.cwd();
+	} catch {
+		// A working directory that is gone is in no work dir.
+		return {kind: 'repo'};
+	}
+
+	return workdirMode(process.argv.slice(2), {
+		cwd,
+		env: process.env,
+		checkoutAt(directory) {
+			try {
+				return repoRootsAt(directory);
+			} catch {
+				return undefined;
+			}
+		},
+	});
+}
+
+// Before anything reads the repo the process was started in. A TUI started
+// for a work dir is about the work dir's own pseudo-repo, wherever in the
+// work dir it was started.
+{
+	const mode = workdirModeOfProcess();
+	if (mode.kind === 'error') {
+		console.error(mode.message);
+		process.exit(1);
+	}
+
+	if (mode.kind === 'workdir') {
+		setDefaultRepo(workdirRepoRoots(mode.root));
+		process.chdir(mode.root);
+		process.argv.splice(2, process.argv.length, ...mode.argv);
+	}
+}
+
+// A space named with its repo (`repo:KEY`) points the process at that repo,
+// and a command run at a work dir's root is about the work dir.
 process.argv.splice(
 	2,
 	process.argv.length,
@@ -488,6 +530,20 @@ if (cli.input[0] === 'close') {
 }
 
 if (cli.input[0] === 'spaces') {
+	// At a work dir's root the board is every repo's, each space by repo:KEY.
+	if (isWorkdirRepoName(repoName)) {
+		const {runWorkdirSpacesCommand} = await import('./workdir-spaces.ts');
+		await exitAfterFlush(
+			await runWorkdirSpacesCommand({
+				root: getRepoRoot(),
+				own: {repoName, daos},
+				home: homedir(),
+				json: cli.flags.json ?? false,
+				out: text => console.log(text),
+			}),
+		);
+	}
+
 	const {runSpacesCommand} = await import('./spaces-command.ts');
 	await exitAfterFlush(
 		await runSpacesCommand({
@@ -697,6 +753,27 @@ if (!isInTmux() && cli.flags.layout) {
 	);
 }
 
+// From here the process is the TUI. One started for a work dir shows every
+// repo the work dir lists, over one set of stores keyed by `repo:KEY`.
+async function startOwnWorkdir() {
+	const {startWorkdir} = await import('./workdir-runtime.ts');
+	return startWorkdir(getRepoRoot(), {repoName, daos});
+}
+
+const workdir = isWorkdirRepoName(repoName)
+	? await startOwnWorkdir()
+	: undefined;
+const tuiDaos = workdir?.daos ?? daos;
+type TuiRepo = {repoName: string; mainRoot: () => string; daos: StateDaos};
+/** The repos whose sessions this TUI looks after: its own, or its work dir's. */
+const tuiRepos: TuiRepo[] = workdir
+	? workdir.all.map(repo => ({
+			repoName: repo.name,
+			mainRoot: () => repo.context.mainRoot,
+			daos: repo.daos,
+		}))
+	: [{repoName, mainRoot: getMainRepoRoot, daos}];
+
 // Set up tmux layout if in tmux and not disabled
 let paneLayout: PaneLayout | null = null;
 
@@ -707,7 +784,9 @@ async function maintainSessions() {
 	// the inner socket on demand. Runs every startup (fast no-op once drained);
 	// the phrasing used to say "one-time migration" but the call is unconditional.
 	const cleanupDone = startupTrace.current?.begin('outer-cleanup');
-	const killed = cleanupOrphanedOuterSessions();
+	let killed = 0;
+	for (const repo of tuiRepos)
+		killed += cleanupOrphanedOuterSessions(repo.repoName);
 	cleanupDone?.();
 	if (killed > 0) {
 		console.error(
@@ -721,7 +800,8 @@ async function maintainSessions() {
 	// Each rename is logged at info; stderr would list them as TUI errors.
 	const migrationDone = startupTrace.current?.begin('legacy-migration');
 	const innerTmux = sharedSessionListingRunner();
-	migrateLegacyAgentSessions(undefined, innerTmux);
+	for (const repo of tuiRepos)
+		migrateLegacyAgentSessions(repo.repoName, innerTmux);
 	migrationDone?.();
 
 	// STA-1420: also reap inner-socket orphans whose key isn't in the registry
@@ -731,12 +811,31 @@ async function maintainSessions() {
 	// above; without it, dead `agent-pappa-STA-*` sessions linger forever now
 	// that STA-1416 removed seedFromTmux.
 	const reapingDone = startupTrace.current?.begin('inner-reaping');
+	let innerReaped = 0;
+	for (const repo of tuiRepos)
+		innerReaped += await reapRepoSessions(repo, innerTmux);
+	reapingDone?.();
+	if (innerReaped > 0) {
+		console.error(
+			`\x1b[33mLasagna: reaped ${innerReaped} orphaned inner-socket session(s).\x1b[0m`,
+		);
+	}
+}
+
+/**
+ * Record one repo's main space, settle its unfinished spaces and reap its
+ * sessions that no space owns. Returns how many were reaped.
+ */
+async function reapRepoSessions(
+	{repoName, mainRoot, daos}: TuiRepo,
+	innerTmux: ReturnType<typeof sharedSessionListingRunner>,
+): Promise<number> {
 	// The reap below keeps only the sessions of spaces with an identity.
 	await daos.spaceIdentities
 		.moveMain(
 			mainIdentity({
 				repo: repoName,
-				mainRoot: getMainRepoRoot(),
+				mainRoot: mainRoot(),
 				env: process.env,
 			}),
 		)
@@ -769,29 +868,21 @@ async function maintainSessions() {
 	if (owned.kind === 'unreadable') {
 		// An unreadable registry is not an empty one: reaping against it
 		// would kill every session of every open space.
-		reapingDone?.();
 		createLogger('cli').warn(
 			'Skipped the inner-socket reap: the spaces or their names could not be read',
 			owned.error instanceof Error ? owned.error : undefined,
 		);
-		return;
+		return 0;
 	}
 
 	if (owned.kind === 'missing') {
-		reapingDone?.();
 		createLogger('cli').warn(
 			`Skipped the inner-socket reap: no stored session names for ${owned.keys.join(', ')}`,
 		);
-		return;
+		return 0;
 	}
 
-	const innerReaped = cleanupOrphanedInnerSessions(owned, undefined, innerTmux);
-	reapingDone?.();
-	if (innerReaped > 0) {
-		console.error(
-			`\x1b[33mLasagna: reaped ${innerReaped} orphaned inner-socket session(s).\x1b[0m`,
-		);
-	}
+	return cleanupOrphanedInnerSessions(owned, repoName, innerTmux);
 }
 let finishFirstRailPaint: () => void;
 const firstRailPaint = new Promise<void>(resolve => {
@@ -808,9 +899,10 @@ function startWorkspaceReads() {
 }
 
 // From here this process renders the TUI. The CLI verbs above exit first.
-daos.deferCheckpoints();
-daos.allowStatusDaemonStart();
-const initialWorkspaces = startWorkspaceReads();
+tuiDaos.deferCheckpoints();
+tuiDaos.allowStatusDaemonStart();
+// A work dir's rail reads each repo's spaces itself, once it is up.
+const initialWorkspaces = workdir ? undefined : startWorkspaceReads();
 
 // tmux splits the panes while the renderer's modules load below.
 let layoutSetup: ReturnType<typeof setupPappardellLayout> | undefined;
@@ -896,13 +988,24 @@ function finishStartup() {
 	// workspace attaches would hold that up.
 	setTimeout(() => {
 		void import('./supervise-runtime.ts').then(async ({rearmSchedules}) => {
-			await rearmSchedules(daos.schedules);
+			if (!workdir) {
+				await rearmSchedules(daos.schedules);
+				return;
+			}
+
+			// Each repo's wake-ups are armed for that repo.
+			for (const repo of workdir.all)
+				await rearmSchedules(repo.daos.schedules, {
+					name: repo.name,
+					mainRoot: repo.context.mainRoot,
+				});
 		});
 	}, REARM_SCHEDULES_DELAY_MS);
 }
 const app = () => (
 	<App
-		daos={daos}
+		daos={tuiDaos}
+		workdir={workdir}
 		paneLayout={paneLayout}
 		{...metadata}
 		updateCheckPromise={updateCheckPromise}

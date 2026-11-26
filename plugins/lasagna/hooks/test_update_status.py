@@ -109,6 +109,18 @@ class TestGetWorkspaceName:
         ):
             assert get_workspace_name() == "unknown"
 
+    def test_work_dir_root_reports_as_its_pseudo_repos_main_space(self, monkeypatch, tmp_path):
+        # The root main space's session runs at the work dir's root, which is
+        # no checkout: git has no branch to give.
+        monkeypatch.setenv("LASAGNA_REPO", "@taptapsend")
+        monkeypatch.delenv("LASAGNA_SPACE", raising=False)
+        assert get_workspace_name(str(tmp_path)) == "@taptapsend-main"
+
+    def test_a_directory_in_no_checkout_stays_unknown_without_a_work_dir(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("LASAGNA_REPO", "some-repo")
+        monkeypatch.delenv("LASAGNA_SPACE", raising=False)
+        assert get_workspace_name(str(tmp_path)) == "unknown"
+
     def test_detects_main_worktree_via_git_branch(self):
         """When in main worktree (no issue key in path), should use repo-qualified name."""
 

@@ -165,6 +165,11 @@ def get_workspace_name(cwd: Optional[str] = None) -> Optional[str]:
     except Exception:
         pass
 
+    # A work dir's root main space: its session carries the pseudo-repo
+    # @<workdir>, and the work dir is no checkout to ask for a branch.
+    if repo.startswith("@"):
+        return _qualify(repo, "main")
+
     return "unknown"
 
 

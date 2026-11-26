@@ -440,6 +440,38 @@ Press `z` on a workspace and your phone buzzes with a notification — tap it an
 
 Pappardelle is designed for single-repo workflows, but (experimentally) you can extend it to orchestrate changes across multiple repositories using a parent (pappa) repo.
 
+### A work dir: every repo on one rail
+
+A work dir is a directory that holds several repos and a `.lasagna/workdir.yml` listing them. Its top level is config for every repo in it, and each entry under `repos:` is one repo's own:
+
+```yaml
+version: 1
+issue_tracker:
+  provider: jira
+  base_url: https://example.atlassian.net
+profiles:
+  work:
+    display_name: Work
+repos:
+  api-server:
+    team_prefix: API
+  web-app:
+    team_prefix: WEB
+  docs:
+    path: sites/docs # where the checkout is, when not <work dir>/<name>
+```
+
+Start `lasagna` at the work dir's root (or anywhere in it outside its configured repos, or from anywhere with `--workdir <dir>`) and one rail shows all of it, in a tmux session named `lasagna-wd-<work dir>`:
+
+- The work dir's own main space leads the rail. Its agent runs at the work dir's root, and its state is kept under `@<work dir>`.
+- Each repo's main space sits under a `repos` header, which `r` folds.
+- Every repo's spaces follow, grouped by repo. `t` groups them by ticket instead, so a ticket with a space in two repos reads as one. Each row carries a short tag for its repo.
+- `n` asks which repo the new space is made in, then opens the usual dialog with that repo's profiles.
+
+Started inside a configured repo, Lasagna shows that repo alone, as before. Issue watchlists are not polled on a work dir's rail.
+
+Where a command takes a space, `repo:KEY` names one in another repo of the work dir: `lasagna send web-app:WEB-30 "rebase on main"`. A bare key is the repo the command runs in when that repo has the space, else the one repo that does. The work dir's own main space is `@<work dir>:main`.
+
 ### The setup
 
 Create a parent repository that serves as the orchestration hub:
