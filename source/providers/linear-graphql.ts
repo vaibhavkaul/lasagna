@@ -255,9 +255,10 @@ export function makeLinearGraphQLClient(
  * on its CLI path. Callers that want test-time isolation should construct a
  * client directly via `makeLinearGraphQLClient` instead.
  */
-export function createDefaultLinearGraphQLClient():
-	LinearGraphQLClient | undefined {
-	const apiKey = resolveApiKey();
+export function createDefaultLinearGraphQLClient(
+	env: NodeJS.ProcessEnv = process.env,
+): LinearGraphQLClient | undefined {
+	const apiKey = resolveApiKey(env);
 	if (!apiKey) {
 		log.debug(
 			`No LINCTL_API_KEY env var and no ${LINCTL_AUTH_PATH} — bulk Linear fetch disabled, will use linctl CLI.`,

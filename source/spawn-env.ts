@@ -12,19 +12,45 @@ import {MAIN_WORKTREE_KEY} from './space-utils.ts';
  * `registerSpace` is whether the caller's registry records a space while it
  * is being set up (`SpaceRegistryDao.keepsLifecycle`). Where it does, idow
  * records the space before it starts any session.
+ *
+ * `env` is the repo's own environment (`RepoContext.env`): the process's,
+ * with the repo's `.envrc` filling what isn't set. It defaults to the
+ * process's alone.
  */
 export function buildSpawnEnv(
 	repoRoot: string,
-	options: {mainRepoRoot?: string; registerSpace: boolean},
+	options: {
+		mainRepoRoot?: string;
+		registerSpace: boolean;
+		env?: NodeJS.ProcessEnv;
+	},
 ): NodeJS.ProcessEnv {
 	const {mainRepoRoot, registerSpace} = options;
 	return {
-		...process.env,
+		...(options.env ?? process.env),
 		LASAGNA_BUN: bunForChildren(),
 		LASAGNA_EXECUTABLE: isStandalone ? process.execPath : undefined,
 		LASAGNA_PROJECT_ROOT: repoRoot,
 		LASAGNA_REGISTER_SPACE: registerSpace ? '1' : undefined,
 		...(mainRepoRoot ? {LASAGNA_MAIN_REPO_ROOT: mainRepoRoot} : {}),
+	};
+}
+
+/**
+ * Where idow runs for a repo, and with what: in the repo's working tree,
+ * with the repo's own environment.
+ */
+export function idowSpawnOptions(
+	repo: {root: string; mainRoot: string; env: NodeJS.ProcessEnv},
+	registerSpace: boolean,
+): {cwd: string; env: NodeJS.ProcessEnv} {
+	return {
+		cwd: repo.root,
+		env: buildSpawnEnv(repo.root, {
+			mainRepoRoot: repo.mainRoot,
+			registerSpace,
+			env: repo.env,
+		}),
 	};
 }
 

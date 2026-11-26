@@ -225,6 +225,8 @@ export class BeadsProvider implements IssueTrackerProvider {
 		sleepFn?: SleepFn,
 		stateColorCache?: StateColorCache,
 		resolveCwd?: () => string,
+		/** The repo's environment, which every `bd` call runs in. */
+		private readonly env: NodeJS.ProcessEnv = process.env,
 	) {
 		this.execCli =
 			execCli ??
@@ -250,7 +252,7 @@ export class BeadsProvider implements IssueTrackerProvider {
 			encoding: 'utf-8',
 			timeout,
 			cwd: this.resolveCwd(),
-			env: {...process.env, BD_JSON_ENVELOPE: '1'},
+			env: {...this.env, BD_JSON_ENVELOPE: '1'},
 		});
 	}
 
@@ -703,7 +705,7 @@ export class BeadsProvider implements IssueTrackerProvider {
 	}
 
 	private async resolveCurrentUser(): Promise<string | undefined> {
-		const fromEnv = process.env['BEADS_ACTOR']?.trim();
+		const fromEnv = this.env['BEADS_ACTOR']?.trim();
 		if (fromEnv) return fromEnv;
 
 		try {
@@ -711,7 +713,7 @@ export class BeadsProvider implements IssueTrackerProvider {
 				encoding: 'utf-8',
 				timeout: 5000,
 				cwd: this.resolveCwd(),
-				env: process.env,
+				env: this.env,
 			});
 			const name = gitName.trim();
 			if (name) return name;
@@ -719,6 +721,6 @@ export class BeadsProvider implements IssueTrackerProvider {
 			// No git identity configured, or git is unavailable — fall through.
 		}
 
-		return process.env['USER'] ?? process.env['LOGNAME'] ?? undefined;
+		return this.env['USER'] ?? this.env['LOGNAME'] ?? undefined;
 	}
 }
