@@ -77,6 +77,11 @@ export type RepoField = {
 	 */
 	choicesFor: (input: string) => RepoChoices;
 	contextOf: (name: string) => DialogRepo | undefined;
+	/**
+	 * What a space made in more than one repo is configured by: the work dir
+	 * itself, whose lead agent it is. Without it, the first repo picked.
+	 */
+	ticket?: DialogRepo;
 };
 
 interface Props {
@@ -152,7 +157,8 @@ export default function PromptDialog({
 		repos
 			? names[0] === undefined
 				? undefined
-				: repos.contextOf(names[0])
+				: ((names.length > 1 ? repos.ticket : undefined) ??
+					repos.contextOf(names[0]))
 			: fixedRepo;
 	// The repo whose tracker lists the ready work: the one typed text or a pick
 	// names. A highlighted row does not move it, or the list would change
@@ -684,9 +690,11 @@ export default function PromptDialog({
 				title={
 					chosenRepos.length > 1
 						? `+ New Ticket Space in ${chosenRepos.join(' + ')}`
-						: repo
-							? `+ New Session in ${repo.name}`
-							: '+ New Session'
+						: leadRepo !== undefined && repos
+							? `+ New Session in ${leadRepo}`
+							: repo
+								? `+ New Session in ${repo.name}`
+								: '+ New Session'
 				}
 				borderColor="green"
 				titleColor="greenBright"

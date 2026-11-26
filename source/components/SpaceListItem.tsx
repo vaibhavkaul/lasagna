@@ -1,4 +1,4 @@
-import {memo} from 'react';
+import {Fragment, memo} from 'react';
 import type {MouseEvent} from '@opentui/core';
 
 import type {PipelineStatus, SpaceData} from '../types.ts';
@@ -106,11 +106,33 @@ function SpaceListItem({
 	// Conflict indicator only meaningful when there's an open PR (pipeline !== null).
 	const hasConflict =
 		pipeline === null ? false : (space.railStatus?.hasConflict ?? false);
-	const pipelineToken = pipeline
-		? pipeline === 'progressing_dirty'
-			? '◐◑'
-			: PIPELINE_SINGLE[pipeline].icon
-		: '';
+	const pipelineIcon = (status: PipelineStatus) =>
+		status === 'progressing_dirty' ? '◐◑' : PIPELINE_SINGLE[status].icon;
+	// A ticket space has a PR in each of its repos: each one's pipeline, behind
+	// its repo's tag, in place of one icon for all of them.
+	const repoPipelines =
+		pipeline === null
+			? []
+			: (space.railStatus?.repos ?? []).flatMap(({repo, status}) =>
+					status.pipeline === null
+						? []
+						: [
+								{
+									tag:
+										space.ticketRepos?.find(each => each.name === repo)?.tag ??
+										repo,
+									pipeline: status.pipeline,
+								},
+							],
+				);
+	const pipelineToken =
+		repoPipelines.length > 0
+			? repoPipelines
+					.map(each => `${each.tag}${pipelineIcon(each.pipeline)}`)
+					.join(' ')
+			: pipeline
+				? pipelineIcon(pipeline)
+				: '';
 	const prefixCells = railPrefixWidth({
 		pipelineIcon: pipelineToken,
 		commentCount,
@@ -277,7 +299,29 @@ function SpaceListItem({
 					<span {...paint({fg: 'red', bold: true})}>↯</span>
 				</>
 			) : null}
-			{pipeline === 'progressing_dirty' ? (
+			{repoPipelines.length > 0 ? (
+				repoPipelines.map(each => (
+					<Fragment key={each.tag}>
+						<span {...gap}> </span>
+						<span {...paint({dim: true})}>{each.tag}</span>
+						{each.pipeline === 'progressing_dirty' ? (
+							<>
+								<span {...paint({fg: 'yellow', bold: true})}>◐</span>
+								<span {...paint({fg: 'red', bold: true})}>◑</span>
+							</>
+						) : (
+							<span
+								{...paint({
+									fg: PIPELINE_SINGLE[each.pipeline].color,
+									bold: true,
+								})}
+							>
+								{PIPELINE_SINGLE[each.pipeline].icon}
+							</span>
+						)}
+					</Fragment>
+				))
+			) : pipeline === 'progressing_dirty' ? (
 				<>
 					<span {...gap}> </span>
 					<span {...paint({fg: 'yellow', bold: true})}>◐</span>

@@ -56,11 +56,20 @@ function repo(
 function setup(
 	repos: WorkdirRepo[],
 	overrides: Partial<WorkdirRefreshDeps> = {},
+	/** The repos of each ticket space, by its name. */
+	tickets: Record<string, string[]> = {},
 ) {
 	const [own, ...listed] = repos;
-	const runtime: Pick<WorkdirRuntime, 'all' | 'repos'> = {
+	const runtime: Pick<WorkdirRuntime, 'all' | 'repos'> &
+		Pick<WorkdirRuntime, 'ticketMembers' | 'repo'> = {
 		all: repos,
 		repos: listed,
+		repo: name => repos.find(each => each.name === name),
+		ticketMembers: name =>
+			tickets[name]?.map(member => ({
+				repo: repos.find(each => each.name === member)!.context,
+				worktreePath: `/tickets/${member}`,
+			})),
 	};
 	let spaces: SpaceData[] = [];
 	let loaded = 0;
@@ -308,4 +317,45 @@ test('the rail is told it is loaded once every repo has listed its spaces', asyn
 	expect(h.loaded).toBe(0);
 	await h.settle();
 	expect(h.loaded).toBeGreaterThan(0);
+});
+
+test('a ticket space carries the repos it holds and all of their tags', async () => {
+	const tickets: Record<string, string[]> = {'@work:B2B-5': ['web', 'api']};
+	const h = setup(
+		[
+			repo('@work', ['B2B-5'], {isWorkdir: true, tag: ''}),
+			repo('api', ['STA-1']),
+			repo('web', []),
+		],
+		{},
+		tickets,
+	);
+	await h.settle();
+	const ticket = h.spaces.find(each => each.name === '@work:B2B-5')!;
+	expect(ticket.repo).toBe('@work');
+	expect(ticket.key).toBe('B2B-5');
+	// In the ticket's own order, which is the order its repos were added.
+	expect(ticket.ticketRepos).toEqual([
+		{name: 'web', tag: 'we'},
+		{name: 'api', tag: 'ap'},
+	]);
+	expect(ticket.repoTag).toBe('we+ap');
+	// The work dir's main space is no ticket, and a repo's space has one tag.
+	expect(h.spaces[0]?.ticketRepos).toBeUndefined();
+	expect(
+		h.spaces.find(each => each.name === 'api:STA-1')?.ticketRepos,
+	).toBeUndefined();
+
+	// A repo added since shows at the next listing, though nothing else changed.
+	tickets['@work:B2B-5'] = ['web', 'api'];
+	await h.settle();
+	expect(h.spaces.find(each => each.name === '@work:B2B-5')).toBe(ticket);
+	const web = h.spaces.find(each => each.repo === 'web');
+	tickets['@work:B2B-5'] = ['web'];
+	await h.settle();
+	const shrunk = h.spaces.find(each => each.name === '@work:B2B-5')!;
+	expect(shrunk.repoTag).toBe('we');
+	expect(shrunk.ticketRepos).toEqual([{name: 'web', tag: 'we'}]);
+	// The other repos' spaces are the objects they were.
+	expect(h.spaces.find(each => each.repo === 'web')).toBe(web);
 });

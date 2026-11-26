@@ -19,6 +19,8 @@ type Props = {
 	initialTicked?: readonly string[];
 	/** The prefix of the issue key the suggested rows are for. */
 	prefix?: string;
+	/** What the list is for, when not a new space. */
+	title?: string;
 	/** Rows available to the dialog. */
 	availableHeight?: number;
 	/** One repo for a plain space, several for a ticket space. */
@@ -39,6 +41,7 @@ export default function RepoPicker({
 	initialIndex,
 	initialTicked,
 	prefix,
+	title,
 	availableHeight,
 	onPick,
 	onCancel,
@@ -99,7 +102,10 @@ export default function RepoPicker({
 	);
 	return (
 		<TitledBox
-			title={ticked.size > 1 ? '+ New Ticket Space in' : '+ New Session in'}
+			title={
+				title ??
+				(ticked.size > 1 ? '+ New Ticket Space in' : '+ New Session in')
+			}
 			borderColor="green"
 			titleColor="greenBright"
 		>

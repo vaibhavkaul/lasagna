@@ -11,6 +11,7 @@ import {
 	buildWorkdirRailRows,
 	isRepoMainSpace,
 	isRootMainSpace,
+	isTicketSpace,
 	nextWorkdirGrouping,
 	workdirRowLabel,
 } from './workdir-rail.ts';
@@ -226,4 +227,74 @@ test('a row is called by its key, a repo\u2019s main space by the repo, the root
 test('the grouping key flips between repo and ticket', () => {
 	expect(nextWorkdirGrouping('repo')).toBe('ticket');
 	expect(nextWorkdirGrouping('ticket')).toBe('repo');
+});
+
+const ticket = space('@work', 'B2B-12', {
+	repoTag: 'ap+we',
+	ticketRepos: [
+		{name: 'api', tag: 'ap'},
+		{name: 'web', tag: 'we'},
+	],
+});
+
+test('a ticket space is the work dir\u2019s own space that is not its main one', () => {
+	expect(isTicketSpace(ticket)).toBe(true);
+	expect(isTicketSpace(rootMain)).toBe(false);
+	expect(isTicketSpace(apiMain)).toBe(false);
+	expect(isTicketSpace(space('api', 'B2B-12'))).toBe(false);
+	expect(workdirRowLabel(ticket, undefined)).toBe('B2B-12');
+});
+
+test('grouped by repo, ticket spaces lead under a header of their own', () => {
+	// The refresh lists the work dir's own spaces first.
+	const displaySpaces = [rootMain, ticket, ...twoRepos.slice(1)];
+	expect(shape(rows({displaySpaces}))).toEqual([
+		'  @work:main',
+		'# repos (2) [open]',
+		'  api:main',
+		'  web:main',
+		'# tickets (1)',
+		'  @work:B2B-12',
+		'# api (2)',
+		'  api:B2B-12',
+		'  api:API-7',
+		'# web (2)',
+		'  web:B2B-12',
+		'  web:WEB-30',
+	]);
+});
+
+test('grouped by ticket, a ticket space sits under its key like any space', () => {
+	const displaySpaces = [
+		rootMain,
+		ticket,
+		apiMain,
+		space('api', 'API-7'),
+		webMain,
+	];
+	expect(shape(rows({displaySpaces, grouping: 'ticket'}))).toEqual([
+		'  @work:main',
+		'# repos (2) [open]',
+		'  api:main',
+		'  web:main',
+		'# B2B-12 (1)',
+		'  @work:B2B-12',
+		'# API-7 (1)',
+		'  api:API-7',
+	]);
+});
+
+test('a ticket space being made leads its header as a pending row', () => {
+	const pending = space('@work', 'B2B-40', {isPending: true});
+	expect(
+		shape(rows({displaySpaces: [rootMain, pending, ticket, apiMain, webMain]})),
+	).toEqual([
+		'  @work:main',
+		'# repos (2) [open]',
+		'  api:main',
+		'  web:main',
+		'# tickets (2)',
+		'~ @work:B2B-40',
+		'  @work:B2B-12',
+	]);
 });

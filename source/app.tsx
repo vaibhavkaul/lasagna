@@ -1,5 +1,5 @@
 import {recordSupervision} from './supervise-log.ts';
-import {stripVTControlCharacters} from 'node:util';
+import {isDeepStrictEqual, stripVTControlCharacters} from 'node:util';
 import {flushSync, useKeyboard, useRenderer} from '@opentui/react';
 import {quitOnCtrlC, quitOnSignals} from './render-tui.ts';
 import type {CliRenderer, KeyEvent} from '@opentui/core';
@@ -165,6 +165,7 @@ import {
 	spacesRailStatus,
 	spaceTracker,
 	spaceVcsHost,
+	ticketMembers,
 } from './space-scope.ts';
 import {defaultRepoContext} from './repo-context.ts';
 import {formatSpaceRef, parseSpaceRef} from './space-ref.ts';
@@ -178,6 +179,13 @@ import {
 	type WorkdirGrouping,
 } from './workdir-rail.ts';
 import {repoChoices} from './repo-picker.ts';
+import RepoPicker from './components/RepoPicker.tsx';
+import {
+	addRepoToSpace,
+	cleanTicketFolder,
+	createTicketSpace,
+} from './ticket-ops.ts';
+import {ticketEnv} from './ticket-runtime.ts';
 import {readScanSuggestions} from './scan-suggestions.ts';
 import {
 	buildConfigFixConfirmContent,
@@ -192,6 +200,7 @@ import {
 	closeHooksDepsFor,
 	deinitSkipped,
 	runCloseHooks,
+	runTicketCloseHooks,
 	shouldAttach,
 } from './close-space.ts';
 import {
@@ -223,6 +232,7 @@ import {
 	defaultOuterTmuxRunner,
 	defaultServerTmuxRunner,
 	killSpaceSessions,
+	clearCurrentlyViewingSpace,
 	liveInnerSessions,
 	deleteQaSimulator,
 	displayMessageInPaneAsync,
@@ -335,6 +345,7 @@ interface AppProps {
 const WORKDIR_HELP_KEYS: KeybindingConfig[] = [
 	{key: 't', name: 'Group by repo / by ticket', run: ''},
 	{key: 'r', name: "Fold / unfold the repos' main spaces", run: ''},
+	{key: 'a', name: 'Add a repo to the selected space', run: ''},
 ];
 
 function validConfig(load: ReturnType<typeof readConfig>) {
@@ -394,6 +405,8 @@ export default function App({
 	}, []);
 	// On a work dir's rail, the repo the last space was made in.
 	const lastSpaceRepo = useRef<string | undefined>(undefined);
+	// The space the add-a-repo list is open for.
+	const [addRepoTarget, setAddRepoTarget] = useState<SpaceData | null>(null);
 	const savedProfileFor = React.useCallback(
 		(input: string, config: PappardelleConfig | null, repoName?: string) => {
 			const repo = repoName === undefined ? undefined : workdir?.repo(repoName);
@@ -640,6 +653,23 @@ export default function App({
 			workdir ? (repoConfigs.get(space.repo ?? '') ?? null) : configMemo,
 		[workdir, repoConfigs, configMemo],
 	);
+	// What making and changing ticket spaces runs on, for this rail: spaces
+	// are named with their repo here, and their sessions are the ones on screen.
+	const tickets = useMemo(
+		() =>
+			workdir &&
+			ticketEnv({
+				workdir: workdir.own.context,
+				repos: () => workdir.repos.map(repo => repo.context),
+				daos: name => (workdir.repo(name) ?? workdir.own).daos,
+				tickets: workdir.tickets,
+				tellLead: async (key, text) =>
+					sendToSpaceAgent(formatSpaceRef(workdir.own.name, key), text),
+				endSessions: async (repo, key) =>
+					killSpaceSessions(formatSpaceRef(repo, key)),
+			}),
+		[workdir],
+	);
 
 	// Install the user's issue-status color overrides before anything renders,
 	// so the ticket rail's first paint already uses them (STA-2070). A useMemo
@@ -712,6 +742,7 @@ export default function App({
 					lastUsed: lastSpaceRepo.current,
 				}),
 			contextOf: (name: string) => workdir.repo(name)?.context,
+			ticket: workdir.own.context,
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [workdir, showPromptDialog, workdirRepoNames, repoConfigs]);
@@ -848,7 +879,7 @@ export default function App({
 	}, [renderer]);
 
 	const railDialogState = {
-		showPromptDialog,
+		showPromptDialog: showPromptDialog || addRepoTarget !== null,
 		showDeleteConfirm: deleteTarget !== null,
 		killDoneTargets,
 		showUpdateConfirm,
@@ -1458,6 +1489,65 @@ export default function App({
 
 	// Open the GitHub PR / GitLab MR in browser for the selected space
 	// For main worktree, opens the repo page instead
+	/** The work dir's repos a space is not in yet. */
+	const addableRepos = (space: SpaceData): string[] => {
+		const held = new Set(
+			space.ticketRepos?.map(repo => repo.name) ?? [space.repo],
+		);
+		return workdirRepoNames.filter(name => !held.has(name));
+	};
+
+	/**
+	 * Add repos to a space from the rail. A ticket space gains their
+	 * worktrees; a plain space becomes a ticket space with the first of them.
+	 */
+	const addReposTo = async (space: SpaceData, names: string[]) => {
+		if (!workdir || !tickets || !space.key) return;
+		const {key} = space;
+		let from = space.ticketRepos === undefined ? space.repo : undefined;
+		// A plain space's sessions end as it becomes a ticket space, and its row
+		// stays until the next listing: nothing may reattach to it meanwhile.
+		if (from !== undefined) closingSpacesRef.current.add(space.name);
+		try {
+			for (const name of names) {
+				setHeaderWithTimeout(`Adding ${name} to ${key}…`, 600_000);
+				const result = await addRepoToSpace(tickets, {
+					key,
+					repo: name,
+					...(from === undefined ? {} : {from}),
+				});
+				// It is a ticket space from here on.
+				from = undefined;
+				for (const warning of result.warnings) log.warn(warning);
+				setHeaderWithTimeout(
+					result.warnings[0] ??
+						(result.kind === 'converted'
+							? `${key} is now a ticket space`
+							: `Added ${name} to ${key}`),
+					6000,
+				);
+			}
+
+			await loadSpaces();
+			selectSpace(formatSpaceRef(workdir.own.name, key));
+			// The space on screen may be this one, with a repo more than it was
+			// attached with: attach again, so the new repo's companion pane shows.
+			clearCurrentlyViewingSpace();
+			setAttachmentRevision(revision => revision + 1);
+		} catch (error) {
+			closingSpacesRef.current.delete(space.name);
+			log.error(
+				`Could not add a repo to ${key}`,
+				error instanceof Error ? error : undefined,
+			);
+			setHeaderWithTimeout(
+				error instanceof Error ? error.message : String(error),
+				8000,
+			);
+			await loadSpaces();
+		}
+	};
+
 	const handleOpenPR = () => {
 		const space = selectedSpaceNow();
 		if (!space || space.isPending) return;
@@ -2143,6 +2233,26 @@ export default function App({
 
 					break;
 				}
+				case 'a': {
+					if (!workdir) break;
+					const space = selectedSpaceNow();
+					if (!space || space.isMainWorktree || space.isPending || !space.key) {
+						setHeaderWithTimeout('Select a space to add a repo to', 3000);
+						break;
+					}
+
+					if (addableRepos(space).length === 0) {
+						setHeaderWithTimeout(
+							`Every repo of the work dir is already in ${space.key}`,
+							3000,
+						);
+						break;
+					}
+
+					setAddRepoTarget(space);
+
+					break;
+				}
 				case 'r': {
 					if (!workdir) break;
 					// A hidden row can't hold the selection: it moves to the root.
@@ -2194,6 +2304,25 @@ export default function App({
 				async () => {
 					if (pending.name && pending.inputIsIssueKey)
 						claimIssueInBackground(pending.name);
+					if (pending.ticketRepos && tickets) {
+						// A ticket space: a worktree of each repo in one folder, and
+						// one lead agent there. The same steps `space add-repo` runs.
+						log.info(
+							`Making the ticket space ${pending.name} in ${pending.ticketRepos.join(', ')}`,
+						);
+						const {warnings} = await createTicketSpace(tickets, {
+							key: pending.idowArg,
+							repos: pending.ticketRepos,
+							profileName: pending.profileName,
+							agentProfileName: pending.agentProfileName,
+						});
+						for (const warning of warnings) log.warn(warning);
+						if (warnings[0]) setHeaderWithTimeout(warnings[0], 6000);
+						await registry.add(pending.name);
+						await loadSpaces();
+						return;
+					}
+
 					log.info(`Starting idow for pending session: ${pending.name}`);
 					const result = await runWorkspaceSetup(
 						path.join(SCRIPTS_DIR, 'idow'),
@@ -2259,7 +2388,7 @@ export default function App({
 					setHeaderWithTimeout(`Failed: ${error.message.slice(0, 40)}`, 5000);
 				});
 		},
-		[startupQueue, loadSpaces, setHeaderWithTimeout],
+		[startupQueue, loadSpaces, setHeaderWithTimeout, tickets],
 	);
 
 	// Issue watchlist polling — auto-spawn workspaces for assigned issues
@@ -2445,14 +2574,19 @@ export default function App({
 	const performDeleteSpace = useCallback(
 		async (space: SpaceData): Promise<boolean> => {
 			const scope = scopedSpace(space.name);
-			const deinit = await runCloseHooks(
-				{
-					name: scope?.key ?? space.name,
-					worktreePath: space.worktreePath,
-					trackerIssue: space.trackerIssue ?? space.linearIssue,
-				},
-				scope ? closeHooksDepsFor(scope.repo) : undefined,
-			);
+			// A ticket space has no hooks of its own: each of its repos has, and
+			// runs them in its own worktree.
+			const members = ticketMembers(space.name);
+			const closing = {
+				name: scope?.key ?? space.name,
+				trackerIssue: space.trackerIssue ?? space.linearIssue,
+			};
+			const deinit = members
+				? await runTicketCloseHooks(closing, members)
+				: await runCloseHooks(
+						{...closing, worktreePath: space.worktreePath},
+						scope ? closeHooksDepsFor(scope.repo) : undefined,
+					);
 			if (deinit.kind === 'failed') {
 				setHeaderWithTimeout(
 					`Deinit failed: ${deinit.failedCommand ?? 'unknown'} — deletion aborted`,
@@ -2483,6 +2617,10 @@ export default function App({
 							void workspaceRefresh.current?.refreshListOnly();
 						},
 						async cleanup(key) {
+							// The repos' worktrees stay; what was generated beside
+							// them goes.
+							if (members && space.worktreePath)
+								cleanTicketFolder({folder: space.worktreePath});
 							await programStatus.remove(key);
 							return deleteQaSimulator(key);
 						},
@@ -2701,7 +2839,8 @@ export default function App({
 						prevRail.pipeline === next.pipeline &&
 						prevRail.unresolvedCommentCount === next.unresolvedCommentCount &&
 						prevRail.prNumber === next.prNumber &&
-						(prevRail.hasConflict ?? false) === (next.hasConflict ?? false)
+						(prevRail.hasConflict ?? false) === (next.hasConflict ?? false) &&
+						isDeepStrictEqual(prevRail.repos, next.repos)
 					) {
 						return s;
 					}
@@ -2830,14 +2969,6 @@ export default function App({
 			// Route the session: always pass just the issue key (or description) to idow.
 			// idow handles both new and existing issues correctly with a bare issue key.
 			const route = routeSession(normalizedIssueKey);
-			// The profile was picked from the first repo's; another repo takes it
-			// only when it has one by that name, and else lets idow choose.
-			const profile =
-				profileName !== null &&
-				repo !== repos[0] &&
-				config?.profiles[profileName] === undefined
-					? null
-					: profileName;
 			return {
 				repo: repo?.name,
 				type: route.type,
@@ -2851,26 +2982,44 @@ export default function App({
 				// Read through the ref: a popup submits through the closure captured
 				// when `n` was pressed, and the list can change while it is open.
 				prevSpaceCount: spacesRef.current.length,
-				profileName: profile,
+				profileName,
 				agentProfileName,
-				profileEmoji: resolvePendingProfileEmoji(config, profile),
+				profileEmoji: resolvePendingProfileEmoji(config, profileName),
 			};
 		};
 
-		const pendings = (workdir ? repos : [undefined]).map(repo =>
-			pendingIn(repo),
-		);
-		if (pendings.includes(null)) {
+		// More than one repo is a ticket space: the work dir's own, configured
+		// by the work dir, with a worktree of each repo in its ticket folder.
+		const pending =
+			workdir && repos.length > 1
+				? pendingIn(workdir.own)
+				: pendingIn(workdir ? repos[0] : undefined);
+		if (pending === null) {
 			const message = 'New space not created: the config is invalid';
 			setHeaderWithTimeout(message, 5000);
 			reportConfigEvent(message);
 			return;
 		}
 
-		// One space per repo, one after the other: the rail has one pending row.
-		void (async () => {
-			for (const pending of pendings) await spawnSession(pending!);
-		})();
+		if (repos.length <= 1) {
+			void spawnSession(pending);
+			return;
+		}
+
+		// Its folder and its branches are named after the issue, so there has
+		// to be one. A new issue starts in one repo; `a` adds the others.
+		if (pending.type !== 'issue') {
+			setHeaderWithTimeout(
+				'A ticket space needs an issue key. Start in one repo, then add the others with a',
+				6000,
+			);
+			return;
+		}
+
+		void spawnSession({
+			...pending,
+			ticketRepos: repos.map(repo => repo.name),
+		});
 	};
 
 	const writeIssueState = async (space: SpaceData, choice: StateChoice) => {
@@ -2972,8 +3121,11 @@ export default function App({
 				: {
 						repo: pendingSession.repo,
 						key: parseSpaceRef(pendingSession.name).key,
-						repoTag:
-							(workdir?.repos.length ?? 0) > 1
+						repoTag: pendingSession.ticketRepos
+							? pendingSession.ticketRepos
+									.map(name => workdir?.repo(name)?.tag ?? name)
+									.join('+')
+							: (workdir?.repos.length ?? 0) > 1
 								? workdir?.repo(pendingSession.repo)?.tag
 								: undefined,
 					}),
@@ -3285,6 +3437,22 @@ export default function App({
 						setConfigMigrations(null);
 					}}
 					onCancel={() => setConfigMigrations(null)}
+				/>
+			) : addRepoTarget ? (
+				<RepoPicker
+					title={`+ Add to ${addRepoTarget.key ?? addRepoTarget.name}`}
+					repos={addableRepos(addRepoTarget).map(name => ({
+						name,
+						suggested: false,
+					}))}
+					initialIndex={0}
+					availableHeight={dialogHeight}
+					onPick={names => {
+						const space = addRepoTarget;
+						setAddRepoTarget(null);
+						void addReposTo(space, names);
+					}}
+					onCancel={() => setAddRepoTarget(null)}
 				/>
 			) : showPromptDialog ? (
 				<PromptDialog

@@ -22,6 +22,7 @@ export function nextWorkdirGrouping(current: WorkdirGrouping): WorkdirGrouping {
 }
 
 const GROUP_COLOR = '#4b9fea';
+const TICKETS_COLOR = '#c678dd';
 const MAINS_COLOR = 'gray';
 
 /** The header the repos' main spaces sit under. */
@@ -32,6 +33,24 @@ export const MAIN_SPACES_GROUP: RailGroup = {
 	statuses: [],
 	categories: [],
 };
+
+/** The header ticket spaces sit under when the rail is grouped by repo. */
+export const TICKET_SPACES_GROUP: RailGroup = {
+	id: 'workdir-ticket-spaces',
+	name: 'tickets',
+	color: TICKETS_COLOR,
+	statuses: [],
+	categories: [],
+};
+
+/** A ticket space: the work dir's own, holding a worktree of several repos. */
+export function isTicketSpace(space: SpaceData): boolean {
+	return (
+		!isAgentSpace(space) &&
+		space.repo !== undefined &&
+		isWorkdirRepoName(space.repo)
+	);
+}
 
 function group(kind: WorkdirGrouping, name: string): RailGroup {
 	return {
@@ -73,7 +92,8 @@ function pendingFirst(spaces: readonly SpaceData[]): SpaceData[] {
 
 /**
  * The rows of a work dir's rail. Grouped by repo, each repo with a space is a
- * header over its spaces, in the order the work dir lists its repos. Grouped
+ * header over its spaces, in the order the work dir lists its repos, after
+ * the ticket spaces, which are in several repos, under a header of their own. Grouped
  * by ticket, each key is a header over the spaces every repo has for it, so a
  * ticket that spans repos reads as one. Spaces keep their incoming order
  * within a group. The narrow layout has too few rows to spare for headers and
@@ -129,7 +149,16 @@ export function buildWorkdirRailRows(options: {
 	// issue, so on the ticket rail it waits above the tickets.
 	const unkeyed: SpaceData[] = [];
 	if (grouping === 'repo') {
-		for (const space of [...workspaces].sort(byRepoOrder))
+		const tickets = workspaces.filter(space => isTicketSpace(space));
+		if (tickets.length > 0)
+			// Keyed as no repo can be named.
+			groups.set('@tickets', {
+				group: TICKET_SPACES_GROUP,
+				spaces: tickets,
+			});
+		for (const space of workspaces
+			.filter(each => !isTicketSpace(each))
+			.sort(byRepoOrder))
 			add(space.repo ?? '', space);
 	} else {
 		const keyed = workspaces.filter(space => ticketOf(space) !== '');

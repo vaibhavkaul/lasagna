@@ -472,6 +472,27 @@ Which repo a prefix belongs in comes from `<work dir>/.lasagna/scan.json`, when 
 
 Started inside a configured repo, Lasagna shows that repo alone, as before. Issue watchlists are not polled on a work dir's rail.
 
+#### Ticket spaces: one ticket in several repos
+
+A space made in more than one repo is a **ticket space**: one lead agent that sees every repo of the ticket. Tick two or more repos in the new-space dialog (`Tab`, then `Space` on each), or add a repo to a space you already have.
+
+```
+~/.lasagna/worktrees/_tickets/B2B-123/
+  appian-server/     git worktree of appian-server, branch B2B-123
+  tts-business/      git worktree of tts-business, branch B2B-123
+  CLAUDE.md          generated
+  .claude/           generated settings for the lead agent
+```
+
+- The repos are real git worktrees, each made by the repo's own setup (`post_workspace_init`), not links. One search from the folder reaches all of them, and each repo's `CLAUDE.md` and skills load when the agent first reads a file there.
+- The generated `CLAUDE.md` says the folder is a ticket folder, lists each repo with its branch, its default branch and its PR rules (`PR_TEMPLATE` and `PR_TITLE_FORMAT` from the repo's default profile `vars`, or a template found in the repo), and repeats the work dir's own `CLAUDE.md`. The generated `.claude/settings.json` is every repo's `permissions` merged; the repos' hooks and env are left out.
+- The space belongs to no repo. It is the work dir's own (`@<work dir>:B2B-123`), so its agent, its first prompt and its profile come from the work dir's top-level config, and which repos it holds is kept in `~/.lasagna/repos/@<work dir>/tickets/`.
+- On the rail it sits under a `tickets` header with the tag of every repo it holds (`as+tb`), and each repo's PR status behind its tag. Each repo keeps its own branch and its own PR: run `lasagna link-pr <url>` from the repo's directory.
+- Its companion is a shell in the ticket folder, with a pane for each repo started in that repo's worktree with that repo's `companion_command`.
+- `a` on the rail adds a repo to the selected space. So does `lasagna space add-repo [space] <repo>`, and the `space_add_repo` MCP tool for the agent itself. The repo's worktree is made in the folder, `CLAUDE.md` and the settings are written again, and the lead agent is told.
+- Adding a second repo to a plain space makes it a ticket space. A lead agent starts in a new ticket folder on a handoff (`HANDOFF.md`: the issue, the plain agent's last turns, its branch's diff). The plain agent's sessions then end, and only after that is its worktree moved into the folder with `git worktree move`. Claude Code keeps conversations by directory, so the lead agent's is a new one.
+- Closing a ticket space runs each repo's `pre_workspace_deinit` in that repo's worktree, ends the sessions and removes the generated files. The worktrees stay, as a plain space's does.
+
 Where a command takes a space, `repo:KEY` names one in another repo of the work dir: `lasagna send web-app:WEB-30 "rebase on main"`. A bare key is the repo the command runs in when that repo has the space, else the one repo that does. The work dir's own main space is `@<work dir>:main`.
 
 Run at the work dir's root, `spaces`, `watch` with no key, `holds` and `schedules` are about every repo's spaces, each shown as `repo:KEY`, so the agent in the root main space can supervise all of them. `watch` also takes spaces of several repos at once (`lasagna watch api-server:API-7 web-app:WEB-30`), and `unschedule` or `holds approve` finds its id in whichever repo has it. `lasagna restart` from a space of a repo on the work dir's rail restarts the work dir's TUI.

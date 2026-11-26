@@ -46,6 +46,11 @@ export interface PendingSession {
 	 * is then `repo:KEY`, as the rail names the space once it exists.
 	 */
 	repo?: string;
+	/**
+	 * Set for a ticket space: the repos it is made in. `repo` is then the work
+	 * dir's own pseudo-repo, which a ticket space is a space of.
+	 */
+	ticketRepos?: string[];
 	type: 'issue' | 'description';
 	/** Issue key for issue routes (e.g., "STA-477"), empty string for description routes */
 	name: string;
