@@ -46,7 +46,9 @@ function flags(values: Record<string, string | number | undefined>): string[] {
 const space = z
 	.string()
 	.optional()
-	.describe('Space key, such as STA-696. Defaults to your own space');
+	.describe(
+		'Space key, such as STA-696. Defaults to your own space. repo:KEY names a space of another repo in the work dir',
+	);
 const paneName = z
 	.string()
 	.regex(PANE_NAME_PATTERN, `Pane names are ${PANE_NAME_RULE}`);
@@ -61,7 +63,7 @@ const splitSize = z
 const key = z
 	.string()
 	.describe(
-		'Space key, such as STA-696. main is the main checkout. A bare number takes the team prefix',
+		'Space key, such as STA-696. main is the main checkout. A bare number takes the team prefix. repo:KEY names a space of another repo in the work dir',
 	);
 const tmuxKeys = z
 	.array(z.string())
@@ -597,7 +599,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
 			input: z
 				.string()
 				.describe(
-					'Issue key, bare issue number, issue URL, or a description of the work',
+					'Issue key, bare issue number, issue URL, or a description of the work. repo:KEY opens the issue in another repo of the work dir',
 				),
 			resume: z
 				.boolean()

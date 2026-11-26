@@ -106,6 +106,9 @@ import {
 } from './space-identity.ts';
 import {resolveTargetSpace} from './space-target.ts';
 import {exitAfterFlush} from './exit-after-flush.ts';
+import {retargetProcess} from './cli-repo-target.ts';
+import {defaultRepoContext} from './repo-context.ts';
+import {isWorkdirRepoName} from './repo-config-files.ts';
 
 const SCRIPTS_DIR = scriptsDir;
 const REARM_SCHEDULES_DELAY_MS = 5000;
@@ -123,6 +126,15 @@ if (gate.action === 'reject') {
 	console.error(gate.message);
 	process.exit(2);
 }
+
+// Before anything reads the repo the process was started in: a space named
+// with its repo (`repo:KEY`) points the process at that repo, and a command
+// run at a work dir's root is about the work dir.
+process.argv.splice(
+	2,
+	process.argv.length,
+	...retargetProcess(process.argv.slice(2)),
+);
 
 // A subcommand's modules load when it runs, so starting the TUI doesn't pay
 // for them.
@@ -517,6 +529,14 @@ if (cli.input[0] === 'read') {
 if (cli.input.length > 0) {
 	const prompt = cli.input.join(' ');
 
+	// A space's worktree is a checkout of one repo, which a work dir is not.
+	if (isWorkdirRepoName(repoName)) {
+		console.error(
+			`A new space needs a repo: run this from one of the work dir's repos, or name it as repo:KEY (lasagna <repo>:${prompt})`,
+		);
+		process.exit(1);
+	}
+
 	// Normalize issue identifiers (supports bare numbers like '400')
 	const load = readConfig();
 	if (load.kind === 'invalid') {
@@ -580,6 +600,7 @@ if (cli.input.length > 0) {
 		env: buildSpawnEnv(getRepoRoot(), {
 			mainRepoRoot: getMainRepoRoot(),
 			registerSpace: daos.registry.keepsLifecycle,
+			env: defaultRepoContext().env,
 		}),
 		registry: daos.registry,
 		waitForAgent: cli.flags.wait

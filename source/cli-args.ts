@@ -28,6 +28,10 @@ const helpText = `
 	  entering the interactive TUI.
 	  Existing workspaces resume automatically when opened by issue key.
 
+	  In a work dir (a directory with .lasagna/workdir.yml listing its repos)
+	  a space of another repo is named repo:KEY, wherever an issue key goes.
+	  A bare key is the repo the command runs in, or the one repo that has it.
+
 	Commands
 	  highlight <key>  Select a row in the running TUI by issue key. With
 	                   --focus, also focus that space's agent pane
@@ -133,7 +137,8 @@ export const SPACE_HELP = `
 	companionSession, agentTarget, companionTarget), panes (agent, companion),
 	prNumber, prLinks, pipeline, unresolvedCommentCount and status. With no
 	key it answers for the space it runs in: LASAGNA_SPACE, else the
-	worktree or main checkout that holds the working directory.
+	worktree or main checkout that holds the working directory. In a work
+	dir, repo:KEY names a space of another of its repos.
 
 	space list prints the main space, then every open space in the rail's order.
 
