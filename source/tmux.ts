@@ -198,7 +198,7 @@ import {
 	type SpaceRegistryDao,
 } from './space-registry.ts';
 import type {StateDaos} from './state-daos.ts';
-import {QaSimulatorCleanup} from './qa-simulator.ts';
+import {QaSimulatorCleanup, type SimctlRunner} from './qa-simulator.ts';
 import type {AgentSessionsDao, SpaceStateDao} from './space-state.ts';
 import {
 	legacyAgentSession,
@@ -1586,10 +1586,26 @@ function sessionSpace(name: string, runner: OuterTmuxRunner): string | null {
 	return match?.[1]?.trim() || null;
 }
 
-const simulatorCleanup = new QaSimulatorCleanup(
-	undefined,
-	key => !registry().has(key),
-);
+/**
+ * Deletes the QA simulator of a space that has closed. A simulator is named
+ * after its space's key alone (`QA-<KEY>`), whatever the space is called on a
+ * rail of several repos, so two repos' spaces with one key share one: it
+ * stays while either of them is open.
+ */
+export function spaceSimulatorCleanup(run?: SimctlRunner): QaSimulatorCleanup {
+	const keyOpenElsewhere = (name: string) =>
+		listOpenSpaces(registry()).some(
+			other => other !== name && spaceBareKey(other) === spaceBareKey(name),
+		);
+	return new QaSimulatorCleanup(
+		run,
+		name => !registry().has(name) && !keyOpenElsewhere(name),
+		undefined,
+		spaceBareKey,
+	);
+}
+
+const simulatorCleanup = spaceSimulatorCleanup();
 
 export async function deleteQaSimulator(issueKey: string): Promise<boolean> {
 	return simulatorCleanup.delete(issueKey);
@@ -4414,7 +4430,9 @@ export function createCompanionSplit(
 	const session = splitSessionName(main, split.name);
 	const createArgs = [
 		...companionSessionArgs(
-			identity.key,
+			// By the name the space has here, so that on a rail of several repos
+			// the split is told its own repo's main checkout, not the rail's.
+			spaceNameIn(identity.repo, identity.key),
 			session,
 			cwd.stdout.trim(),
 			split.command,

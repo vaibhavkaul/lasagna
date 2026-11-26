@@ -18,7 +18,12 @@ import {
 	spaceNameIn,
 } from './space-scope.ts';
 import {newSpaceIdentity} from './space-identity.ts';
-import {initTmuxState, spaceSessionNames} from './tmux.ts';
+import {
+	createCompanionSplit,
+	initTmuxState,
+	spaceSessionNames,
+	spaceSimulatorCleanup,
+} from './tmux.ts';
 import {repoTags, startWorkdir} from './workdir-runtime.ts';
 
 beforeEach(() => {
@@ -191,6 +196,65 @@ test('tmux.ts finds a space\u2019s sessions through its repo\u2019s stores', asy
 		agent: `agent-${web.name}-STA-1`,
 		companion: `companion-${web.name}-STA-1`,
 	});
+});
+
+test('a companion split of a repo\u2019s space is told that repo\u2019s main checkout, not the work dir', () => {
+	const {runtime, repos, work} = started();
+	const web = runtime.repo(repos['web']!.name)!;
+	const calls: string[][] = [];
+	const result = createCompanionSplit(
+		newSpaceIdentity({
+			repo: web.name,
+			key: 'STA-1',
+			worktreePath: '/worktrees/STA-1',
+			socket: 'test',
+		}),
+		{name: 'logs', command: 'tail -f log', split: 'down'},
+		{
+			runner(args) {
+				calls.push([...args]);
+				return {status: 0, stdout: '/worktrees/STA-1\n'};
+			},
+		},
+	);
+	expect(result.ok).toBe(true);
+	const created = calls.find(args => args[0] === 'new-session')!;
+	const environment = created.filter((_, index) => created[index - 1] === '-e');
+	expect(environment).toEqual([
+		`LASAGNA_REPO=${web.name}`,
+		'LASAGNA_SPACE=STA-1',
+		`LASAGNA_MAIN_REPO_ROOT=${repos['web']!.root}`,
+	]);
+	expect(environment).not.toContain(`LASAGNA_MAIN_REPO_ROOT=${work}`);
+});
+
+test('closing a repo\u2019s space deletes the simulator named after its key, unless another repo has that key open', async () => {
+	const {runtime, repos} = started();
+	const api = repos['api']!.name;
+	const web = repos['web']!.name;
+	const deleted: string[] = [];
+	const cleanup = spaceSimulatorCleanup(async args => {
+		if (args[0] === 'delete') deleted.push(args[1]!);
+		return args[0] === 'list'
+			? JSON.stringify({
+					devices: {
+						runtime: [
+							{name: 'QA-STA-1', udid: 'id-1'},
+							{name: 'QA-STA-2', udid: 'id-2'},
+						],
+					},
+				})
+			: '';
+	});
+	// STA-1 was only api's. STA-2 is still open in web.
+	await runtime.daos.registry.add(`${web}:STA-2`);
+	expect(await cleanup.delete(`${api}:STA-1`)).toBe(true);
+	expect(await cleanup.delete(`${api}:STA-2`)).toBe(true);
+	expect(deleted).toEqual(['id-1']);
+	// Once web closes it too, the simulator goes.
+	await runtime.daos.registry.remove(`${web}:STA-2`);
+	expect(await cleanup.delete(`${web}:STA-2`)).toBe(true);
+	expect(deleted).toEqual(['id-1', 'id-2']);
 });
 
 test('a repo\u2019s linked worktree elsewhere is still that repo\u2019s, not a repo of the rail', () => {
