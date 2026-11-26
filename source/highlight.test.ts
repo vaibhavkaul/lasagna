@@ -139,7 +139,7 @@ contractTest('a listener that stopped watching is not told', async s => {
 	expect(calls).toBe(0);
 });
 
-// `pappardelle highlight KEY` runs in another terminal than the TUI.
+// `lasagna highlight KEY` runs in another terminal than the TUI.
 for (const sqlite of [false, true]) {
 	test(`${sqlite ? 'sqlite' : 'json'}: a request from another process reaches a watching listener`, async () => {
 		const s = testState({sqlite});

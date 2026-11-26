@@ -128,7 +128,7 @@ function installForClaude(deps: PluginInstallDeps): Outcome {
 	}
 
 	deps.print(
-		`Installed the Pappardelle plugin for Claude Code from ${deps.repoDir}. Run /reload-plugins in open sessions to load it.`,
+		`Installed the Lasagna plugin for Claude Code from ${deps.repoDir}. Run /reload-plugins in open sessions to load it.`,
 	);
 	return 'installed';
 }
@@ -149,7 +149,7 @@ function installForCodex(deps: PluginInstallDeps): Outcome {
 		['plugin', 'add', PLUGIN_ID],
 	]);
 	if (outcome !== 'installed') return outcome;
-	deps.print('Installed the Pappardelle plugin for Codex.');
+	deps.print('Installed the Lasagna plugin for Codex.');
 	installCodexSessionHook(deps);
 	return 'installed';
 }
@@ -229,7 +229,7 @@ function installCodexSessionHook(deps: PluginInstallDeps): void {
 function installForAgy(deps: PluginInstallDeps): Outcome {
 	if (!deps.exists(deps.agyConfigDir)) {
 		deps.print(
-			`agy is not set up (no ${deps.agyConfigDir}); skipped its plugin. Run pappardelle plugin install again after first using agy.`,
+			`agy is not set up (no ${deps.agyConfigDir}); skipped its plugin. Run lasagna plugin install again after first using agy.`,
 		);
 		return 'skipped';
 	}
@@ -238,7 +238,7 @@ function installForAgy(deps: PluginInstallDeps): Outcome {
 	const link = path.join(deps.agyConfigDir, 'plugins', 'pappardelle');
 	if (deps.readLink(link) === undefined && deps.exists(link)) {
 		deps.print(
-			`${link} is a copy installed by agy; run agy plugin uninstall pappardelle, then pappardelle plugin install again.`,
+			`${link} is a copy installed by agy; run agy plugin uninstall pappardelle, then lasagna plugin install again.`,
 		);
 		return 'failed';
 	}
@@ -247,11 +247,11 @@ function installForAgy(deps: PluginInstallDeps): Outcome {
 	removeAgyLegacyHook(deps);
 	if (agyDisabledPlugin(deps)) {
 		deps.print(
-			`Linked the Pappardelle plugin into agy at ${link}, but agy has it disabled; run agy plugin enable pappardelle to load it.`,
+			`Linked the Lasagna plugin into agy at ${link}, but agy has it disabled; run agy plugin enable pappardelle to load it.`,
 		);
 	} else {
 		deps.print(
-			`Linked the Pappardelle plugin into agy at ${link}. New agy sessions load it.`,
+			`Linked the Lasagna plugin into agy at ${link}. New agy sessions load it.`,
 		);
 	}
 
@@ -325,7 +325,7 @@ function removeHooks(
 		settings = JSON.parse(current) as HookSettings;
 	} catch {
 		deps.print(
-			`Could not parse ${file}; remove any old Pappardelle hooks from it by hand.`,
+			`Could not parse ${file}; remove any old Lasagna hooks from it by hand.`,
 		);
 		return;
 	}
@@ -334,7 +334,7 @@ function removeHooks(
 	deps.writeFile(`${file}.pappardelle.bak`, original);
 	deps.writeFile(file, JSON.stringify(settings, null, 2) + '\n');
 	deps.print(
-		`Removed the old Pappardelle hooks from ${file} (backup: ${file}.pappardelle.bak).`,
+		`Removed the old Lasagna hooks from ${file} (backup: ${file}.pappardelle.bak).`,
 	);
 }
 

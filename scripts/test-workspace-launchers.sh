@@ -43,7 +43,7 @@ assert_eq() {
     fi
 }
 
-# idow exports the space's socket from `pappardelle space get`.
+# idow exports the space's socket from `lasagna space get`.
 export PAPPARDELLE_TMUX_SOCKET=pappardelle_inner
 
 summarize() {

@@ -274,7 +274,7 @@ test('prepare-space --register without an owner records nothing', () => {
 	);
 	expect(result.status, `stderr: ${result.stderr}`).toBe(2);
 	expect(result.stderr.trim()).toBe(
-		'pappardelle --internal-state: prepare-space: --register needs --owner <pid>',
+		'lasagna --internal-state: prepare-space: --register needs --owner <pid>',
 	);
 	expect(fs.existsSync(stateDir)).toBe(false);
 	if (sqliteRun)

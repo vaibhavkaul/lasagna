@@ -57,7 +57,7 @@ test('an unknown verb or flag is a usage error, not a listing', () => {
 			`argv: ${argv.join(' ')}`,
 		).toBe(2);
 		expect(d.out).toStrictEqual([]);
-		expect(d.err.join('\n')).toMatch(/Usage: pappardelle agent-profile list/);
+		expect(d.err.join('\n')).toMatch(/Usage: lasagna agent-profile list/);
 	}
 });
 

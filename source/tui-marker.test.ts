@@ -92,7 +92,7 @@ contractTest("one repo's marker is not another's", async state => {
 	expect(other.daos.tuiMarker.read()).toBe(null);
 });
 
-// `pappardelle restart` waits in one process for the marker the TUI writes
+// `lasagna restart` waits in one process for the marker the TUI writes
 // in another.
 for (const sqlite of [false, true]) {
 	test(`${sqlite ? 'sqlite' : 'json'}: a marker written by another process is read here`, async () => {

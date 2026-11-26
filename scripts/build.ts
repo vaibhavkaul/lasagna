@@ -7,7 +7,7 @@ import {mkdir, rm, rename} from 'node:fs/promises';
 const outdir = 'dist.next';
 await rm(outdir, {recursive: true, force: true});
 await mkdir(outdir, {recursive: true});
-await buildNative(`${outdir}/pappardelle`);
+await buildNative(`${outdir}/lasagna`);
 
 // Bun's compile leaves its intermediate executable in the working directory.
 for (const leftover of new Glob('.*.bun-build').scanSync({dot: true})) {

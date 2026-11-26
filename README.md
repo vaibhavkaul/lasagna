@@ -48,7 +48,7 @@ The fastest way to get set up is with `/init-pappardelle`.
 Install Pappardelle. This builds the CLI and installs its plugin into Claude Code, Codex and agy: the hooks below plus five skills — `/init-pappardelle` (setup wizard), `/update-pappardelle` (update to latest), `/configure-pappardelle` (interactive config editor), `/sous-chef` (optional workspace coordinator), and `/link-pr` (record a PR/MR for the workspace):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/chardigio/pappardelle/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/vaibhavkaul/lasagna/main/install.sh | bash
 ```
 
 Run the setup wizard from any repo where you want to use Pappardelle. It writes your `.pappardelle.yml`:
@@ -62,7 +62,7 @@ For manual installation, see [Section 8: Reference](#8-reference). For the full 
 ### Launch Pappardelle:
 
 ```bash
-pappardelle
+lasagna
 ```
 
 ![Screenshot 2026-03-02 at 4.18.44 PM](assets/Screenshot%202026-03-02%20at%204.18.44%E2%80%AFPM.png)
@@ -73,7 +73,7 @@ pappardelle
 
 ### The 3-pane layout
 
-When you launch `pappardelle`, it creates a tmux session with three panes:
+When you launch `lasagna`, it creates a tmux session with three panes:
 
 - **Left pane** shows the ticket rail. This is where you navigate workspaces, create new ones, and trigger actions.
 - **Center pane** shows the Claude Code session for whichever workspace is highlighted.
@@ -152,14 +152,14 @@ install -m 755 "$TMUX_DOWNLOAD_DIR/tmux" "$HOME/.local/bin/tmux"
 
 Ensure `~/.local/bin` precedes other tmux installations in your `PATH`, or register the downloaded binary with your version manager. Open a fresh shell and check `command -v tmux` and `tmux -V` before restarting.
 
-**Existing servers keep using the old binary.** When ready to end all running workspace processes, run this from a terminal outside tmux, then launch `pappardelle` again:
+**Existing servers keep using the old binary.** When ready to end all running workspace processes, run this from a terminal outside tmux, then launch `lasagna` again:
 
 ```bash
 tmux -L pappardelle_inner kill-server
 tmux kill-server
 ```
 
-A "no server running" message is harmless. Closing the Pappardelle window or every space leaves the inner server running, so it keeps the old tmux binary and your old `~/.tmux.conf` until you run these commands or `pappardelle restart --hard`. After relaunching, check the running servers with `tmux display-message -p '#{version}'` and `tmux -L pappardelle_inner display-message -p '#{version}'`.
+A "no server running" message is harmless. Closing the Pappardelle window or every space leaves the inner server running, so it keeps the old tmux binary and your old `~/.tmux.conf` until you run these commands or `lasagna restart --hard`. After relaunching, check the running servers with `tmux display-message -p '#{version}'` and `tmux -L pappardelle_inner display-message -p '#{version}'`.
 
 ### Recommended tmux config
 
@@ -168,18 +168,18 @@ Pappardelle works with any tmux configuration, but these settings improve the ex
 The file also turns on tmux's extended keys. Without them Shift+Enter (newline in Claude Code) arrives in the panes as a plain Enter. tmux reads `~/.tmux.conf` at server start only, and Pappardelle runs two servers, the TUI one and `pappardelle_inner` for the Claude and companion sessions, so after editing reload both: `tmux source-file ~/.tmux.conf` and `tmux -L pappardelle_inner source-file ~/.tmux.conf`.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/chardigio/pappardelle/main/examples/tmux.conf -o ~/.tmux.conf
+curl -fsSL https://raw.githubusercontent.com/vaibhavkaul/lasagna/main/examples/tmux.conf -o ~/.tmux.conf
 ```
 
 ### Jumping to the sous-chef
 
-Press `Option+s` (`M-s`) from any pane in the Pappardelle window (the rail, an agent pane or a companion pane) to select the `main` space and focus its agent, where the [sous-chef](#skills) runs. The terminal must send Option as Meta (an "Option as Meta" or "Option as Alt" setting). Pappardelle installs this as a tmux key binding, so in your other tmux windows `M-s` still reaches the program running there. Change or turn off the key with [`sous_chef_key`](pappardelle-config.md#sous-chef-key). When the rail has focus, plain `s` does the same. From a script, `pappardelle highlight main --focus` does.
+Press `Option+s` (`M-s`) from any pane in the Pappardelle window (the rail, an agent pane or a companion pane) to select the `main` space and focus its agent, where the [sous-chef](#skills) runs. The terminal must send Option as Meta (an "Option as Meta" or "Option as Alt" setting). Pappardelle installs this as a tmux key binding, so in your other tmux windows `M-s` still reaches the program running there. Change or turn off the key with [`sous_chef_key`](pappardelle-config.md#sous-chef-key). When the rail has focus, plain `s` does the same. From a script, `lasagna highlight main --focus` does.
 
 ### Exiting Pappardelle
 
-Press `q` in the workspace list pane to quit. This kills the Pappardelle tmux session and all its viewer panes, returning you to your original terminal. Your Claude and companion workspace sessions are **not** affected — they run in independent tmux sessions and will keep going after Pappardelle exits. To reattach, just run `pappardelle` again.
+Press `q` in the workspace list pane to quit. This kills the Pappardelle tmux session and all its viewer panes, returning you to your original terminal. Your Claude and companion workspace sessions are **not** affected — they run in independent tmux sessions and will keep going after Pappardelle exits. To reattach, just run `lasagna` again.
 
-To also kill all workspace sessions, use `Delete` on each workspace from the TUI before quitting, or run `pappardelle close <issue-key>` from a shell (`--yes` skips the question, and is required without a terminal). It runs the same close as `Delete`: deinit hooks, then its sessions end and it leaves the list; the worktree stays on disk. `K` closes every workspace whose issue is already done or canceled in one confirmed step. Or nuke everything with:
+To also kill all workspace sessions, use `Delete` on each workspace from the TUI before quitting, or run `lasagna close <issue-key>` from a shell (`--yes` skips the question, and is required without a terminal). It runs the same close as `Delete`: deinit hooks, then its sessions end and it leaves the list; the worktree stays on disk. `K` closes every workspace whose issue is already done or canceled in one confirmed step. Or nuke everything with:
 
 ```bash
 tmux -L pappardelle_inner kill-server
@@ -195,10 +195,10 @@ tmux kill-server
 Run these from the repository or one of its worktrees:
 
 ```bash
-pappardelle STE-20
-pappardelle "fix auth bug"
-pappardelle --profile mobile "fix auth bug"
-pappardelle --resume STE-20
+lasagna STE-20
+lasagna "fix auth bug"
+lasagna --profile mobile "fix auth bug"
+lasagna --resume STE-20
 ```
 
 Successful command-line setup saves the space in the TUI's list. Opening an
@@ -217,28 +217,28 @@ use the selected profile's team prefix when one is configured.
 Agents can see and change their workspace. In Claude Code, the plugin gives them [MCP tools](#mcp-tools) for this. Everything else, you included, uses the same commands from the command line:
 
 ```bash
-pappardelle companion hunk diff --watch            # replace this space's companion command
-pappardelle companion run --pane app --split right -- npm run dev
-pappardelle companion resize app --size 40%        # along the way it was split
-pappardelle companion read --pane app              # last lines of a pane
-pappardelle companion width 40%                    # this space's companion width in the TUI
-pappardelle spaces --json                          # every space: status, title, PR, branch summary
-pappardelle space get --json                       # this space: phase, title, worktree, branch, tmux sessions and panes
-pappardelle space get --field tmux.agentTarget     # one field, printed bare
-pappardelle space list                             # the main space, then every open space
-pappardelle read STE-20 --turns 3                  # recent turns of another space's conversation
-pappardelle send STE-20 --keys Escape              # press a key in another space's Claude
-pappardelle state STE-20                           # working, at a prompt (and its command), limited, idle...
-pappardelle wait STE-20 --until ready              # return once it stops working
-pappardelle answer STE-20 --option 1               # approve what stays inside the space; anything else is held for you
-pappardelle holds                                   # the prompts held for you; holds approve|dismiss ID decides one
-pappardelle schedule STE-20 --after-limit          # send continue when its Codex usage limit resets
-pappardelle schedule STE-20 --keep-going --every 10m --nudge 'keep going'
+lasagna companion hunk diff --watch            # replace this space's companion command
+lasagna companion run --pane app --split right -- npm run dev
+lasagna companion resize app --size 40%        # along the way it was split
+lasagna companion read --pane app              # last lines of a pane
+lasagna companion width 40%                    # this space's companion width in the TUI
+lasagna spaces --json                          # every space: status, title, PR, branch summary
+lasagna space get --json                       # this space: phase, title, worktree, branch, tmux sessions and panes
+lasagna space get --field tmux.agentTarget     # one field, printed bare
+lasagna space list                             # the main space, then every open space
+lasagna read STE-20 --turns 3                  # recent turns of another space's conversation
+lasagna send STE-20 --keys Escape              # press a key in another space's Claude
+lasagna state STE-20                           # working, at a prompt (and its command), limited, idle...
+lasagna wait STE-20 --until ready              # return once it stops working
+lasagna answer STE-20 --option 1               # approve what stays inside the space; anything else is held for you
+lasagna holds                                   # the prompts held for you; holds approve|dismiss ID decides one
+lasagna schedule STE-20 --after-limit          # send continue when its Codex usage limit resets
+lasagna schedule STE-20 --keep-going --every 10m --nudge 'keep going'
 ```
 
-`space get` answers from Pappardelle's stores, so use it instead of building session names, worktree paths or state file paths from the issue key. With no key it answers for the space it runs in: `PAPPARDELLE_SPACE`, else the worktree or main checkout that holds the working directory. It exits 1 when the space is unknown, 2 on a usage error and 3 when a state store can't be read. Run `pappardelle space --help` for every field.
+`space get` answers from Pappardelle's stores, so use it instead of building session names, worktree paths or state file paths from the issue key. With no key it answers for the space it runs in: `PAPPARDELLE_SPACE`, else the worktree or main checkout that holds the working directory. It exits 1 when the space is unknown, 2 on a usage error and 3 when a state store can't be read. Run `lasagna space --help` for every field.
 
-Each companion pane other than `main` runs in a tmux session of its own, and the TUI shows it in a framed pane of its own in the companion column. The terminal launchers attach only `main`, so splits show only in the TUI. Run `pappardelle companion --help` for every companion verb.
+Each companion pane other than `main` runs in a tmux session of its own, and the TUI shows it in a framed pane of its own in the companion column. The terminal launchers attach only `main`, so splits show only in the TUI. Run `lasagna companion --help` for every companion verb.
 
 ### From the TUI
 
@@ -475,7 +475,7 @@ One key distinction for multi-repo work is between plugin skills and parent repo
 A starter `/do` skill tailored for multi-repo workflows is available at [`examples/skills/do-multi-repo/SKILL.md`](examples/skills/do-multi-repo/SKILL.md). It covers shallow cloning, agent team spin-up, per-repo QA, and coordinated PR creation. Install it into your parent repo with:
 
 ```bash
-mkdir -p .claude/skills/do && curl -fsSL https://raw.githubusercontent.com/chardigio/pappardelle/main/examples/skills/do-multi-repo/SKILL.md -o .claude/skills/do/SKILL.md
+mkdir -p .claude/skills/do && curl -fsSL https://raw.githubusercontent.com/vaibhavkaul/lasagna/main/examples/skills/do-multi-repo/SKILL.md -o .claude/skills/do/SKILL.md
 ```
 
 ### Useful keybindings
@@ -517,21 +517,21 @@ If you prefer to install without the `/init-pappardelle` skill:
 **One-line install:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/chardigio/pappardelle/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/vaibhavkaul/lasagna/main/install.sh | bash
 ```
 
 **From a local clone:**
 
 ```bash
-git clone https://github.com/chardigio/pappardelle.git
-cd pappardelle
+git clone https://github.com/vaibhavkaul/lasagna.git
+cd lasagna
 ./install.sh
 ```
 
 `install.sh` typechecks and builds the clone, then copies the build, scripts and plugin to `~/.pappardelle/local/` and runs Pappardelle from there. Later builds in the clone don't reach running spaces until you run `install.sh` again, and you can remove a worktree you installed from. The previous install is kept at `~/.pappardelle/local.previous/`. Processes that are already running (agents' MCP servers, pane monitors, the status daemon and the TUI) keep the binary they started with until they restart, but hooks, and anything those processes start after the install, use the new build.
 
 > **Compiled runtime:** release builds embed Bun, production React, and OpenTUI
-> in `dist/pappardelle`, with startup bytecode. Running the installed app requires
+> in `dist/lasagna`, with startup bytecode. Running the installed app requires
 > neither Node nor a separate Bun. Bun 1.4.4+ is needed to build or update; the
 > installer supplies a private, checksum-verified copy when needed. Scripts,
 > hooks, and package metadata stay beside the executable. If the executable is
@@ -541,12 +541,12 @@ cd pappardelle
 **Manual install:**
 
 ```bash
-git clone https://github.com/chardigio/pappardelle.git
-cd pappardelle
+git clone https://github.com/vaibhavkaul/lasagna.git
+cd lasagna
 bun install --frozen-lockfile
 bun run build           # native executable with bytecode
-bun link                # makes `pappardelle` available globally
-pappardelle plugin install  # installs the plugin (skills, hooks and MCP tools) into Claude Code, Codex and agy
+bun link                # makes `lasagna` available globally
+lasagna plugin install  # installs the plugin (skills, hooks and MCP tools) into Claude Code, Codex and agy
 ```
 
 **Directories created by the installer:**
@@ -571,7 +571,7 @@ pappardelle plugin install  # installs the plugin (skills, hooks and MCP tools) 
 
 ### Agent hooks
 
-The Pappardelle plugin ships the hooks that connect agent sessions to the TUI: [Claude Code's](plugins/pappardelle/hooks/hooks.json) and [agy's](plugins/pappardelle/hooks.json) hooks files, and the session hook `pappardelle plugin install` adds to `~/.codex/hooks.json` for Codex:
+The Pappardelle plugin ships the hooks that connect agent sessions to the TUI: [Claude Code's](plugins/pappardelle/hooks/hooks.json) and [agy's](plugins/pappardelle/hooks.json) hooks files, and the session hook `lasagna plugin install` adds to `~/.codex/hooks.json` for Codex:
 
 | Hook                           | Trigger                                                                       | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | ------------------------------ | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -602,9 +602,9 @@ On startup, the TUI checks the GitHub Releases API (cached for 24h at `~/.pappar
 Update available: v0.1.0 → v0.2.0 · U to update · X to dismiss
 ```
 
-The update-check's installed version is read from `git describe --tags --abbrev=0 --match 'v*.*.*'` on the install clone. Press `U` to update to the latest release. `U` is **always live** — not just while the banner is showing: the 24h cache can lag a fresh release by hours, so you can pull a release that landed minutes ago without restarting and waiting out the cache. `U` opens an "are you sure?" confirm dialog (same style as closing a space); confirming re-runs the install script in place, then restarts the TUI in its pane on the new build. If the install fails, it waits for a key and restarts on the old build. If tmux refuses the restart, it prints tmux's error and waits for a key before closing, and you relaunch with `pappardelle`. Press `X` to dismiss the banner for the current session — the next launch re-reads the cache.
+The update-check's installed version is read from `git describe --tags --abbrev=0 --match 'v*.*.*'` on the install clone. Press `U` to update to the latest release. `U` is **always live** — not just while the banner is showing: the 24h cache can lag a fresh release by hours, so you can pull a release that landed minutes ago without restarting and waiting out the cache. `U` opens an "are you sure?" confirm dialog (same style as closing a space); confirming re-runs the install script in place, then restarts the TUI in its pane on the new build. If the install fails, it waits for a key and restarts on the old build. If tmux refuses the restart, it prints tmux's error and waits for a key before closing, and you relaunch with `lasagna`. Press `X` to dismiss the banner for the current session — the next launch re-reads the cache.
 
-Outside the TUI, `pappardelle update` runs the same installer from any directory. It doesn't ask before installing. If the install fails, it prints the path of the log (`~/.pappardelle/logs/update.log`) and exits with the installer's status. After a successful install, any TUIs still running are on the old build, so the command offers to restart them:
+Outside the TUI, `lasagna update` runs the same installer from any directory. It doesn't ask before installing. If the install fails, it prints the path of the log (`~/.pappardelle/logs/update.log`) and exits with the installer's status. After a successful install, any TUIs still running are on the old build, so the command offers to restart them:
 
 - On a terminal it asks `Restart N running Pappardelle TUIs on the new build? [y/N]`
 - `--restart-tuis` restarts them without asking; `--no-restart-tuis` leaves them running
@@ -613,15 +613,15 @@ Outside the TUI, `pappardelle update` runs the same installer from any directory
 
 #### Restarting
 
-`pappardelle restart` restarts this repo's TUI in its tmux pane, so your terminal stays attached and the layout rebuilds. Run from a plain terminal, it then attaches to the TUI. If no TUI is running for the repo, it says so and starts nothing.
+`lasagna restart` restarts this repo's TUI in its tmux pane, so your terminal stays attached and the layout rebuilds. Run from a plain terminal, it then attaches to the TUI. If no TUI is running for the repo, it says so and starts nothing.
 
-Restarting doesn't touch agent and companion sessions; they live on a separate tmux server (`pappardelle_inner`). `pappardelle restart --hard` ends that server too, then restarts every running TUI. Each agent resumes its own conversation the next time you select its space, so conversations survive but anything in flight stops. It asks first; `--yes` skips the question, and without a terminal it refuses unless `--yes` is passed. Your other tmux sessions are never touched.
+Restarting doesn't touch agent and companion sessions; they live on a separate tmux server (`pappardelle_inner`). `lasagna restart --hard` ends that server too, then restarts every running TUI. Each agent resumes its own conversation the next time you select its space, so conversations survive but anything in flight stops. It asks first; `--yes` skips the question, and without a terminal it refuses unless `--yes` is passed. Your other tmux sessions are never touched.
 
 The version shown in the help (`?`) overlay follows the same source-of-truth but degrades differently, since `package.json` is never bumped on release and so is always a stale `0.1.0`:
 
-- **Released install** (run from `~/.pappardelle/repo`, which carries the tag) → `pappardelle v0.7.9 (<sha>)`.
-- **Dev / worktree build** (run from the monorepo, a checkout, or the `~/.pappardelle/local` snapshot of one, where no `v*.*.*` tag is reachable) → reports the latest release you have installed, flagged `-dev`: `pappardelle v0.7.9-dev (<sha>)`. This signals "ahead of v0.7.9" rather than leaking the stale `0.1.0`. A snapshot shows the commit it was copied from, with `-dirty` when the clone had uncommitted changes.
-- **Neither resolvable** → the line degrades to the sha-only form `pappardelle (<sha>)`.
+- **Released install** (run from `~/.pappardelle/repo`, which carries the tag) → `lasagna v0.7.9 (<sha>)`.
+- **Dev / worktree build** (run from the monorepo, a checkout, or the `~/.pappardelle/local` snapshot of one, where no `v*.*.*` tag is reachable) → reports the latest release you have installed, flagged `-dev`: `lasagna v0.7.9-dev (<sha>)`. This signals "ahead of v0.7.9" rather than leaking the stale `0.1.0`. A snapshot shows the commit it was copied from, with `-dirty` when the clone had uncommitted changes.
+- **Neither resolvable** → the line degrades to the sha-only form `lasagna (<sha>)`.
 
 When running out of the stardust-labs monorepo (`LOCAL_MODE`), the **automatic** update check (and its banner) is skipped — the monorepo's version is a dev placeholder, so the comparison would false-positive on every launch. The manual `U` update still works everywhere: the installer writes to `~/.pappardelle/repo`, never to your monorepo checkout, so it can't clobber unpushed work there.
 
@@ -696,14 +696,14 @@ Pappardelle ships these skills in [`plugins/pappardelle/skills`](plugins/pappard
 | `/update-pappardelle`    | Re-runs the install script to update Pappardelle to the latest version                                                                                                                            | No              |
 | `/configure-pappardelle` | Interactive config editor for `.pappardelle.yml` and `.pappardelle.local.yml` — profiles, keybindings, hooks, watchlists, and more                                                                | Yes             |
 | `/sous-chef`             | Kitchen-style coordinator — quick overview of active spaces, drill into any space for a sitrep, watch the line and answer prompts on your word, relay instructions, open, reopen and close spaces | No              |
-| `/link-pr`               | Records a verified PR/MR for the current workspace with `pappardelle link-pr`                                                                                                                     | Yes             |
+| `/link-pr`               | Records a verified PR/MR for the current workspace with `lasagna link-pr`                                                                                                                         | Yes             |
 | `pappardelle-agent`      | Workspace layout, the CLI behind the MCP tools, and how to update or restart Pappardelle                                                                                                          | Yes             |
 
 ### MCP tools
 
-`pappardelle mcp` is an MCP server that gives agents explicit tools instead of shell commands to quote. Each tool runs the matching `pappardelle` command. It serves nothing unless the repo's config sets `workspace_aware_agents: true`.
+`lasagna mcp` is an MCP server that gives agents explicit tools instead of shell commands to quote. Each tool runs the matching `lasagna` command. It serves nothing unless the repo's config sets `workspace_aware_agents: true`.
 
-Claude Code gets the server from the plugin. `install.sh` runs `pappardelle mcp install`, which adds it to each of Codex, OpenCode, Antigravity and Pi that is installed. Run that yourself if you install one of them later. It edits their global config through their own `mcp add`, so a symlinked or commented config keeps its link and comments.
+Claude Code gets the server from the plugin. `install.sh` runs `lasagna mcp install`, which adds it to each of Codex, OpenCode, Antigravity and Pi that is installed. Run that yourself if you install one of them later. It edits their global config through their own `mcp add`, so a symlinked or commented config keeps its link and comments.
 
 | Tools                                                                                                                                | Do                                                                                 |
 | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
@@ -723,12 +723,12 @@ Claude Code gets the server from the plugin. `install.sh` runs `pappardelle mcp 
 
 The `companion_*` tools are auto-approved, because an agent has to change the companion constantly to keep showing its work. That includes `companion_run`, `companion_type` and `companion_press_keys`, which can run any shell line in a pane, so an agent has Bash's power through them without a Bash prompt. So are `space_get`, `agent_profiles_list`, `space_send` and the supervision tools, since watching other spaces means calling them in a loop. Two checks hold without a prompt, and no tool can override them:
 
-- `space_answer` approves once whatever stays inside the space: its worktree, its own scratchpad, the temp directories, isolated tmux sockets and git on its own branch. Edits, writes and reads are placed by their path, which the status hook records, outside the agent's own settings (`.claude/settings*.json`, `.mcp.json`, `.codex/`, `.git/`). Commands first pass hard stops: deploy and cloud CLIs (dokku, doctl, aws, gcloud, kubectl, wrangler deploy and the like), publishes, `sudo`, deletes outside the space, pushes to main, master or the default branch, dropping shared stash entries or worktrees, and anything that would answer prompts for agents. Then Haiku, run through `claude -p` with no tools or settings, approves unless the call sends secrets off the machine or reaches outside the space. Pushes to other branches and PR changes are fine. A hard stop or a no from Haiku is held: the prompt is declined, the agent is told to carry on, and the hold waits in `pappardelle holds`. Approving it lets the agent's retry of that exact prompt through once. Only the sous-chef and the chef answer prompts and resolve holds: a call from a space is refused, the sous-chef can't approve a hold from its own space, and `space_hold_resolve` asks first. An approval never covers a Codex edit, whose patch isn't on record. If Haiku can't be reached twice in a row, nothing is pressed. Choosing "Yes, and don't ask again" is an error. `pappardelle answer --force` on the command line is the override
+- `space_answer` approves once whatever stays inside the space: its worktree, its own scratchpad, the temp directories, isolated tmux sockets and git on its own branch. Edits, writes and reads are placed by their path, which the status hook records, outside the agent's own settings (`.claude/settings*.json`, `.mcp.json`, `.codex/`, `.git/`). Commands first pass hard stops: deploy and cloud CLIs (dokku, doctl, aws, gcloud, kubectl, wrangler deploy and the like), publishes, `sudo`, deletes outside the space, pushes to main, master or the default branch, dropping shared stash entries or worktrees, and anything that would answer prompts for agents. Then Haiku, run through `claude -p` with no tools or settings, approves unless the call sends secrets off the machine or reaches outside the space. Pushes to other branches and PR changes are fine. A hard stop or a no from Haiku is held: the prompt is declined, the agent is told to carry on, and the hold waits in `lasagna holds`. Approving it lets the agent's retry of that exact prompt through once. Only the sous-chef and the chef answer prompts and resolve holds: a call from a space is refused, the sous-chef can't approve a hold from its own space, and `space_hold_resolve` asks first. An approval never covers a Codex edit, whose patch isn't on record. If Haiku can't be reached twice in a row, nothing is pressed. Choosing "Yes, and don't ask again" is an error. `lasagna answer --force` on the command line is the override
 - Sends refuse while a permission prompt or question is on screen, so they can't answer one around that check. They also refuse over text sitting in the agent's input box unless forced, since a send clears the line first
 
 In Claude Code the approval is a plugin hook, and it also applies in plan mode. The other tools ask first wherever the agent normally asks. Every send, answer, schedule and change `space_watch` reports is logged to `~/.pappardelle/repos/<repo>/supervise.jsonl`.
 
-`space_schedule` uses an OS user timer that runs `pappardelle schedule fire` even when no agent or TUI is running: a transient `systemd-run --user` timer on Linux, a launchd agent in `~/Library/LaunchAgents` on macOS.
+`space_schedule` uses an OS user timer that runs `lasagna schedule fire` even when no agent or TUI is running: a transient `systemd-run --user` timer on Linux, a launchd agent in `~/Library/LaunchAgents` on macOS.
 
 An agent in a space is told to keep the companion showing its work, from `scripts/companion-rules.txt`. How that reaches the model depends on the agent:
 
@@ -739,13 +739,13 @@ An agent in a space is told to keep the companion showing its work, from `script
 | Pi                    | `--append-system-prompt` at launch                                                             |
 | Antigravity           | `.agents/rules/pappardelle.md`, written into the worktree at launch and git-excluded           |
 
-They ship in the `pappardelle` plugin with the [hooks](#agent-hooks). `install.sh` (and so `U` and `pappardelle update`) runs `pappardelle plugin install`, which installs the plugin from the install it made (`~/.pappardelle/local` for a local clone) into each agent it finds:
+They ship in the `lasagna` plugin with the [hooks](#agent-hooks). `install.sh` (and so `U` and `lasagna update`) runs `lasagna plugin install`, which installs the plugin from the install it made (`~/.pappardelle/local` for a local clone) into each agent it finds:
 
 - **Claude Code** gets the `pappardelle-marketplace` marketplace from the install and the plugin at user scope. It loads a plugin from a local marketplace in place, so the skills and hooks always match that install. Run `/reload-plugins` in open sessions after an update or a local install
-- **Codex** gets the same marketplace and `codex plugin add` for the skills. Codex copies the plugin into its cache, which each install refreshes. Codex trusts a plugin's hooks by a hash of the whole plugin, so any update would make you trust the session hook again; instead `pappardelle plugin install` adds it to `~/.codex/hooks.json`, pointing at the install. Codex asks to trust it on its next launch, and that trust lasts until the install moves. A local install always lands at `~/.pappardelle/local`, so reinstalling keeps it
+- **Codex** gets the same marketplace and `codex plugin add` for the skills. Codex copies the plugin into its cache, which each install refreshes. Codex trusts a plugin's hooks by a hash of the whole plugin, so any update would make you trust the session hook again; instead `lasagna plugin install` adds it to `~/.codex/hooks.json`, pointing at the install. Codex asks to trust it on its next launch, and that trust lasts until the install moves. A local install always lands at `~/.pappardelle/local`, so reinstalling keeps it
 - **agy** gets a symlink from `~/.gemini/config/plugins/pappardelle` to the install, so new agy sessions load the plugin in place
 
-Earlier versions told you to add the marketplace from GitHub, which Claude Code caches by version, and to merge the hooks into `~/.claude/settings.json`. `pappardelle plugin install` moves that marketplace over to the install and removes the old `~/.pappardelle/hooks/` entries from your settings (backing it up to `settings.json.pappardelle.bak` first), so the hooks don't run twice. It also replaces the `record-agent-session.py` entries `install.sh` used to merge into `~/.codex/hooks.json` with one pointing at the install, backing the file up to `hooks.json.pappardelle.bak`. Codex keys hook trust by position in that file, so it asks you to review any of your own hooks listed after the old entries again. It removes the `pappardelle-session` hook that `install.sh` used to merge into `~/.gemini/config/hooks.json` for agy, with a `hooks.json.pappardelle.bak` backup. It leaves the `~/.pappardelle/hooks/` scripts for sessions that were open during the update; delete the directory once those sessions have restarted.
+Earlier versions told you to add the marketplace from GitHub, which Claude Code caches by version, and to merge the hooks into `~/.claude/settings.json`. `lasagna plugin install` moves that marketplace over to the install and removes the old `~/.pappardelle/hooks/` entries from your settings (backing it up to `settings.json.pappardelle.bak` first), so the hooks don't run twice. It also replaces the `record-agent-session.py` entries `install.sh` used to merge into `~/.codex/hooks.json` with one pointing at the install, backing the file up to `hooks.json.pappardelle.bak`. Codex keys hook trust by position in that file, so it asks you to review any of your own hooks listed after the old entries again. It removes the `pappardelle-session` hook that `install.sh` used to merge into `~/.gemini/config/hooks.json` for agy, with a `hooks.json.pappardelle.bak` backup. It leaves the `~/.pappardelle/hooks/` scripts for sessions that were open during the update; delete the directory once those sessions have restarted.
 
 Because `/configure-pappardelle` is model-invocable, Claude will automatically offer to use it when you ask about configuring Pappardelle — no need to invoke it explicitly.
 

@@ -26,30 +26,30 @@ To talk to the agent in another space, use Claude Code's SendMessage and ListAge
 
 ## Without the MCP tools
 
-If you don't have the tools, either the repo's config doesn't set `workspace_aware_agents: true`, or your agent doesn't have the server: `pappardelle mcp install` adds it to Codex, OpenCode, Antigravity and Pi. Every tool is also a `pappardelle` command. Run them from the repo or any of its worktrees. `pappardelle --help` and `pappardelle companion --help` have the details.
+If you don't have the tools, either the repo's config doesn't set `workspace_aware_agents: true`, or your agent doesn't have the server: `lasagna mcp install` adds it to Codex, OpenCode, Antigravity and Pi. Every tool is also a `pappardelle` command. Run them from the repo or any of its worktrees. `lasagna --help` and `lasagna companion --help` have the details.
 
-| Tools                        | Command                                                                                         |
-| ---------------------------- | ----------------------------------------------------------------------------------------------- |
-| `companion_*`                | `pappardelle companion run\|keys\|read\|resize\|close\|list\|width`                             |
-| `spaces_list`                | `pappardelle spaces [--json]`                                                                   |
-| `space_get`                  | `pappardelle space get [KEY] [--json] [--field NAME]`, `space list` for `all`                   |
-| `space_read`                 | `pappardelle read KEY [--turns N] [--json]`                                                     |
-| `space_highlight`            | `pappardelle highlight KEY [--focus]`                                                           |
-| `space_send`                 | `pappardelle send KEY`, with the text on stdin                                                  |
-| `space_press_keys`           | `pappardelle send KEY --keys Escape`                                                            |
-| `space_open`                 | `pappardelle [--resume\|--no-resume] [--wait] [--profile NAME] [--agent-profile NAME] -- INPUT` |
-| `agent_profiles_list`        | `pappardelle agent-profile list [--json]`                                                       |
-| `space_screen`               | `pappardelle screen KEY [--companion [--pane NAME]] [--lines N]`                                |
-| `space_state`                | `pappardelle state KEY --json`, `--tabs` for `space_question_tabs`                              |
-| `space_wait`                 | `pappardelle wait KEY --until STATE [--timeout S] --json`                                       |
-| `space_watch`                | `pappardelle watch [KEY...] [--until STATE...] [--since CURSOR] --json`                         |
-| `space_answer`               | `pappardelle answer KEY --option N...`, `--text T` or `--keys K`                                |
-| `space_queue`                | `pappardelle queue KEY`, with the text on stdin                                                 |
-| `space_schedule*`            | `pappardelle schedule\|schedules\|unschedule`                                                   |
-| `tui_panes`, `tui_focus_log` | `pappardelle tui panes\|focus-log`                                                              |
-| `space_close`                | `pappardelle close KEY --yes`                                                                   |
-| `tui_restart`                | `pappardelle restart`                                                                           |
-| `link_pr`                    | `pappardelle link-pr URL [--workspace ROOT]`, from the source repository                        |
+| Tools                        | Command                                                                                     |
+| ---------------------------- | ------------------------------------------------------------------------------------------- |
+| `companion_*`                | `lasagna companion run\|keys\|read\|resize\|close\|list\|width`                             |
+| `spaces_list`                | `lasagna spaces [--json]`                                                                   |
+| `space_get`                  | `lasagna space get [KEY] [--json] [--field NAME]`, `space list` for `all`                   |
+| `space_read`                 | `lasagna read KEY [--turns N] [--json]`                                                     |
+| `space_highlight`            | `lasagna highlight KEY [--focus]`                                                           |
+| `space_send`                 | `lasagna send KEY`, with the text on stdin                                                  |
+| `space_press_keys`           | `lasagna send KEY --keys Escape`                                                            |
+| `space_open`                 | `lasagna [--resume\|--no-resume] [--wait] [--profile NAME] [--agent-profile NAME] -- INPUT` |
+| `agent_profiles_list`        | `lasagna agent-profile list [--json]`                                                       |
+| `space_screen`               | `lasagna screen KEY [--companion [--pane NAME]] [--lines N]`                                |
+| `space_state`                | `lasagna state KEY --json`, `--tabs` for `space_question_tabs`                              |
+| `space_wait`                 | `lasagna wait KEY --until STATE [--timeout S] --json`                                       |
+| `space_watch`                | `lasagna watch [KEY...] [--until STATE...] [--since CURSOR] --json`                         |
+| `space_answer`               | `lasagna answer KEY --option N...`, `--text T` or `--keys K`                                |
+| `space_queue`                | `lasagna queue KEY`, with the text on stdin                                                 |
+| `space_schedule*`            | `lasagna schedule\|schedules\|unschedule`                                                   |
+| `tui_panes`, `tui_focus_log` | `lasagna tui panes\|focus-log`                                                              |
+| `space_close`                | `lasagna close KEY --yes`                                                                   |
+| `tui_restart`                | `lasagna restart`                                                                           |
+| `link_pr`                    | `lasagna link-pr URL [--workspace ROOT]`, from the source repository                        |
 
 Keep the companion showing your work there too: what a decision depends on before you ask, what to review before you ask for a review, and the app or a test watcher in a split instead of a background task. The companion is an open terminal sandbox: a quick script that shows what you're building, kitty graphics, a process's output, the terminal app itself to try, or a login or a typed command waiting for the user.
 
@@ -71,17 +71,17 @@ Every send, answer, schedule and reported watch change is logged in `~/.papparde
 
 `update` and `restart --hard` stay commands, not tools, so that they take a deliberate step. The plain restart is also the `tui_restart` tool.
 
-| Command                                | Does                                                                                                                                                                                                                                                                                                   |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `pappardelle update --no-restart-tuis` | Installs the latest release and leaves running TUIs on the old build                                                                                                                                                                                                                                   |
-| `pappardelle update --restart-tuis`    | Installs the latest release and restarts every running TUI in place. Exits 1 if one doesn't come back                                                                                                                                                                                                  |
-| `pappardelle restart`                  | Restarts this repo's TUI on the build that ran the command and confirms it came up. Agent sessions keep running                                                                                                                                                                                        |
-| `./install.sh && pappardelle restart`  | From a Pappardelle checkout: typechecks and builds it, copies the build to `~/.pappardelle/local`, points `pappardelle` and every agent's plugin at that copy, moves this repo's TUI onto it. Later builds in the checkout change nothing until the next `install.sh`, and the worktree can be removed |
-| `pappardelle restart --hard --yes`     | Ends every agent and companion session, this one included, then restarts every TUI                                                                                                                                                                                                                     |
+| Command                            | Does                                                                                                                                                                                                                                                                                                   |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `lasagna update --no-restart-tuis` | Installs the latest release and leaves running TUIs on the old build                                                                                                                                                                                                                                   |
+| `lasagna update --restart-tuis`    | Installs the latest release and restarts every running TUI in place. Exits 1 if one doesn't come back                                                                                                                                                                                                  |
+| `lasagna restart`                  | Restarts this repo's TUI on the build that ran the command and confirms it came up. Agent sessions keep running                                                                                                                                                                                        |
+| `./install.sh && lasagna restart`  | From a Pappardelle checkout: typechecks and builds it, copies the build to `~/.pappardelle/local`, points `pappardelle` and every agent's plugin at that copy, moves this repo's TUI onto it. Later builds in the checkout change nothing until the next `install.sh`, and the worktree can be removed |
+| `lasagna restart --hard --yes`     | Ends every agent and companion session, this one included, then restarts every TUI                                                                                                                                                                                                                     |
 
 1. Always pass a flag to `update`. There is no terminal here, so without one it never restarts TUIs
 2. A nonzero exit after a successful install means a TUI isn't confirmed on the new build. Relay the line naming the TUI and the reason
-3. Use `pappardelle restart` when the TUI looks frozen or stale. If it exits nonzero, relay its reason
+3. Use `lasagna restart` when the TUI looks frozen or stale. If it exits nonzero, relay its reason
 4. `install.sh` installs a copy of the checkout it runs from. Run it from the worktree whose build the user wants. Processes already running (MCP servers, pane monitors, the status daemon) keep their binary until they restart; hooks and anything they start afterwards use the new build
 5. `--help` on `restart` or `update` changes nothing. Both reject unknown flags with exit 2
 6. Run `restart --hard --yes` only when the user explicitly asks to reset every session. Say first that it ends every agent session including yours, and wait for the go. Your reply won't arrive after it runs

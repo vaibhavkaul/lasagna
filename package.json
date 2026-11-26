@@ -1,9 +1,9 @@
 {
-	"name": "pappardelle",
+	"name": "lasagna",
 	"version": "0.1.0",
 	"license": "MIT",
 	"bin": {
-		"pappardelle": "dist/pappardelle"
+		"lasagna": "dist/lasagna"
 	},
 	"type": "module",
 	"engines": {
@@ -12,7 +12,7 @@
 	"scripts": {
 		"build": "bun scripts/build.ts",
 		"dev": "bun --watch source/cli.tsx",
-		"start": "./dist/pappardelle",
+		"start": "./dist/lasagna",
 		"test": "bun --bun prettier --check . && bun --bun xo && bun run test:unit",
 		"typecheck": "bun --bun tsc --noEmit",
 		"test:unit": "bun scripts/unit-tests.ts"

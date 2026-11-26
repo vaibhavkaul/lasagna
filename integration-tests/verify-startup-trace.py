@@ -17,7 +17,7 @@ import time
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--binary', type=Path, default=Path('dist/pappardelle'))
+    parser.add_argument('--binary', type=Path, default=Path('dist/lasagna'))
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     binary = args.binary.resolve()

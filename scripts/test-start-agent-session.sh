@@ -307,7 +307,7 @@ echo -e "\n${BOLD}Test: the socket is required${RESET}"
 OUTPUT=$(env -u PAPPARDELLE_TMUX_SOCKET "$SCRIPT_DIR/start-agent-session.sh" --issue-key "X-1" --repo-name "$TEST_REPO" \
     --worktree "/tmp" --agent-session agent-x --companion-session companion-x --legacy-agent-session claude-x 2>&1 || true)
 assert_eq "errors without PAPPARDELLE_TMUX_SOCKET" \
-    "Error: PAPPARDELLE_TMUX_SOCKET is required: idow exports the space's socket from pappardelle space get" "$OUTPUT"
+    "Error: PAPPARDELLE_TMUX_SOCKET is required: idow exports the space's socket from lasagna space get" "$OUTPUT"
 
 # ==========================================================================
 

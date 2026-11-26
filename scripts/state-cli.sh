@@ -12,12 +12,12 @@ pappardelle_state() {
     local bun="${PAPPARDELLE_BUN:-$(command -v bun || true)}"
     if [[ -x "${PAPPARDELLE_EXECUTABLE:-}" ]]; then
         "$PAPPARDELLE_EXECUTABLE" --internal-state "$@"
-    elif [[ -x "$_STATE_CLI_DIR/../dist/pappardelle" ]]; then
-        "$_STATE_CLI_DIR/../dist/pappardelle" --internal-state "$@"
+    elif [[ -x "$_STATE_CLI_DIR/../dist/lasagna" ]]; then
+        "$_STATE_CLI_DIR/../dist/lasagna" --internal-state "$@"
     elif [[ -x "$bun" && -f "$_STATE_CLI_DIR/../source/state-cli.ts" ]]; then
         "$bun" --no-env-file --config=/dev/null "$_STATE_CLI_DIR/../source/state-cli.ts" "$@"
     else
-        echo "pappardelle: no binary or Bun found to run pappardelle --internal-state $1" >&2
+        echo "lasagna: no binary or Bun found to run lasagna --internal-state $1" >&2
         return 127
     fi
 }

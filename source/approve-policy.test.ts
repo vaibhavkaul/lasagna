@@ -207,9 +207,9 @@ test('hard-stop words in a commit message or heredoc are text, not commands', ()
 
 test('an agent cannot approve its own hold', () => {
 	for (const command of [
-		'pappardelle holds approve h1',
-		'pappardelle answer STA-1 --option 1',
-		'pappardelle send STA-1 --keys 1',
+		'lasagna holds approve h1',
+		'lasagna answer STA-1 --option 1',
+		'lasagna send STA-1 --keys 1',
 		'echo x >> ~/.pappardelle/repos/r/holds/h1.json',
 		'cat > $HOME/.pappardelle/state.db',
 		'tmux send-keys -t main y Enter',
@@ -218,7 +218,7 @@ test('an agent cannot approve its own hold', () => {
 		expect(approved(command), `${command}`).toBe(false);
 	}
 
-	expect(approved('pappardelle send STA-2 "rebase please"')).toBe(true);
+	expect(approved('lasagna send STA-2 "rebase please"')).toBe(true);
 	expect(approved('tmux -S /tmp/q-a/s send-keys -t x y')).toBe(true);
 	expect(approved('qtmux a send-keys -t x y')).toBe(true);
 });
@@ -350,7 +350,7 @@ test('evasions of the delete, hard-stop and push rules hold', () => {
 		'git push origin $(git rev-parse HEAD):main',
 		'git -c push.default=upstream push',
 		'git config remote.origin.push HEAD:main && git push',
-		'pappardelle send STA-1 --keys=1',
+		'lasagna send STA-1 --keys=1',
 		'echo x > "$HOME"/.pappardelle/x',
 		'echo x > ~/./.pappardelle/x',
 		'cd ~ && echo > .pappardelle/x',
@@ -449,7 +449,7 @@ test('a shell fed a script on its input, a quoted subcommand, or a glob into age
 		'npm pub""lish',
 		'terraform ap""ply',
 		'git stash dr""op',
-		'pappardelle an""swer STA-2 --option 1',
+		'lasagna an""swer STA-2 --option 1',
 		'rm -rf .claude/*',
 		'cp /tmp/q-x/evil .claude/settings.l*',
 	]) {

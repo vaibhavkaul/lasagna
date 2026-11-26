@@ -13,7 +13,7 @@ export type CliSpaceKey =
 /**
  * A bare number needs the configured team prefix, so it can't be resolved
  * while the config is invalid. Any other key is used as typed, which keeps
- * `pappardelle space …` (what the MCP tools run) working on a broken config;
+ * `lasagna space …` (what the MCP tools run) working on a broken config;
  * only a beads key typed in another case misses its space then.
  */
 export function cliSpaceKey(

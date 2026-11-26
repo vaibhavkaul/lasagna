@@ -12,9 +12,9 @@ const linesWhileInvalid = new Set<string>();
 let restartNeeded = false;
 
 const OFF_UNTIL_RESTART =
-	'Keybindings, watchlists, auto-remove and rail settings are off until Pappardelle restarts';
+	'Keybindings, watchlists, auto-remove and rail settings are off until Lasagna restarts';
 const RESTART_AFTER_FIX =
-	'.pappardelle.yml loads now: restart Pappardelle to turn keybindings, watchlists, auto-remove and rail settings back on';
+	'.pappardelle.yml loads now: restart Lasagna to turn keybindings, watchlists, auto-remove and rail settings back on';
 
 function raise(message: string): void {
 	if (getRecentErrors().some(entry => entry.message === message)) return;

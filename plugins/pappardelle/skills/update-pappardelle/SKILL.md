@@ -17,24 +17,24 @@ Pappardelle now checks GitHub Releases on startup (cached once per 24h) and show
 2. Run the update command. `--no-restart-tuis` keeps it from restarting running TUIs, since this session may be running inside one:
 
 ```bash
-pappardelle update --no-restart-tuis
+lasagna update --no-restart-tuis
 ```
 
 If `pappardelle` is not on PATH, or its shim errors before the update starts (its executable is missing or not executable), run the install script directly instead:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/chardigio/pappardelle/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/vaibhavkaul/lasagna/main/install.sh | bash
 ```
 
-3. If the update fails, read its output (`pappardelle update` also keeps it in `~/.pappardelle/logs/update.log`) and help the user troubleshoot:
+3. If the update fails, read its output (`lasagna update` also keeps it in `~/.pappardelle/logs/update.log`) and help the user troubleshoot:
    - Missing prerequisites → suggest `brew install <tool>`
    - Permission errors → suggest checking `~/.local/bin` ownership
    - Network errors → suggest checking internet connectivity
 
 4. After success, tell the user:
    - Pappardelle has been updated, including its plugin. Open Claude Code sessions (this one included) load the new skills, hooks and tools after `/reload-plugins`
-   - If the output says "Could not install the Pappardelle plugin", the CLI updated but the skills, hooks and tools did not. Pass on the error printed above it and have the user run `pappardelle plugin install` once it's fixed
-   - If the command named running TUIs, they're still on the old build. `pappardelle restart`, run in each repo, restarts that repo's TUI on the new build. It is safe to run from this session: it only touches the TUI's pane, and Claude sessions keep running
-   - `pappardelle restart` ends with `pappardelle-<repo> is running <build path> (<commit>)`. If it exits non-zero instead, the TUI is not confirmed on the new build; pass on the reason it printed
+   - If the output says "Could not install the Pappardelle plugin", the CLI updated but the skills, hooks and tools did not. Pass on the error printed above it and have the user run `lasagna plugin install` once it's fixed
+   - If the command named running TUIs, they're still on the old build. `lasagna restart`, run in each repo, restarts that repo's TUI on the new build. It is safe to run from this session: it only touches the TUI's pane, and Claude sessions keep running
+   - `lasagna restart` ends with `pappardelle-<repo> is running <build path> (<commit>)`. If it exits non-zero instead, the TUI is not confirmed on the new build; pass on the reason it printed
 
 Note: the installer rebuilds Pappardelle and rewrites the `pappardelle` shim to run the new executable, so re-running it is the fix when the shim says the executable is missing or not executable.

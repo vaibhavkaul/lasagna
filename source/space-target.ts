@@ -2,7 +2,7 @@ import type {SpaceIdentityDao} from './space-identity.ts';
 
 export class NoTargetSpaceError extends Error {
 	constructor() {
-		super('Not in a Pappardelle workspace; pass --space KEY');
+		super('Not in a Lasagna workspace; pass --space KEY');
 	}
 }
 

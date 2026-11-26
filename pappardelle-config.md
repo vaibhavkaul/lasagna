@@ -431,11 +431,11 @@ When more than one config file exists, an error that comes from a single file na
 A config that fails validation, fails to parse, has a layer whose top level isn't a map or can't be read is invalid, never treated as a missing one, so nothing falls back to the built-in defaults in its place:
 
 - The TUI still starts, and the rail shows `.pappardelle.yml is invalid: …` until the file loads. Settings read once at startup (keybindings, watchlists, `auto_remove_when_done`, rail layout) stay off until Pappardelle restarts, and the rail says so when the file loads
-- Spaces aren't created or opened: the new-space dialog shows the errors, `idow` and `pappardelle <prompt>` exit with them, and keybinding commands don't run
+- Spaces aren't created or opened: the new-space dialog shows the errors, `idow` and `lasagna <prompt>` exit with them, and keybinding commands don't run
 - A dead agent or companion session isn't restarted with the wrong command; the rail names the space
 - Closing a space skips its `pre_workspace_deinit` commands and says so; when the config breaks while the TUI runs, `auto_remove_when_done` and watchlists wait until it loads
 - Agents' MCP tools are off, and the server's instructions name the errors
-- `pappardelle <verb> <number>` can't expand a bare number without `team_prefix`; a full issue key still works
+- `lasagna <verb> <number>` can't expand a bare number without `team_prefix`; a full issue key still works
 
 ### Profile Not Found
 
@@ -884,7 +884,7 @@ profiles:
 
 **Semantics:**
 
-- In the new-session profile picker, `a` on a profile opens a tmux popup to pick a different agent profile for that one launch (`idow --agent-profile <name>`). It isn't persisted: a relaunch of the space uses the profile's own `agent_profile` again and resumes that agent profile's conversation. Picking the same override again later resumes the override's. From the command line it is `pappardelle --agent-profile <name> <issue-key or prompt>` (the sous-chef's `space_open` has the same `agent_profile` option), and `pappardelle agent-profile list` prints the names it takes.
+- In the new-session profile picker, `a` on a profile opens a tmux popup to pick a different agent profile for that one launch (`idow --agent-profile <name>`). It isn't persisted: a relaunch of the space uses the profile's own `agent_profile` again and resumes that agent profile's conversation. Picking the same override again later resumes the override's. From the command line it is `lasagna --agent-profile <name> <issue-key or prompt>` (the sous-chef's `space_open` has the same `agent_profile` option), and `lasagna agent-profile list` prints the names it takes.
 - `agent_profile:` is a **string reference** into the `agent_profiles:` map — no inline definitions. A built-in `claude` agent profile (command `claude`) always exists; defining `agent_profiles.claude` shadows it.
 - Resolution: workspace profile `agent_profile` → top-level `agent_profile` → `claude`. An explicit `agent_profile: ''` at the profile level clears an inherited reference back to claude.
 - Referencing an undefined agent profile is a validation error, as is an `agent_profiles` entry without a `command`. `idow` fails the same way on an undefined name.
@@ -916,7 +916,7 @@ Relaunching a workspace's agent (the TUI recreating a dead session, `idow` reope
 
 - The agent's hooks record its session id in `~/.pappardelle/repos/<repo>/space-state/<KEY>.agent-sessions.json`, under its agent profile's name with the pid and start time of the agent process (`{<agent profile>: {session_id, pid, started}}`), on `SessionStart` and `UserPromptSubmit`. A new conversation in the pane (Claude's `/clear`, say) replaces that agent profile's id. While that process runs (the same pid with the same start time, since pids get reused), no other agent can replace it; a relaunch can.
 - `{session_id}` in `resume_args` is replaced with the id recorded under the launching agent profile. With nothing recorded, claude falls back to `--continue`, which only looks in the workspace's directory, so spaces from before id recording keep their conversation. Other agents skip the resume attempt and launch fresh.
-- Claude records through the `update-status.py` hook Pappardelle already installs. Codex records through `record-agent-session.py`, which `pappardelle plugin install` adds to `~/.codex/hooks.json`. Codex asks to trust a new hook on its next launch; until it's trusted, codex spaces launch fresh.
+- Claude records through the `update-status.py` hook Pappardelle already installs. Codex records through `record-agent-session.py`, which `lasagna plugin install` adds to `~/.codex/hooks.json`. Codex asks to trust a new hook on its next launch; until it's trusted, codex spaces launch fresh.
 - agy records through the same `record-agent-session.py`, which the plugin registers for agy as the named hook `pappardelle-session` (see [`hooks.json`](plugins/pappardelle/hooks.json)), on `SessionStart` and `PreInvocation`. agy's subagents fire those hooks from the agy process with their own ids, so for agy the first id recorded stays until the process exits: a new conversation in the pane (`/clear`) isn't followed, and a relaunch reopens the first one
 - Any agent with Claude Code-style hooks (a JSON payload on stdin carrying `session_id`) can use `record-agent-session.py` the same way
 - Agents started from inside the agent (Claude running codex for a review, `claude -p` in a script) inherit the pane's environment, so the hook only records the agent that is the pane's top-level process, and only when it is the same kind as the agent profile: Claude's hook records for a claude agent profile, `record-agent-session.py` for any other. The agent profile's `command` can be a wrapper (`claude-local`, `env FOO=1 codex`). Claude started by hand in a non-claude pane, or the reverse, isn't recorded. Two non-claude agents look the same to the hook: agy run by hand in a pane whose codex has exited saves its id under the codex profile, and the relaunch falls back to a fresh codex.
@@ -996,7 +996,7 @@ profiles:
         - Bash,Read,Write,Edit,Glob,Grep,Agent,Skill,Monitor
 ```
 
-When the TUI creates a space's session again (after a crash, or after the agent exits), it uses the profile that `idow` saved for the space in `~/.pappardelle/repos/<repo>/space-state/<KEY>.json` (or in the database, with [`experimental.sqliteState`](#experimental-sqlite-state) on). `pappardelle space get KEY --field profile` prints it. Only a space with no saved profile (or a saved name that no profile has now) falls back to the issue title's keywords. So still give a restricted profile a keyword that its issue titles always contain, and put it above any profile that shares a keyword with it, because file order wins a tie. The same order applies to `agent_profile` and `companion_command`.
+When the TUI creates a space's session again (after a crash, or after the agent exits), it uses the profile that `idow` saved for the space in `~/.pappardelle/repos/<repo>/space-state/<KEY>.json` (or in the database, with [`experimental.sqliteState`](#experimental-sqlite-state) on). `lasagna space get KEY --field profile` prints it. Only a space with no saved profile (or a saved name that no profile has now) falls back to the issue title's keywords. So still give a restricted profile a keyword that its issue titles always contain, and put it above any profile that shares a keyword with it, because file order wins a tie. The same order applies to `agent_profile` and `companion_command`.
 
 Omitting `model`, `effort` and `extra_args` everywhere leaves the launch command byte-identical to a config that predates them; nothing is passed to the CLI unless you ask for it.
 
@@ -1111,7 +1111,7 @@ sous_chef_key?: string | false;
 - Pappardelle binds the key in tmux's root table, so it replaces a root binding of your own for the same key. The binding acts only in Pappardelle's window: in any other window the key is passed on to the program running there, and it keeps being passed on after Pappardelle quits
 - Set it in `.pappardelle.local.yml` to change it for yourself only
 - If Pappardelle is killed without a clean exit while running inside a window of your own tmux session, the key stays bound in that window until Pappardelle runs there again or the window closes
-- `pappardelle highlight main --focus` does the same from a script
+- `lasagna highlight main --focus` does the same from a script
 
 ## Workspace-Aware Agents
 
@@ -1129,7 +1129,7 @@ workspace_aware_agents?: boolean;
   - the pappardelle MCP server serves its tools (`companion_*`, `space_*`, `spaces_list`, `link_pr` and the rest) in this repo
   - the server's instructions tell each agent which space it's in, to keep the companion showing its work, and how to message other spaces
   - Codex and Pi get the same companion rules at launch, and agy gets them in a rule file in its worktree
-- **Off:** the server serves nothing in this repo, as if it weren't a Pappardelle repo, and agents launch without the rules. The `pappardelle` CLI verbs work either way
+- **Off:** the server serves nothing in this repo, as if it weren't a Pappardelle repo, and agents launch without the rules. The `lasagna` CLI verbs work either way
 - The MCP server reads the flag when an agent starts, and the rules go in at launch, so a running agent keeps what it started with
 
 ## Sous-Chef Mode
@@ -1174,7 +1174,7 @@ experimental?: {sqliteState?: boolean};
 - With the flag on, a hook outside a pane names its space from the stored worktree that holds its directory: no git and no tracker config. The main space reports its status under `<repo>-main` instead of its branch, and the rail and `supervise` read it there. A hook whose directory is in no stored space reports no status
 - A file changed while the flag was off is imported the next time it is read with the flag on
 - The issue title is stored each time Pappardelle reads the issue from the tracker, and when `idow` opens the space. In the space's state file it is the `issueTitle` field
-- `pappardelle space get` reads a space's stored values the same way in both modes. Scripts and hooks should use it rather than reading the database or the JSON files
+- `lasagna space get` reads a space's stored values the same way in both modes. Scripts and hooks should use it rather than reading the database or the JSON files
 - Restart the TUI after changing the flag. A TUI that is already running keeps the mode it started with, and shows no status changes until it is restarted
 - Running agents need no restart. They follow within 5 seconds of that start: the hooks and each agent pane's status monitor read the flag from `~/.pappardelle/state-flag.json`, which Pappardelle rewrites when it starts
 - The hooks need a Python whose SQLite is 3.37 or newer to write to the database. With an older one they write files only, and each file is imported the next time it is read. Hook status does not use SQLite and is not affected
@@ -1401,9 +1401,9 @@ companion_splits?: Array<{
 **How it works:**
 
 - **Started once per space.** The TUI starts the splits the first time it shows a space, and marks the space's companion session so they aren't started again. A split you close stays closed.
-- **Arranged in the order they're listed.** Each split comes off the companion's main pane, the same as `pappardelle companion run --pane NAME --split right|down`.
-- **Sizes follow drags.** Dragging the border of a split keeps its new size for that space. `pappardelle companion resize NAME --size N|N%` sets it too.
-- **TUI only.** The terminal launchers (`open-*-agent.sh`) attach the companion's main session only, so splits show only in the TUI. A space opened with `idow` and never shown in the TUI has none yet. `pappardelle companion list`, `read` and `keys` reach splits from anywhere.
+- **Arranged in the order they're listed.** Each split comes off the companion's main pane, the same as `lasagna companion run --pane NAME --split right|down`.
+- **Sizes follow drags.** Dragging the border of a split keeps its new size for that space. `lasagna companion resize NAME --size N|N%` sets it too.
+- **TUI only.** The terminal launchers (`open-*-agent.sh`) attach the companion's main session only, so splits show only in the TUI. A space opened with `idow` and never shown in the TUI has none yet. `lasagna companion list`, `read` and `keys` reach splits from anywhere.
 
 Run splits through `companion_splits` rather than a `tmux split-window` inside `companion_command`: a split made inside the companion's session draws tmux's own divider inside the companion's frame.
 
@@ -1515,7 +1515,7 @@ post_workspace_init:
 
 ## Pre-Workspace-Deinit Commands
 
-The `pre_workspace_deinit` section defines commands to run **before** a workspace is deleted from the Pappardelle TUI or closed with `pappardelle close`. If any command fails (without `continue_on_error: true`), the deletion is aborted and the space stays open: the TUI shows an error message, and `pappardelle close` names the failed command and exits 1.
+The `pre_workspace_deinit` section defines commands to run **before** a workspace is deleted from the Pappardelle TUI or closed with `lasagna close`. If any command fails (without `continue_on_error: true`), the deletion is aborted and the space stays open: the TUI shows an error message, and `lasagna close` names the failed command and exits 1.
 
 This is useful for cleanup tasks like closing tracker issues, removing git worktrees from disk, or any other teardown that should happen before the space disappears from the TUI.
 
@@ -1678,7 +1678,7 @@ Profile-specific variables (like `IOS_APP_DIR`) are resolved by matching the iss
 
 # Linking published branches
 
-After creating or reusing a PR/MR, run `pappardelle link-pr <url>` from its source repository. For a nested repository, add `--workspace <outer-workspace-root>`. GitHub URLs are verified with `gh`; GitLab URLs with `glab`. The PR/MR must be open and its source repository must match the checkout's origin.
+After creating or reusing a PR/MR, run `lasagna link-pr <url>` from its source repository. For a nested repository, add `--workspace <outer-workspace-root>`. GitHub URLs are verified with `gh`; GitLab URLs with `glab`. The PR/MR must be open and its source repository must match the checkout's origin.
 
 The command saves a `prLinks` entry in `~/.pappardelle/repos/{repo}/space-state/{workspace-branch}.json`, including host, source project, local branch, published branch, URL and number. Rail polling uses the published branch for the matching host, source project and local branch; other repositories keep their discovered branches. Running the command again updates the existing mapping. Switching local branches stops applying the old mapping. Existing status and profile fields are preserved.
 

@@ -1,4 +1,4 @@
-// Tests for `pappardelle send` (pappardelle-tqq): resolving a space's agent
+// Tests for `lasagna send` (pappardelle-tqq): resolving a space's agent
 // session on the inner socket and submitting a prompt to it.
 import {mkdtempSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';

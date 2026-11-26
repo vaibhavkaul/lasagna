@@ -1,4 +1,4 @@
-// `pappardelle space get` and `space list`: what a space is, answered from
+// `lasagna space get` and `space list`: what a space is, answered from
 // the stores, so agents, hooks and scripts stop deriving session names,
 // worktree paths and state file locations from the issue key themselves.
 
@@ -491,7 +491,7 @@ async function runGet(args: string[], deps: SpaceCommandDeps): Promise<number> {
 	}
 
 	if (space.kind === 'not-in-a-space') {
-		deps.err('Not in a Pappardelle space; pass a KEY');
+		deps.err('Not in a Lasagna space; pass a KEY');
 		return 1;
 	}
 

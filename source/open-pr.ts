@@ -5,7 +5,7 @@ export async function openPR(
 	options: {
 		provider: Pick<VcsHostProvider, 'getPRLink'>;
 		/**
-		 * A PR recorded by `pappardelle link-pr`, which can live on another
+		 * A PR recorded by `lasagna link-pr`, which can live on another
 		 * branch or in a nested repo the issue-key lookup never searches.
 		 */
 		linked?: {url: string; number: number};

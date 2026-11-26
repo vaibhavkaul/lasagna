@@ -748,7 +748,7 @@ async function holdPrompt(
 	if (!(await answerSettled(key, before, deny?.number, deps))) {
 		log({...entry, sent: keys.join(' '), detail: 'the prompt did not change'});
 		deps.err(
-			`Pressed ${keys.join(' ')} in ${key} to hold its prompt, but it still shows. Check it with \`pappardelle screen ${key}\``,
+			`Pressed ${keys.join(' ')} in ${key} to hold its prompt, but it still shows. Check it with \`lasagna screen ${key}\``,
 		);
 		return 1;
 	}
@@ -1081,7 +1081,7 @@ async function execute(
 				if (stuck) {
 					log({...entry, detail: `${question.question}; stuck: ${stuck}`});
 					deps.err(
-						`Answering ${key} stopped: ${stuck} didn't show on screen. Check it with \`pappardelle screen ${key}\``,
+						`Answering ${key} stopped: ${stuck} didn't show on screen. Check it with \`lasagna screen ${key}\``,
 					);
 					return 1;
 				}
@@ -1178,7 +1178,7 @@ async function execute(
 			) {
 				log({...entry, detail: 'the prompt did not change'});
 				deps.err(
-					`Pressed ${shown} in ${key}, but it still shows the same prompt. Check it with \`pappardelle screen ${key}\``,
+					`Pressed ${shown} in ${key}, but it still shows the same prompt. Check it with \`lasagna screen ${key}\``,
 				);
 				return 1;
 			}

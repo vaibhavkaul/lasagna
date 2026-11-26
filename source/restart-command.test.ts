@@ -180,9 +180,9 @@ test('restart with no TUI running launches nothing', async () => {
 	expect(await restartRepo('app', h.deps)).toBe(0);
 	expect(mutations(h)).toStrictEqual([]);
 	expect(h.attached).toStrictEqual([]);
-	expect(
-		h.printed.at(-1)!.startsWith('No running Pappardelle TUI for app'),
-	).toBe(true);
+	expect(h.printed.at(-1)!.startsWith('No running Lasagna TUI for app')).toBe(
+		true,
+	);
 });
 
 for (const [name, behavior, message] of [

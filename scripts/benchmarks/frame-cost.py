@@ -5,7 +5,7 @@ Compares a pane running the frame host around `tmux attach` with a pane
 running `tmux attach` directly, at 50, 500 and 5000 lines a second.
 Everything runs on tmux sockets in a temporary directory.
 
-Usage: frame-cost.py path/to/dist/pappardelle
+Usage: frame-cost.py path/to/dist/lasagna
 """
 import fcntl
 import importlib.util

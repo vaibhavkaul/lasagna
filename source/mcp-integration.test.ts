@@ -1,4 +1,4 @@
-// `pappardelle mcp` as a client sees it: a real stdio server running the real
+// `lasagna mcp` as a client sees it: a real stdio server running the real
 // CLI against a real tmux server. tmux runs under its own TMUX_TMPDIR with
 // $TMUX unset, which is what keeps it off the user's servers, and it is killed
 // through its socket path only.

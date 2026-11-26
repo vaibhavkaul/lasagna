@@ -5,7 +5,7 @@ description: Record an existing GitHub PR or GitLab MR in a Pappardelle workspac
 
 # Link a workspace PR or MR
 
-After successfully creating or reusing a PR/MR for a Pappardelle workspace, call the `link_pr` tool with its URL before reporting the workflow complete, passing `repository` when the source repository isn't the directory this session started in. Without the tool, run `pappardelle link-pr <url>` from the source repository. The command verifies the URL through `gh` or `glab` and saves the published branch; rerunning replaces the mapping for that repository and local branch.
+After successfully creating or reusing a PR/MR for a Pappardelle workspace, call the `link_pr` tool with its URL before reporting the workflow complete, passing `repository` when the source repository isn't the directory this session started in. Without the tool, run `lasagna link-pr <url>` from the source repository. The command verifies the URL through `gh` or `glab` and saves the published branch; rerunning replaces the mapping for that repository and local branch.
 
 For a nested repository, pass the outer workspace root as `workspace` (`--workspace` on the command) so the mapping belongs to the outer workspace. Run once for each repository with a PR/MR. Do not create another PR just to repair an indicator.
 

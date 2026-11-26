@@ -40,7 +40,7 @@ function fixture(provider = 'jira') {
 		filter: file => !file.endsWith('.test.ts') && !file.endsWith('.test.tsx'),
 	});
 	const cli = useStandalone
-		? [path.join(install, 'dist/pappardelle')]
+		? [path.join(install, 'dist/lasagna')]
 		: [process.execPath, path.join(install, 'source/cli.tsx')];
 	fs.symlinkSync(
 		path.join(projectRoot, 'node_modules'),
@@ -437,7 +437,7 @@ test('CLI rejects an unknown agent profile with the valid names before running i
 test('CLI rejects an agent profile with no workspace input instead of starting the TUI', async () => {
 	const f = fixture();
 	for (const [args, message] of [
-		[['--agent-profile', 'claude'], /Usage: pappardelle --agent-profile/],
+		[['--agent-profile', 'claude'], /Usage: lasagna --agent-profile/],
 		[
 			['--agent-profile=', 'STE-20'],
 			/--agent-profile needs an agent profile name/,
@@ -488,7 +488,7 @@ test('CLI rejects missing profile names and missing workspace input before runni
 	]) {
 		const result = await f.run([...args, '--no-layout']);
 		expect(result.code).toBe(1);
-		expect(result.stderr).toMatch(/Usage: pappardelle --profile/);
+		expect(result.stderr).toMatch(/Usage: lasagna --profile/);
 		expect(fs.existsSync(f.record)).toBe(false);
 		expect(fs.existsSync(f.registry)).toBe(false);
 	}
@@ -804,7 +804,7 @@ test('CLI --resume without input fails with usage before running idow or the TUI
 	const f = fixture();
 	const result = await f.run(['--resume', '--no-layout']);
 	expect(result.code).toBe(1);
-	expect(result.stderr).toMatch(/Usage: pappardelle --resume/);
+	expect(result.stderr).toMatch(/Usage: lasagna --resume/);
 	expect(fs.existsSync(f.record)).toBe(false);
 	expect(fs.existsSync(f.registry)).toBe(false);
 });

@@ -364,7 +364,7 @@ let railWidthOverride: number | null = null;
 let companionWidthOverride: number | null = null;
 
 /**
- * The selected space's own companion width, set by `pappardelle companion
+ * The selected space's own companion width, set by `lasagna companion
  * width`, or null when the space has none. It beats the drag override and the
  * config. A hand-drag while it applies changes this width, and is handed to
  * `onSpaceCompanionDrag` to store, instead of becoming the session-wide drag
@@ -1686,7 +1686,7 @@ export function sharedSessionListingRunner(
 /**
  * Rename live legacy `claude-{repo}-{key}` sessions on the inner socket to
  * their `agent-{repo}-{key}` names. cli.tsx runs it when the TUI starts,
- * before the orphan reap, and before `pappardelle send`, which can run before
+ * before the orphan reap, and before `lasagna send`, which can run before
  * the TUI restarts. start-agent-session.sh does the same for the one space
  * idow opens.
  *
@@ -2016,7 +2016,7 @@ export type SendToSpaceAgentResult =
 
 /**
  * Why the agent's screen stops a send. A permission prompt or question takes
- * the keys as an answer, which must go through `pappardelle answer` and its
+ * the keys as an answer, which must go through `lasagna answer` and its
  * policy. Text typed into the agent's input box would be cleared by the send.
  */
 function sendBlocker(
@@ -2030,7 +2030,7 @@ function sendBlocker(
 
 /**
  * Submit `text` as a prompt to the agent session of a space.
- * Backs `pappardelle send`, which the sous-chef skill relays through.
+ * Backs `lasagna send`, which the sous-chef skill relays through.
  */
 export async function sendToSpaceAgent(
 	issueKey: string,
@@ -2082,7 +2082,7 @@ export function sendKeysToSpaceAgent(
 	keys: readonly string[],
 	options: {
 		runner?: OuterTmuxRunner;
-		/** Set by `pappardelle answer`, which has already checked the prompt. */
+		/** Set by `lasagna answer`, which has already checked the prompt. */
 		answering?: boolean;
 		/** Type each entry as text rather than as a key name such as Enter. */
 		literal?: boolean;
@@ -4452,7 +4452,7 @@ export async function ensureCompanionSession(
 			),
 		);
 
-		// `pappardelle companion` addresses panes by name; the first one is main.
+		// `lasagna companion` addresses panes by name; the first one is main.
 		// It names main itself when this fails, so the failure doesn't matter.
 		await run(
 			innerTmuxArgs([

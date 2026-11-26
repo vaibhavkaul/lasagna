@@ -1,4 +1,4 @@
-// `pappardelle read <key>`: the last turns of a space's Claude conversation.
+// `lasagna read <key>`: the last turns of a space's Claude conversation.
 // A turn is one prompt the user typed plus the assistant text that answered
 // it. Tool results and the text Claude Code injects (isMeta: skill bodies,
 // reminders) arrive as user entries too, and are skipped.
@@ -110,7 +110,7 @@ export async function runReadCommand(options: {
 }): Promise<number> {
 	const count = options.turns ?? 5;
 	if (!Number.isInteger(count) || count < 1) {
-		options.err('Usage: pappardelle read <issue-key> [--turns N] [--json]');
+		options.err('Usage: lasagna read <issue-key> [--turns N] [--json]');
 		return 1;
 	}
 

@@ -9,7 +9,7 @@ import {homedir} from 'node:os';
 import path from 'node:path';
 
 // A running TUI records itself in ~/.pappardelle/repos/<repo>/tui.json once it
-// has rendered, so `pappardelle restart` can tell which build came up in the
+// has rendered, so `lasagna restart` can tell which build came up in the
 // pane it respawned. restart.lock in the same directory keeps two restarts of
 // one repo's TUI from overlapping.
 

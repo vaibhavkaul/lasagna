@@ -621,7 +621,7 @@ export default function App({
 		process.exit(0);
 	}, [paneLayout, repoName, renderer]);
 
-	// Tells `pappardelle restart` which build came up in this pane. Written on
+	// Tells `lasagna restart` which build came up in this pane. Written on
 	// first paint, after display metadata is available.
 	useEffect(() => {
 		const paneId = process.env['TMUX_PANE'];
@@ -766,7 +766,7 @@ export default function App({
 		[workspaceStatuses],
 	);
 
-	// Watch for cross-terminal highlight requests (pappardelle highlight STA-XXX)
+	// Watch for cross-terminal highlight requests (lasagna highlight STA-XXX)
 	const focusSpaceAgentRef = useRef((_issueKey: string) => {});
 	useEffect(() => {
 		const unwatch = highlight.watch(({issueKey, focus}) => {
@@ -1043,7 +1043,7 @@ export default function App({
 		return () => setSpaceCompanionDragHandler(null);
 	}, [companionWidths]);
 
-	// Requests from `pappardelle companion width`. The CLI has already stored
+	// Requests from `lasagna companion width`. The CLI has already stored
 	// the width; this applies it when the space is showing and says whether
 	// the pane really took it.
 	useEffect(() => {

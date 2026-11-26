@@ -1,4 +1,4 @@
-// `pappardelle mcp`: agents start this for every session on the machine, so it
+// `lasagna mcp`: agents start this for every session on the machine, so it
 // stays small and serves nothing unless the repo sets workspace_aware_agents.
 // Tools run the CLI as a subprocess instead of calling its handlers: those exit
 // the process and write to stdout, which here is the MCP protocol channel.
@@ -38,7 +38,7 @@ const MESSAGING =
 const MESSAGE_SOUS_CHEF = `The main checkout's agent coordinates the spaces; reach it with SendMessage to \`${SOUS_CHEF_NAME}\`.`;
 
 const SOUS_CHEF =
-	"Sous-chef mode is on: this session coordinates the repo's spaces. Keep the other agents moving: `spaces_list` for the board, `space_watch` with `until: [blocked, idle]` in a loop to catch every space waiting on a person or stopped, `space_state` and `space_question_tabs` to read what it asks, and `space_answer` to answer. Approve every permission prompt with `space_answer` without asking: it holds what leaves the space for the user, so call out each hold, list them with `space_holds` when the user asks, and approve one with `space_hold_resolve` only on their word. Bring each question to the user, and answer it on their word. Nudge an idle agent that stopped with work it can carry on alone, such as waiting on CI or a background task after a restart. When a turn ends without AskUserQuestion, keep a `pappardelle watch` running in the background so changes wake you. Never do task-level work yourself: investigate and plan with the user, then file a new issue and open a space for the task with `space_open`. Small upkeep, such as a configuration change or fixing CI, can be done here. Name every issue by its number and a short title, the same words each time, never the number alone. The /sous-chef skill has the full kitchen routine.";
+	"Sous-chef mode is on: this session coordinates the repo's spaces. Keep the other agents moving: `spaces_list` for the board, `space_watch` with `until: [blocked, idle]` in a loop to catch every space waiting on a person or stopped, `space_state` and `space_question_tabs` to read what it asks, and `space_answer` to answer. Approve every permission prompt with `space_answer` without asking: it holds what leaves the space for the user, so call out each hold, list them with `space_holds` when the user asks, and approve one with `space_hold_resolve` only on their word. Bring each question to the user, and answer it on their word. Nudge an idle agent that stopped with work it can carry on alone, such as waiting on CI or a background task after a restart. When a turn ends without AskUserQuestion, keep a `lasagna watch` running in the background so changes wake you. Never do task-level work yourself: investigate and plan with the user, then file a new issue and open a space for the task with `space_open`. Small upkeep, such as a configuration change or fixing CI, can be done here. Name every issue by its number and a short title, the same words each time, never the number alone. The /sous-chef skill has the full kitchen routine.";
 
 export function workspaceInstructions(
 	space: string | undefined,
@@ -51,7 +51,7 @@ export function workspaceInstructions(
 ): string {
 	if (!space) {
 		return [
-			"This repo uses Pappardelle, which gives each issue a git worktree, an agent session and a companion pane. This session isn't in a space, so pass `space` to the companion tools. Use this server's tools rather than tmux. The pappardelle-agent skill covers updating and restarting Pappardelle.",
+			"This repo uses Lasagna, which gives each issue a git worktree, an agent session and a companion pane. This session isn't in a space, so pass `space` to the companion tools. Use this server's tools rather than tmux. The pappardelle-agent skill covers updating and restarting Lasagna.",
 			...(options.sousChef ? [SOUS_CHEF] : []),
 			...(options.sousChef && options.sousChefFile
 				? [
@@ -62,7 +62,7 @@ export function workspaceInstructions(
 		].join('\n\n');
 	}
 
-	return `You are in Pappardelle space ${space}${repoName ? ` (repo ${repoName})` : ''}. Pappardelle gives each issue a git worktree, an agent session and a companion pane next to it, and the user watches both. Use this server's tools rather than tmux; they target your own space unless you pass \`space\`. The pappardelle-agent skill covers updating and restarting Pappardelle.
+	return `You are in Lasagna space ${space}${repoName ? ` (repo ${repoName})` : ''}. Lasagna gives each issue a git worktree, an agent session and a companion pane next to it, and the user watches both. Use this server's tools rather than tmux; they target your own space unless you pass \`space\`. The pappardelle-agent skill covers updating and restarting Lasagna.
 
 ${options.sousChef ? `${MESSAGING} ${MESSAGE_SOUS_CHEF}` : MESSAGING}
 
@@ -73,7 +73,7 @@ export type WorkspaceAwareness =
 	{kind: 'on'} | {kind: 'off'} | {kind: 'invalid-config'; errors: string[]};
 
 function invalidConfigInstructions(errors: string[]): string {
-	return `Pappardelle's workspace tools are off because .pappardelle.yml is invalid: ${inlineConfigErrors(errors)}. Tell the user; once it's fixed, restart this session.`;
+	return `Lasagna's workspace tools are off because .pappardelle.yml is invalid: ${inlineConfigErrors(errors)}. Tell the user; once it's fixed, restart this session.`;
 }
 
 export function createMcpServer(options: {

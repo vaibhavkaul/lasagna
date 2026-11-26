@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Test: `pappardelle schedule` on a real systemd user manager.
+# Test: `lasagna schedule` on a real systemd user manager.
 #
-# A one-shot wake-up a few seconds out fires `pappardelle schedule fire`, which
+# A one-shot wake-up a few seconds out fires `lasagna schedule fire`, which
 # types its message into an agent session on an isolated tmux server; a
 # cancelled one leaves no unit behind. Skipped without a systemd user bus.
 #
@@ -89,7 +89,7 @@ stored_jobs() {
     ' "$PAPPARDELLE_STATE_DB" "$REPO_NAME"
 }
 
-pappardelle() {
+lasagna() {
     (cd "$REPO" && env -u TMUX -u TMUX_PANE bun "$PROJECT/source/cli.tsx" "$@")
 }
 
@@ -101,7 +101,7 @@ else
     fail "prepare-space exited $?"
 fi
 at="$(date -d '+5 seconds' --iso-8601=seconds)"
-if pappardelle schedule QA-1 --at "$at" --message hello-from-a-timer >/dev/null; then
+if lasagna schedule QA-1 --at "$at" --message hello-from-a-timer >/dev/null; then
     pass "scheduled"
 else
     fail "schedule exited $?"
@@ -123,7 +123,7 @@ for _ in $(seq 1 40); do
 done
 if [[ -n "$seen" ]]; then pass "the timer typed the message into the session"; else fail "the message never arrived"; fi
 sleep 2
-left="$(pappardelle schedules)"
+left="$(lasagna schedules)"
 if [[ "$left" == "No scheduled wake-ups" ]]; then pass "the fired job removed itself"; else fail "jobs left: $left"; fi
 if [[ "$SQLITE_STATE" == 1 ]]; then
     jobs="$(stored_jobs)"
@@ -140,8 +140,8 @@ else
 fi
 
 echo "unschedule"
-id="$(pappardelle schedule QA-1 --at "$(date -d '+10 minutes' --iso-8601=seconds)" --message later | awk '{print $2}')"
-if pappardelle unschedule "$id" >/dev/null; then pass "unscheduled $id"; else fail "unschedule failed"; fi
+id="$(lasagna schedule QA-1 --at "$(date -d '+10 minutes' --iso-8601=seconds)" --message later | awk '{print $2}')"
+if lasagna unschedule "$id" >/dev/null; then pass "unscheduled $id"; else fail "unschedule failed"; fi
 units="$(systemctl --user list-timers --all --plain --no-legend "pappardelle-$REPO_NAME-*" | wc -l)"
 if [[ "$units" -eq 0 ]]; then pass "no timer left"; else fail "$units timers left"; fi
 

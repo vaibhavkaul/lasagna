@@ -116,8 +116,8 @@ If they chose `/do`, also offer to install the starter `/do` skill. Both files a
 
 ```bash
 mkdir -p .claude/skills/do \
-  && curl -fsSL https://raw.githubusercontent.com/chardigio/pappardelle/main/examples/skills/do/SKILL.md -o .claude/skills/do/SKILL.md \
-  && curl -fsSL https://raw.githubusercontent.com/chardigio/pappardelle/main/examples/skills/do/TODO-TEMPLATE.md -o .claude/skills/do/TODO-TEMPLATE.md
+  && curl -fsSL https://raw.githubusercontent.com/vaibhavkaul/lasagna/main/examples/skills/do/SKILL.md -o .claude/skills/do/SKILL.md \
+  && curl -fsSL https://raw.githubusercontent.com/vaibhavkaul/lasagna/main/examples/skills/do/TODO-TEMPLATE.md -o .claude/skills/do/TODO-TEMPLATE.md
 ```
 
 After installing, check whether `.claude/skills` is tracked:
@@ -241,7 +241,7 @@ command -v pappardelle &>/dev/null && echo "INSTALLED" || echo "NOT_INSTALLED"
 - If **not installed**, tell the user you'll install it now and run the install script:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/chardigio/pappardelle/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/vaibhavkaul/lasagna/main/install.sh | bash
 ```
 
 The install script checks base prerequisites (Bun >= 1.4.4, git, tmux, jq), clones the repo, builds it, and makes the `pappardelle` command available globally, and installs the Pappardelle plugin (these skills plus the agent hooks) into Claude Code, Codex and agy. If it fails due to missing prerequisites, help the user install them (e.g., `brew install tmux jq`; the installer supplies Bun when needed) and re-run.
@@ -256,7 +256,7 @@ Now check the required tools and the provider-specific CLIs from the user's conf
 
 ```bash
 echo "=== Required ==="
-if pappardelle --version >/dev/null 2>&1; then
+if lasagna --version >/dev/null 2>&1; then
   printf "%-10s %s\n" runtime '✓ installed executable runs'
 else
   printf "%-10s %s\n" runtime '✗ executable missing or not executable: re-run install.sh'
@@ -272,7 +272,7 @@ done
 
 Replace `<VCS_CLI>` with `gh` (GitHub) or `glab` (GitLab), and `<TRACKER_CLI>` with `linctl` (Linear), `acli` (Jira) or `bd` (Beads). `gitui` is the default companion-pane command — if `.pappardelle.yml` sets `companion_command` to a different tool, check that instead. When you took the existing-config path in Step 1B, read these values straight out of the parsed `.pappardelle.yml`.
 
-- If `pappardelle --version` fails, its executable is missing or not executable: re-run `install.sh`. If any other **required** tool is missing, **stop and do not proceed** to Step 4. Tell the user what failed and offer to install or upgrade it via `brew install <tool>` (or the appropriate install command for Claude Code: `curl -fsSL https://claude.ai/install.sh | bash`). Use `AskUserQuestion` to confirm before installing. Re-run the check after installation and only proceed once all required tools pass.
+- If `lasagna --version` fails, its executable is missing or not executable: re-run `install.sh`. If any other **required** tool is missing, **stop and do not proceed** to Step 4. Tell the user what failed and offer to install or upgrade it via `brew install <tool>` (or the appropriate install command for Claude Code: `curl -fsSL https://claude.ai/install.sh | bash`). Use `AskUserQuestion` to confirm before installing. Re-run the check after installation and only proceed once all required tools pass.
 - If any **provider CLIs** are missing, warn the user but allow proceeding — Pappardelle will work but some features will be degraded.
 - If all tools are present, move on.
 
@@ -285,7 +285,7 @@ Ask: "Would you like me to add the recommended tmux config? It enables mouse sup
 If yes, fetch the recommended config and append it to `~/.tmux.conf` (skip any settings that already exist):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/chardigio/pappardelle/main/examples/tmux.conf >> ~/.tmux.conf
+curl -fsSL https://raw.githubusercontent.com/vaibhavkaul/lasagna/main/examples/tmux.conf >> ~/.tmux.conf
 ```
 
 Check if `~/.tmux.conf` exists first and read it — if settings already exist, skip the duplicates rather than appending blindly.

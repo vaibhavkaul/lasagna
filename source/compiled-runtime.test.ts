@@ -24,9 +24,9 @@ test('relocated executable renders and exits without Bun, Node, or node_modules'
 		path.join(home, '.pappardelle'),
 	])
 		fs.mkdirSync(dir, {recursive: true});
-	const executable = path.join(install, 'dist/pappardelle');
+	const executable = path.join(install, 'dist/lasagna');
 	fs.copyFileSync(
-		path.join(project, 'dist/pappardelle'),
+		path.join(project, 'dist/lasagna'),
 		executable,
 		fs.constants.COPYFILE_FICLONE,
 	);

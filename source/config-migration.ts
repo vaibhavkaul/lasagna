@@ -847,7 +847,7 @@ export function buildConfigMigrationConfirmContent(
 export function buildConfigFixConfirmContent(reason: string) {
 	return {
 		title: 'Config Not Rewritten',
-		message: `Pappardelle couldn't rewrite your config to the new format: ${reason}. Ask Claude to fix it?`,
+		message: `Lasagna couldn't rewrite your config to the new format: ${reason}. Ask Claude to fix it?`,
 		detail: 'Opens claude in a popup with a prompt describing the change.',
 		isDestructive: false,
 	};

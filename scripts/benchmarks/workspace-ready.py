@@ -607,7 +607,7 @@ signal.pause()
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--binary', type=Path, default=Path('dist/pappardelle'))
+    parser.add_argument('--binary', type=Path, default=Path('dist/lasagna'))
     parser.add_argument('--candidate', type=Path, help='Alternate baseline/candidate order within each case')
     parser.add_argument('--widths', type=int, nargs='+', default=[80, 100, 160])
     parser.add_argument('--workspaces', type=int, nargs='+', default=[0, 3])

@@ -264,7 +264,7 @@ test('kill-session for per-issue sessions routes through innerTmuxArgs', () => {
 	).toBe(null);
 });
 
-test('pappardelle send resolves and pastes on the inner socket by default', () => {
+test('lasagna send resolves and pastes on the inner socket by default', () => {
 	// sendToSpaceAgent and resolveInnerSessionTarget accept a runner for tests;
 	// production must default to the inner-socket runner or relays land on the
 	// default socket, where no per-issue session exists.

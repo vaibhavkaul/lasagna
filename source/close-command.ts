@@ -25,7 +25,7 @@ import {
 } from './tmux.ts';
 import {getIssue} from './tracker.ts';
 
-// `pappardelle close <space>`: the CLI twin of pressing x in the TUI, for
+// `lasagna close <space>`: the CLI twin of pressing x in the TUI, for
 // agents and scripts that can't answer the TUI's confirm popup. A running TUI
 // drops the row on its next registry refresh.
 

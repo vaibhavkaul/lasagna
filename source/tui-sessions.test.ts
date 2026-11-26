@@ -554,7 +554,7 @@ test('after an install, restarts go through the shim when there is one', () => {
 	};
 
 	expect(installedLaunchCommand({...options, exists: () => true})).toBe(
-		"'/home/me/.local/bin/pappardelle'",
+		"'/home/me/.local/bin/lasagna'",
 	);
 	expect(installedLaunchCommand({...options, exists: () => false})).toBe(
 		"'/bun' '--no-env-file' '--config=/dev/null' '/work/pappardelle/source/cli.tsx'",
@@ -576,7 +576,7 @@ test('a source run keeps its own Bun and entry file', () => {
 });
 
 test('the release runs its executable itself when the shim is missing', () => {
-	const release = '/home/me/.pappardelle/repo/dist/pappardelle';
+	const release = '/home/me/.lasagna/repo/dist/lasagna';
 	expect(
 		tuiLaunchCommand({
 			execPath: release,
@@ -589,7 +589,7 @@ test('the release runs its executable itself when the shim is missing', () => {
 });
 
 test('a standalone restart invokes the executable once and installed releases use the shim', () => {
-	const binary = '/work/pappardelle/dist/pappardelle';
+	const binary = '/work/pappardelle/dist/lasagna';
 	expect(
 		tuiLaunchCommand({
 			execPath: binary,
@@ -598,8 +598,8 @@ test('a standalone restart invokes the executable once and installed releases us
 			home: '/home/me',
 			exists: () => false,
 		}),
-	).toBe("'/work/pappardelle/dist/pappardelle' --no-layout");
-	const installed = '/home/me/.pappardelle/repo/dist/pappardelle';
+	).toBe("'/work/pappardelle/dist/lasagna' --no-layout");
+	const installed = '/home/me/.lasagna/repo/dist/lasagna';
 	expect(
 		tuiLaunchCommand({
 			execPath: installed,
@@ -608,11 +608,11 @@ test('a standalone restart invokes the executable once and installed releases us
 			home: '/home/me',
 			exists: () => true,
 		}),
-	).toBe("'/home/me/.local/bin/pappardelle'");
+	).toBe("'/home/me/.local/bin/lasagna'");
 });
 
 // ============================================================================
-// A signal after the pane was respawned (pappardelle restart)
+// A signal after the pane was respawned (lasagna restart)
 // ============================================================================
 
 test('a pane counts as respawned only while another process runs in it', () => {

@@ -427,7 +427,7 @@ test('with no key and no PAPPARDELLE_SPACE, the space is the worktree the caller
 	expect(await run(['get'], deps(state, {cwd: home}))).toStrictEqual({
 		code: 1,
 		stdout: '',
-		stderr: 'Not in a Pappardelle space; pass a KEY',
+		stderr: 'Not in a Lasagna space; pass a KEY',
 	});
 });
 
@@ -776,7 +776,7 @@ profiles:
 	};
 }
 
-test('pappardelle space with a bad verb, flag or field exits 2 without opening a space', async () => {
+test('lasagna space with a bad verb, flag or field exits 2 without opening a space', async () => {
 	const f = cli();
 	for (const args of [
 		['space', 'bogus'],
@@ -785,7 +785,7 @@ test('pappardelle space with a bad verb, flag or field exits 2 without opening a
 	]) {
 		const result = await f.run(args);
 		expect(result.code, args.join(' ')).toBe(2);
-		expect(result.stderr).toMatch(/Usage: pappardelle space get/);
+		expect(result.stderr).toMatch(/Usage: lasagna space get/);
 	}
 
 	expect(f.idowRan()).toBe(false);

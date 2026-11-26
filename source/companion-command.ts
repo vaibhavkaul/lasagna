@@ -74,7 +74,7 @@ async function execute(
 					: command.text;
 			if (command.keys.length === 0 && !text && !command.enter) {
 				deps.err(
-					'Usage: pappardelle companion keys [--pane NAME] [--no-enter] [--keys KEY]... [text]',
+					'Usage: lasagna companion keys [--pane NAME] [--no-enter] [--keys KEY]... [text]',
 				);
 				return 1;
 			}
@@ -197,7 +197,7 @@ function report(
 		}
 
 		case 'no-tui': {
-			deps.out(`${label}; ${verb} when Pappardelle next launches`);
+			deps.out(`${label}; ${verb} when Lasagna next launches`);
 			return 0;
 		}
 

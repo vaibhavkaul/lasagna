@@ -263,7 +263,7 @@ contractTest(
 	},
 );
 
-// `pappardelle spaces` prints pipeline as null for a branch with no PR and
+// `lasagna spaces` prints pipeline as null for a branch with no PR and
 // leaves it out for a space the rail has not polled.
 contractTest(
 	'a pipeline of null is kept apart from no pipeline at all',

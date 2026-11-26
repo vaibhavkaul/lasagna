@@ -4,7 +4,7 @@
 #
 # Usage: start-agent-session.sh --issue-key <KEY> --repo-name <NAME> --worktree <PATH> --agent-session <NAME> --companion-session <NAME> --legacy-agent-session <NAME> [--init-cmd <CMD>] [--no-prompt] [--companion-command <CMD>] [--no-agent] [--skip-permissions] [--agent-command <CMD>] [--agent-args <ARGS>] [--agent-resume-args <ARGS>] [--agent-prompt-args <TEMPLATE>] [--agent-is-claude <true|false>] [--agent-launch-flags <FLAGS>] [--agent-env <NAME=VALUE>]...
 #
-# Creates detached tmux sessions with the names `pappardelle space get` reports
+# Creates detached tmux sessions with the names `lasagna space get` reports
 # for the space:
 #   --agent-session      — runs the configured agent (default: Claude Code)
 #   --companion-session  — runs the companion command (default: gitui; see --companion-command)
@@ -48,10 +48,10 @@ STATUS_MONITOR=()
 STATUS_GATE=""
 if [[ -x "${PAPPARDELLE_EXECUTABLE:-}" ]]; then
     STATUS_MONITOR=("$PAPPARDELLE_EXECUTABLE" --internal-status-monitor)
-elif [[ -x "$SCRIPT_DIR/../dist/pappardelle" ]]; then
+elif [[ -x "$SCRIPT_DIR/../dist/lasagna" ]]; then
     # Direct idow launches use the compiled monitor, which never loads the
     # workspace's .env or bunfig.toml and needs no Bun on PATH.
-    STATUS_MONITOR=("$SCRIPT_DIR/../dist/pappardelle" --internal-status-monitor)
+    STATUS_MONITOR=("$SCRIPT_DIR/../dist/lasagna" --internal-status-monitor)
 fi
 
 ISSUE_KEY=""
@@ -196,9 +196,9 @@ fi
 # nested viewer pane in Pappardelle can attach without `TMUX=` (which would
 # otherwise defeat $TMUX propagation to subprocesses like Claude Code's
 # Agent Teams feature). See STA-860. idow exports the space's socket from
-# `pappardelle space get`.
+# `lasagna space get`.
 if [[ -z "${PAPPARDELLE_TMUX_SOCKET:-}" ]]; then
-    echo "Error: PAPPARDELLE_TMUX_SOCKET is required: idow exports the space's socket from pappardelle space get" >&2
+    echo "Error: PAPPARDELLE_TMUX_SOCKET is required: idow exports the space's socket from lasagna space get" >&2
     exit 1
 fi
 TMUX_SOCKET_ARGS=(-L "$PAPPARDELLE_TMUX_SOCKET")
@@ -390,6 +390,6 @@ if ! tmux "${TMUX_SOCKET_ARGS[@]}" has-session -t "=$COMPANION_SESSION:" 2>/dev/
     else
         new_inner_session "$COMPANION_SESSION"
     fi
-    # `pappardelle companion` addresses panes by name; the first one is main.
+    # `lasagna companion` addresses panes by name; the first one is main.
     tmux "${TMUX_SOCKET_ARGS[@]}" set-option -p -t "=$COMPANION_SESSION:" @pappa_pane main 2>/dev/null || true
 fi

@@ -166,7 +166,7 @@ fi
 if [[ ! -f "$CONFIG_PATH" ]]; then
     echo -e "${YELLOW}Error: No .pappardelle.yml found at repository root.${NC}" >&2
     echo "" >&2
-    echo "Pappardelle requires a configuration file to operate." >&2
+    echo "Lasagna requires a configuration file to operate." >&2
     echo "Please create .pappardelle.yml at: $REPO_ROOT/.pappardelle.yml" >&2
     echo "" >&2
     echo "See _dev/scripts/pappardelle/pappardelle-config.md for the configuration schema." >&2
@@ -254,7 +254,7 @@ resolve_agent_launch_config() {
         log "Using per-profile initialization_command: $INIT_CMD"
     fi
     if [[ "$INIT_CMD" == /* ]]; then
-        error "initialization_command \"$INIT_CMD\" includes the skill prefix. Write \"${INIT_CMD#/}\": the agent profile's skill_prefix is added at launch. The Pappardelle TUI offers to rewrite it."
+        error "initialization_command \"$INIT_CMD\" includes the skill prefix. Write \"${INIT_CMD#/}\": the agent profile's skill_prefix is added at launch. The Lasagna TUI offers to rewrite it."
     fi
     if [[ -n "$INIT_CMD" ]]; then
         INIT_CMD="${AGENT_SKILL_PREFIX}${INIT_CMD}"
@@ -268,7 +268,7 @@ source "$SCRIPT_DIR/provider-helpers.sh"
 # shellcheck source=scripts/state-cli.sh
 source "$SCRIPT_DIR/state-cli.sh"
 
-# space_get <flags...>: sets SPACE_GET to what `pappardelle space get` reports
+# space_get <flags...>: sets SPACE_GET to what `lasagna space get` reports
 # for the issue's space. Returns 1 for a space Pappardelle has never recorded.
 # Any other failure stops idow: a store it cannot read (exit 3) must not be
 # taken for a space with no saved profile and launch the default agent.

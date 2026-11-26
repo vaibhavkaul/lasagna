@@ -172,7 +172,7 @@ profiles:
 		'-m',
 		'Fixture',
 	]);
-	const command = shellQuoteStatus(path.join(project, 'dist/pappardelle'));
+	const command = shellQuoteStatus(path.join(project, 'dist/lasagna'));
 	tmux(
 		outer,
 		'-f',

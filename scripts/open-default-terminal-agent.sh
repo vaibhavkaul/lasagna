@@ -4,7 +4,7 @@
 #
 # Usage: open-default-terminal-agent.sh --worktree <path> --issue-key <key> --repo-name <name> --agent-session <name> --companion-session <name> [options]
 #
-# The session names and PAPPARDELLE_TMUX_SOCKET are the ones `pappardelle space
+# The session names and PAPPARDELLE_TMUX_SOCKET are the ones `lasagna space
 # get` reports for the space.
 #
 # The last rung of idow's step 9, reached when the terminal is one Pappardelle
@@ -80,7 +80,7 @@ if [[ -z "$TMUX_SESSION" || -z "$COMPANION_SESSION" ]]; then
 fi
 
 if [[ -z "${PAPPARDELLE_TMUX_SOCKET:-}" ]]; then
-    echo "Error: PAPPARDELLE_TMUX_SOCKET is required: idow exports the space's socket from pappardelle space get" >&2
+    echo "Error: PAPPARDELLE_TMUX_SOCKET is required: idow exports the space's socket from lasagna space get" >&2
     exit 1
 fi
 

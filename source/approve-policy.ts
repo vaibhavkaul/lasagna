@@ -253,12 +253,12 @@ function hardStop(args: string[]): string | null {
 		return `gh release ${words[1]} changes a release`;
 	const subcommand = words.find(word => !word.startsWith('-')) ?? '';
 	if (
-		program === 'pappardelle' &&
+		program === 'lasagna' &&
 		(['holds', 'answer'].includes(subcommand) ||
 			(subcommand === 'send' &&
 				words.some(word => word === '--keys' || word.startsWith('--keys='))))
 	)
-		return `pappardelle ${subcommand} answers for agents, which only the chef does`;
+		return `lasagna ${subcommand} answers for agents, which only the chef does`;
 	// yarn wrangler deploy, pnpm npm publish: a package manager runs the
 	// program named after it.
 	if (PACKAGE_MANAGERS.has(program)) {
@@ -1102,7 +1102,7 @@ export function checkApproval(
 			'.pappardelle'.startsWith(match[1]!),
 		)
 	)
-		return hold("it reaches Pappardelle's own state, where holds are approved");
+		return hold("it reaches Lasagna's own state, where holds are approved");
 	if (AGENT_CONFIG_WRITE.test(bare(text)))
 		return hold(
 			'it writes agent configuration, which decides what agents may do',

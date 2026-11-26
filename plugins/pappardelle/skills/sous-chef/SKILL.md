@@ -206,7 +206,7 @@ A question or status update in chat ends your turn, and nothing watches the spac
 
 ```bash
 cursor='<cursor>'
-while out=$(pappardelle watch --until blocked --until idle --since "$cursor" --timeout 600 --json) &&
+while out=$(lasagna watch --until blocked --until idle --since "$cursor" --timeout 600 --json) &&
 	[ "$(jq -r .result <<<"$out")" = timed_out ]; do
 	cursor=$(jq -r .cursor <<<"$out")
 done
@@ -219,7 +219,7 @@ Keep one running at a time: stop the old one before starting another. When it wa
 
 The chef may answer a space's prompt or question in the space itself instead of through you. Expect it and follow along:
 
-- While a prompt or question you relayed in chat is open, run a second background watch on just those spaces, with no `until`, so any change wakes you. Use the same loop with `--until blocked --until idle` replaced by `-- KEY...` at the end of the `pappardelle watch` line. Restart it with the spaces still open each time your turn ends, and stop it when none are left
+- While a prompt or question you relayed in chat is open, run a second background watch on just those spaces, with no `until`, so any change wakes you. Use the same loop with `--until blocked --until idle` replaced by `-- KEY...` at the end of the `lasagna watch` line. Restart it with the spaces still open each time your turn ends, and stop it when none are left
 - When a relayed space starts working, or shows a different prompt, the chef answered it there. Drop that relay and say so in a line: "696, USB protocol, answered in the space." Don't ask about it again
 - Before every `space_answer` on the chef's word, call `space_state` and check the same prompt or question is still up. If it's gone, the chef answered it in the space: say so and send nothing. If a new one is up, relay that instead of answering it with the old answer
 - An answer from the chef in chat that names no space goes to the open relay it fits. If more than one fits, ask which
@@ -259,7 +259,7 @@ After it succeeds, confirm: "696, USB protocol, closed, 86'd."
 
 Load the pappardelle-agent skill for `update` and `restart --hard`, which stay CLI commands. `tui_restart` is the plain restart. Kitchen specifics:
 
-- "Update pappa" means `pappardelle update --restart-tuis` unless the chef says to leave the TUIs alone
+- "Update pappa" means `lasagna update --restart-tuis` unless the chef says to leave the TUIs alone
 - For `restart --hard`, say first that it ends every session, this one included, and wait for the go
 
 Callouts: "Updated, TUIs restarting." "Pappa restarted." "Resetting the line, all sessions 86'd, back on select."

@@ -258,7 +258,7 @@ test('resolveDisplayVersion: returns null version (sha-only) when nothing is res
 	});
 });
 
-test('resolveDisplayVersion: defaults installedRoot to ~/.pappardelle/repo', () => {
+test('resolveDisplayVersion: defaults installedRoot to ~/.lasagna/repo', () => {
 	// When projectDir itself carries the tag, the default installedRoot is never
 	// consulted, so this is safe to run without touching the real home dir.
 	const proj = tempDir('pap-disp-proj-');
@@ -349,20 +349,20 @@ test('the two stores leave the same cache file', async () => {
 // isLocalMode
 // ============================================================================
 
-test('isLocalMode: true when project dir is outside ~/.pappardelle/repo', () => {
+test('isLocalMode: true when project dir is outside ~/.lasagna/repo', () => {
 	const projectDir =
 		'/Users/charlie/.worktrees/x/STA-864/_dev/scripts/pappardelle';
 	expect(isLocalMode(projectDir)).toBe(true);
 });
 
 test('isLocalMode: false when project dir matches the installed location', () => {
-	const projectDir = path.join(homedir(), '.pappardelle', 'repo');
+	const projectDir = path.join(homedir(), '.lasagna', 'repo');
 	expect(isLocalMode(projectDir)).toBe(false);
 });
 
 test('isLocalMode: false for a subdir of the installed location', () => {
 	// Defensive — if for some reason we pass dist/ instead of the project root.
-	const projectDir = path.join(homedir(), '.pappardelle', 'repo', 'dist');
+	const projectDir = path.join(homedir(), '.lasagna', 'repo', 'dist');
 	expect(isLocalMode(projectDir)).toBe(false);
 });
 
@@ -374,12 +374,12 @@ function setupFakeInstall(installed: string): {
 	projectDir: string;
 	cache: UpdateCheckDao;
 } {
-	// Build a fake installed tree under ~/.pappardelle/repo/ (in the run's
+	// Build a fake installed tree under ~/.lasagna/repo/ (in the run's
 	// throwaway HOME) so LOCAL_MODE detection passes. git-init the fake dir so it
 	// is its own git boundary: `git describe` finds this empty (untagged) repo
 	// rather than any repository around it, returns null, and
 	// resolveInstalledVersion falls back to the package.json below.
-	const installedRoot = path.join(homedir(), '.pappardelle', 'repo');
+	const installedRoot = path.join(homedir(), '.lasagna', 'repo');
 	mkdirSync(installedRoot, {recursive: true});
 	const dir = mkdtempSync(path.join(installedRoot, '_test-'));
 	teardown(() => {

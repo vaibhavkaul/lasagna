@@ -358,7 +358,7 @@ contractTest(
 			status: 'waiting_for_input',
 			tool: undefined,
 		});
-		// The record itself is not aged: `pappardelle spaces` reports it raw.
+		// The record itself is not aged: `lasagna spaces` reports it raw.
 		const stored = await s.daos.claudeStatus.readState('STA-1');
 		expect(stored.kind === 'state' && stored.state.lastUpdate).toBe(0);
 	},

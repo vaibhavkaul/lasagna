@@ -40,7 +40,7 @@ const plugin = readJson<PluginManifest>(
 
 const marketplaceEntry = marketplace.plugins.find(p => p.name === plugin.name);
 
-test('marketplace lists the pappardelle plugin', () => {
+test('marketplace lists the lasagna plugin', () => {
 	expect(marketplaceEntry).toBeTruthy();
 });
 

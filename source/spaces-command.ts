@@ -1,4 +1,4 @@
-// `pappardelle spaces`: every open space with its Claude status, cached rail
+// `lasagna spaces`: every open space with its Claude status, cached rail
 // state and recap, issue title, PR link and branch summary. The JSON keeps
 // the shape of the sous-chef's old gather-spaces.sh, which the board reads,
 // and adds title, prUrl and git.

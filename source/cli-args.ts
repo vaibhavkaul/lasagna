@@ -3,24 +3,24 @@ import {packageJsonUrl} from './runtime.ts';
 
 const helpText = `
 	Usage
-	  $ pappardelle [--profile <name>] [prompt]
-	  $ pappardelle --resume <prompt or issue-key>
-	  $ pappardelle highlight <issue-key> [--focus]
-	  $ pappardelle send <issue-key> [text]
-	  $ pappardelle close <issue-key> [--yes]
-	  $ pappardelle send <issue-key> --keys <key>...
-	  $ pappardelle spaces [--json]
-	  $ pappardelle space get [issue-key] [--json] [--field <name>]...
-	  $ pappardelle space list [--json]
-	  $ pappardelle agent-profile list [--json]
-	  $ pappardelle read <issue-key> [--turns N] [--json]
-	  $ pappardelle companion <command...>
-	  $ pappardelle update [--restart-tuis | --no-restart-tuis]
-	  $ pappardelle restart [--hard [--yes]]
-	  $ pappardelle plugin install
+	  $ lasagna [--profile <name>] [prompt]
+	  $ lasagna --resume <prompt or issue-key>
+	  $ lasagna highlight <issue-key> [--focus]
+	  $ lasagna send <issue-key> [text]
+	  $ lasagna close <issue-key> [--yes]
+	  $ lasagna send <issue-key> --keys <key>...
+	  $ lasagna spaces [--json]
+	  $ lasagna space get [issue-key] [--json] [--field <name>]...
+	  $ lasagna space list [--json]
+	  $ lasagna agent-profile list [--json]
+	  $ lasagna read <issue-key> [--turns N] [--json]
+	  $ lasagna companion <command...>
+	  $ lasagna update [--restart-tuis | --no-restart-tuis]
+	  $ lasagna restart [--hard [--yes]]
+	  $ lasagna plugin install
 
 	Description
-	  Interactive TUI for managing pappardelle workspaces.
+	  Interactive TUI for managing lasagna workspaces.
 	  Displays worktree spaces in an fzf-style list with agent and
 	  companion panes for the selected space.
 
@@ -45,7 +45,7 @@ const helpText = `
 	                   summary (--json for the full record)
 	  space get [key]  What a space is: its phase, title, worktree, branch,
 	                   profile, tmux sessions and panes, PR and status. With
-	                   no key, the space this runs in. See pappardelle space --help
+	                   no key, the space this runs in. See lasagna space --help
 	  space list       The main space and every open space, as space get
 	  agent-profile list
 	                   The agent profiles a space can be opened on with
@@ -54,18 +54,18 @@ const helpText = `
 	                   (--turns N, default 5; --json)
 	  screen|state|wait|answer <key>
 	                   Watch another space's agent and answer its prompts.
-	                   See pappardelle state --help
+	                   See lasagna state --help
 	  queue|schedule|schedules|unschedule
 	                   Wake another space's agent later with an OS timer
 	  tui panes|focus-log
 	                   Diagnostics for the running TUIs' panes
 	  companion        Run, type into, read, resize and close panes in a
-	                   space's companion. See pappardelle companion --help
+	                   space's companion. See lasagna companion --help
 	  mcp              Serve these commands as MCP tools over stdio. Agents
 	                   start this
 	  mcp install      Add that server to Codex, OpenCode, Antigravity and Pi.
 	                   install.sh runs this
-	  update           Update Pappardelle to the latest release (same as U)
+	  update           Update Lasagna to the latest release (same as U)
 	  restart          Restart this repo's TUI in place
 	  restart --hard   End every agent session, then restart every TUI
 	  plugin install   Install the plugin (skills, hooks and MCP tools) from this
@@ -80,7 +80,7 @@ const helpText = `
 	  o              Open workspace (apps, links, etc.)
 	  d              Open IDE
 	  /              Search spaces
-	  U              Update Pappardelle to the latest release
+	  U              Update Lasagna to the latest release
 	  ?              All keys
 	  q/Ctrl+C       Quit
 
@@ -101,33 +101,33 @@ const helpText = `
 	  --yes               Skip the confirmation for close or restart --hard
 
 	Examples
-	  $ pappardelle              # Run with tmux layout
-	  $ pappardelle --no-layout  # Run standalone (list only)
-	  $ pappardelle "fix auth bug"  # Create new session with prompt
-	  $ pappardelle --profile mobile "fix auth bug"  # Select the mobile profile
-	  $ pappardelle --resume STA-313  # Reopen without an initialization prompt
-	  $ pappardelle --agent-profile codex STA-313  # Open STA-313 on codex this time
-	  $ pappardelle --resume --wait STA-313  # Reopen, then wait for its agent
-	  $ pappardelle highlight STA-313  # Highlight row in running TUI
-	  $ pappardelle highlight main --focus  # Jump to the sous-chef's agent pane
-	  $ pappardelle send 313 "fix the failing tests"  # Prompt STA-313's agent
-	  $ pappardelle send 313 --keys Escape  # Interrupt STA-313's agent
-	  $ pappardelle close STA-313 --yes  # Close STA-313 without asking
-	  $ pappardelle companion hunk diff --watch  # Show a diff in this space's companion
-	  $ pappardelle update       # Update, then ask before restarting running TUIs
-	  $ pappardelle restart      # Restart this repo's TUI in place
-	  $ pappardelle restart --hard  # End agent sessions, restart every TUI
+	  $ lasagna              # Run with tmux layout
+	  $ lasagna --no-layout  # Run standalone (list only)
+	  $ lasagna "fix auth bug"  # Create new session with prompt
+	  $ lasagna --profile mobile "fix auth bug"  # Select the mobile profile
+	  $ lasagna --resume STA-313  # Reopen without an initialization prompt
+	  $ lasagna --agent-profile codex STA-313  # Open STA-313 on codex this time
+	  $ lasagna --resume --wait STA-313  # Reopen, then wait for its agent
+	  $ lasagna highlight STA-313  # Highlight row in running TUI
+	  $ lasagna highlight main --focus  # Jump to the sous-chef's agent pane
+	  $ lasagna send 313 "fix the failing tests"  # Prompt STA-313's agent
+	  $ lasagna send 313 --keys Escape  # Interrupt STA-313's agent
+	  $ lasagna close STA-313 --yes  # Close STA-313 without asking
+	  $ lasagna companion hunk diff --watch  # Show a diff in this space's companion
+	  $ lasagna update       # Update, then ask before restarting running TUIs
+	  $ lasagna restart      # Restart this repo's TUI in place
+	  $ lasagna restart --hard  # End agent sessions, restart every TUI
 `;
 
-export const SPACE_USAGE = `Usage: pappardelle space get [issue-key] [--json] [--field <name>]...
-       pappardelle space list [--json]`;
+export const SPACE_USAGE = `Usage: lasagna space get [issue-key] [--json] [--field <name>]...
+       lasagna space list [--json]`;
 
 export const SPACE_HELP = `
 	Usage
-	  $ pappardelle space get [issue-key] [--json] [--field <name>]...
-	  $ pappardelle space list [--json]
+	  $ lasagna space get [issue-key] [--json] [--field <name>]...
+	  $ lasagna space list [--json]
 
-	space get prints what Pappardelle knows about a space, from its stores:
+	space get prints what Lasagna knows about a space, from its stores:
 	repo, key, phase (starting, open, closing or closed), title, worktreePath,
 	branch, profile, agentSessions, tmux (socket, socketFlag, agentSession,
 	companionSession, agentTarget, companionTarget), panes (agent, companion),
@@ -151,16 +151,15 @@ export const SPACE_HELP = `
 	     spaces it could read and names each one it could not
 `;
 
-export const AGENT_PROFILE_USAGE =
-	'Usage: pappardelle agent-profile list [--json]';
+export const AGENT_PROFILE_USAGE = 'Usage: lasagna agent-profile list [--json]';
 
 export const AGENT_PROFILE_HELP = `
 	Usage
-	  $ pappardelle agent-profile list [--json]
+	  $ lasagna agent-profile list [--json]
 
 	Lists the agent profiles a space can be opened on, one name per line: the
 	built-in claude and every entry under agent_profiles: in the merged config.
-	Pass one to pappardelle --agent-profile <name> to open a space on it.
+	Pass one to lasagna --agent-profile <name> to open a space on it.
 
 	Options
 	  --json  Print [{name, sources}], sources being the config files that
@@ -223,13 +222,13 @@ export function parseCli(argv: readonly string[] = process.argv.slice(2)) {
 
 const subcommands = {
 	close: {
-		usage: 'pappardelle close <issue-key> [--yes]',
+		usage: 'lasagna close <issue-key> [--yes]',
 		// --teardown-only is internal: a self-close hands the session kill to a
 		// detached copy of itself, because the kill ends the calling process.
 		flags: ['--yes', '--teardown-only'],
 		help: `
 	Usage
-	  $ pappardelle close <issue-key> [--yes]
+	  $ lasagna close <issue-key> [--yes]
 
 	Closes a space, same as x in the TUI: runs its pre_workspace_deinit
 	hooks, ends its agent and companion sessions, and removes it from the
@@ -241,11 +240,11 @@ const subcommands = {
 `,
 	},
 	restart: {
-		usage: 'pappardelle restart [--hard [--yes]]',
+		usage: 'lasagna restart [--hard [--yes]]',
 		flags: ['--hard', '--yes'],
 		help: `
 	Usage
-	  $ pappardelle restart [--hard [--yes]]
+	  $ lasagna restart [--hard [--yes]]
 
 	Restarts this repo's TUI in its tmux pane on the build that ran this
 	command, then waits for it to report ready. Your terminal stays attached,
@@ -258,11 +257,11 @@ const subcommands = {
 `,
 	},
 	update: {
-		usage: 'pappardelle update [--restart-tuis | --no-restart-tuis]',
+		usage: 'lasagna update [--restart-tuis | --no-restart-tuis]',
 		flags: ['--restart-tuis', '--no-restart-tuis'],
 		help: `
 	Usage
-	  $ pappardelle update [--restart-tuis | --no-restart-tuis]
+	  $ lasagna update [--restart-tuis | --no-restart-tuis]
 
 	Installs the latest release (same as U in the TUI). Running TUIs stay on
 	the old build until they restart; on a terminal it asks first.
@@ -274,14 +273,14 @@ const subcommands = {
 `,
 	},
 	mcp: {
-		usage: 'pappardelle mcp [install]',
+		usage: 'lasagna mcp [install]',
 		flags: [],
 		help: `
 	Usage
-	  $ pappardelle mcp
-	  $ pappardelle mcp install
+	  $ lasagna mcp
+	  $ lasagna mcp install
 
-	mcp serves Pappardelle's commands as MCP tools over stdio, for the session
+	mcp serves Lasagna's commands as MCP tools over stdio, for the session
 	that started it. Agents start this, so you shouldn't need to. Outside a repo
 	with a .pappardelle.yml it serves no tools.
 
@@ -291,13 +290,13 @@ const subcommands = {
 `,
 	},
 	'plugin install': {
-		usage: 'pappardelle plugin install',
+		usage: 'lasagna plugin install',
 		flags: [],
 		help: `
 	Usage
-	  $ pappardelle plugin install
+	  $ lasagna plugin install
 
-	Installs the Pappardelle plugin (skills, hooks and MCP tools) from this
+	Installs the Lasagna plugin (skills, hooks and MCP tools) from this
 	install into Claude Code, Codex and agy, skipping any that isn't installed.
 	  Claude Code: points pappardelle-marketplace at the install; it loads the
 	    plugin in place, so a new install takes effect after /reload-plugins.
@@ -378,7 +377,7 @@ export function subcommandGate(argv: readonly string[]): SubcommandGate {
 	) {
 		return {
 			action: 'reject',
-			message: `Unknown command pappardelle ${argv.join(' ')}\nUsage: ${usage}`,
+			message: `Unknown command lasagna ${argv.join(' ')}\nUsage: ${usage}`,
 		};
 	}
 
@@ -390,7 +389,7 @@ export function subcommandGate(argv: readonly string[]): SubcommandGate {
 	) {
 		return {
 			action: 'reject',
-			message: `Unknown command pappardelle ${argv.join(' ')}\nUsage: ${usage}`,
+			message: `Unknown command lasagna ${argv.join(' ')}\nUsage: ${usage}`,
 		};
 	}
 
@@ -400,7 +399,7 @@ export function subcommandGate(argv: readonly string[]): SubcommandGate {
 	if (unknown !== undefined) {
 		return {
 			action: 'reject',
-			message: `Unknown flag ${unknown} for pappardelle ${name}\nUsage: ${usage}\nRun pappardelle ${name} --help for details`,
+			message: `Unknown flag ${unknown} for lasagna ${name}\nUsage: ${usage}\nRun lasagna ${name} --help for details`,
 		};
 	}
 

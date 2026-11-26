@@ -12,6 +12,7 @@ import {
 	type OuterTmuxRunner,
 } from './tmux.ts';
 import {shellQuote} from './shell-quote.ts';
+import {STATE_DIR_NAME} from './state-dir.ts';
 import {tmuxFormatLiteral} from './tmux-format.ts';
 import type {PaneLayout} from './types.ts';
 import {
@@ -348,7 +349,7 @@ export async function restartTuis(
 // started from the installed release runs through the ~/.local/bin shim, which
 // each install rewrites to run that install's executable, so a restart follows
 // a later local install instead of staying on the release. Other builds (e.g. a
-// dev build at ~/.local/bin/pappardelle-sta862, or a source run) keep their own
+// dev build at ~/.local/bin/lasagna-sta862, or a source run) keep their own
 // command so they don't fall back to the release.
 export function tuiLaunchCommand(options: {
 	execPath: string;
@@ -360,12 +361,12 @@ export function tuiLaunchCommand(options: {
 	const exists = options.exists ?? existsSync;
 	const releaseExecutable = path.join(
 		options.home,
-		'.pappardelle',
+		STATE_DIR_NAME,
 		'repo',
 		'dist',
-		'pappardelle',
+		'lasagna',
 	);
-	const shim = path.join(options.home, '.local', 'bin', 'pappardelle');
+	const shim = path.join(options.home, '.local', 'bin', 'lasagna');
 	const command =
 		path.resolve(options.cliPath) === releaseExecutable && exists(shim)
 			? shellQuote(shim)
@@ -386,7 +387,7 @@ export function installedLaunchCommand(options: {
 	exists?: (file: string) => boolean;
 }): string {
 	const exists = options.exists ?? existsSync;
-	const shim = path.join(options.home, '.local', 'bin', 'pappardelle');
+	const shim = path.join(options.home, '.local', 'bin', 'lasagna');
 	return exists(shim)
 		? shellQuote(shim)
 		: tuiLaunchCommand({...options, args: []});
@@ -444,7 +445,7 @@ export function closeTuiLayout(
 	else closeViewerPanes(layout, deps);
 }
 
-// `pappardelle restart` reruns the TUI with `respawn-pane -k`, which hangs up
+// `lasagna restart` reruns the TUI with `respawn-pane -k`, which hangs up
 // the one running there. If that TUI closed its layout, it would kill the
 // session its replacement just started in.
 export function paneRespawned(
@@ -498,7 +499,7 @@ export function restartOwnTui(
 	if (result.ok) return;
 	if (lock.held) lock.release();
 	deps.print(
-		`Couldn't restart: ${result.reason}. Relaunch with pappardelle.\nPress any key to close.`,
+		`Couldn't restart: ${result.reason}. Relaunch with lasagna.\nPress any key to close.`,
 	);
 	deps.waitForKey();
 	deps.killSession(current);

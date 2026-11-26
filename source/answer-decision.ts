@@ -266,7 +266,7 @@ export function decideAnswer(
 		return {
 			kind: 'error',
 			exit: POLICY_REFUSED_EXIT,
-			message: `Can't read option ${chosen} on ${key}'s prompt; check it with \`pappardelle screen ${key}\``,
+			message: `Can't read option ${chosen} on ${key}'s prompt; check it with \`lasagna screen ${key}\``,
 		};
 	}
 
@@ -276,7 +276,7 @@ export function decideAnswer(
 		return {
 			kind: 'error',
 			exit: POLICY_REFUSED_EXIT,
-			message: `Option ${chosen} on ${key}'s prompt shows no key that picks it; check it with \`pappardelle screen ${key}\``,
+			message: `Option ${chosen} on ${key}'s prompt shows no key that picks it; check it with \`lasagna screen ${key}\``,
 		};
 	}
 
@@ -377,7 +377,7 @@ export function decideAnswer(
 		return held(
 			"the top of the prompt is off the screen, so the call can't be read",
 		);
-	// A Bash command naming these is only text; pappardelle answer and holds
+	// A Bash command naming these is only text; lasagna answer and holds
 	// are hard stops in the rules.
 	if (
 		tool !== 'Bash command' &&

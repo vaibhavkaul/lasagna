@@ -49,21 +49,21 @@ export class CompanionUsageError extends Error {}
 
 const companionHelp = `
 	Usage
-	  $ pappardelle companion <command...>
-	  $ pappardelle companion run    [--pane NAME] [--split right|down] [--size N|N%] -- <command...>
-	  $ pappardelle companion keys   [--pane NAME] [--no-enter] [--keys KEY]... [text]
-	  $ pappardelle companion read   [--pane NAME] [--lines N]
-	  $ pappardelle companion resize NAME --size N|N%
-	  $ pappardelle companion close  NAME
-	  $ pappardelle companion list   [--json]
-	  $ pappardelle companion width  <N|N%|reset>
+	  $ lasagna companion <command...>
+	  $ lasagna companion run    [--pane NAME] [--split right|down] [--size N|N%] -- <command...>
+	  $ lasagna companion keys   [--pane NAME] [--no-enter] [--keys KEY]... [text]
+	  $ lasagna companion read   [--pane NAME] [--lines N]
+	  $ lasagna companion resize NAME --size N|N%
+	  $ lasagna companion close  NAME
+	  $ lasagna companion list   [--json]
+	  $ lasagna companion width  <N|N%|reset>
 
-	Changes the companion pane of a Pappardelle space. Every verb takes
+	Changes the companion pane of a Lasagna space. Every verb takes
 	--space KEY and defaults to $PAPPARDELLE_SPACE. Only the space's companion
 	session is ever touched, never its agent session.
 
 	With no verb, the arguments are a command for the main pane of this
-	space's own companion: \`pappardelle companion hunk diff --watch\` is
+	space's own companion: \`lasagna companion hunk diff --watch\` is
 	\`run --pane main -- hunk diff --watch\` in $PAPPARDELLE_SPACE. A command
 	that starts with a verb name needs the explicit \`run --\` form.
 
@@ -113,7 +113,7 @@ function withUsageError<T>(verb: string, parse: () => T): T {
 		return parse();
 	} catch (error) {
 		throw new CompanionUsageError(
-			`${error instanceof Error ? error.message : String(error)}\nRun pappardelle companion --help for usage (${verb})`,
+			`${error instanceof Error ? error.message : String(error)}\nRun lasagna companion --help for usage (${verb})`,
 		);
 	}
 }
@@ -146,7 +146,7 @@ function paneName(value: string | undefined): string {
 
 function onePane(verb: string, positionals: string[]): string {
 	if (positionals.length !== 1) {
-		throw new CompanionUsageError(`Usage: pappardelle companion ${verb} NAME`);
+		throw new CompanionUsageError(`Usage: lasagna companion ${verb} NAME`);
 	}
 
 	return paneName(positionals[0]);
@@ -157,7 +157,7 @@ function parseWidth(value: string | undefined): PaneWidth | 'reset' {
 	const width = value === undefined ? null : parsePaneWidth(value);
 	if (width === null) {
 		throw new CompanionUsageError(
-			'Usage: pappardelle companion width <N|N%|reset>',
+			'Usage: lasagna companion width <N|N%|reset>',
 		);
 	}
 
@@ -177,7 +177,7 @@ export function parseCompanionArgs(argv: readonly string[]): CompanionCommand {
 	if (!(COMPANION_VERBS as readonly string[]).includes(first)) {
 		if (first.startsWith('-')) {
 			throw new CompanionUsageError(
-				`Unknown flag ${first} for pappardelle companion\nRun pappardelle companion --help for usage`,
+				`Unknown flag ${first} for lasagna companion\nRun lasagna companion --help for usage`,
 			);
 		}
 
@@ -214,7 +214,7 @@ export function parseCompanionArgs(argv: readonly string[]): CompanionCommand {
 			const commandArgs = [...positionals, ...(afterDash ?? [])];
 			if (commandArgs.length === 0) {
 				throw new CompanionUsageError(
-					'Usage: pappardelle companion run [--pane NAME] [--split right|down] [--size N|N%] -- <command...>',
+					'Usage: lasagna companion run [--pane NAME] [--split right|down] [--size N|N%] -- <command...>',
 				);
 			}
 
@@ -282,7 +282,7 @@ export function parseCompanionArgs(argv: readonly string[]): CompanionCommand {
 			if (values.help) return {verb: 'help', text: companionHelp};
 			if (positionals.length > 0 || afterDash) {
 				throw new CompanionUsageError(
-					'Usage: pappardelle companion read [--pane NAME] [--lines N]',
+					'Usage: lasagna companion read [--pane NAME] [--lines N]',
 				);
 			}
 
@@ -311,7 +311,7 @@ export function parseCompanionArgs(argv: readonly string[]): CompanionCommand {
 			const size = checkSize('--size', values.size);
 			if (size === undefined) {
 				throw new CompanionUsageError(
-					'Usage: pappardelle companion resize NAME --size N|N%',
+					'Usage: lasagna companion resize NAME --size N|N%',
 				);
 			}
 
@@ -355,9 +355,7 @@ export function parseCompanionArgs(argv: readonly string[]): CompanionCommand {
 			);
 			if (values.help) return {verb: 'help', text: companionHelp};
 			if (positionals.length > 0 || afterDash) {
-				throw new CompanionUsageError(
-					'Usage: pappardelle companion list [--json]',
-				);
+				throw new CompanionUsageError('Usage: lasagna companion list [--json]');
 			}
 
 			return {verb, space: values.space, json: values.json ?? false};

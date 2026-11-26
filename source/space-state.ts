@@ -26,7 +26,7 @@ export interface SpaceRecap {
 	lastAssistantExcerpt?: string;
 }
 
-/** A PR or MR recorded for one checkout in a space by `pappardelle link-pr`. */
+/** A PR or MR recorded for one checkout in a space by `lasagna link-pr`. */
 export type SpacePrLink = {
 	host: string;
 	project: string;

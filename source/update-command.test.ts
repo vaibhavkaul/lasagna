@@ -69,7 +69,7 @@ function harness(
 	};
 }
 
-const SHIM = "'/home/me/.local/bin/pappardelle'";
+const SHIM = "'/home/me/.local/bin/lasagna'";
 
 function restartedTuis(h: Harness): string[] {
 	return restarted(h.tmuxCalls, h.sessions);
@@ -146,9 +146,9 @@ test('on a TTY with no flag, a yes to the prompt restarts the TUIs', async () =>
 	await runUpdateCommand({}, h.deps);
 
 	expect(h.confirmCalls.length).toBe(1);
-	expect(
-		h.confirmCalls[0]!.startsWith('Restart 2 running Pappardelle TUIs'),
-	).toBe(true);
+	expect(h.confirmCalls[0]!.startsWith('Restart 2 running Lasagna TUIs')).toBe(
+		true,
+	);
 	expect(restartedTuis(h)).toStrictEqual([
 		'pappardelle-app',
 		'pappardelle-web',
