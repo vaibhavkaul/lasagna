@@ -1,5 +1,6 @@
 import {parseArgs, type ParseArgsConfig} from 'node:util';
 import type {WaitTarget} from './agent-state.ts';
+import {STATE_DIR_NAME} from './state-dir.ts';
 import {
 	decodeCursor,
 	WATCH_TARGETS,
@@ -150,7 +151,7 @@ export const superviseHelp = `
 	  tui focus-log  Log active-pane and client-focus changes for --seconds (30)
 
 	Everything sent or scheduled, and each change watch reports, is logged to
-	~/.pappardelle/repos/<repo>/supervise.jsonl.
+	~/${STATE_DIR_NAME}/repos/<repo>/supervise.jsonl.
 `;
 
 function positiveInt(value: string | undefined, flag: string): number {

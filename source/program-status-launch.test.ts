@@ -45,7 +45,7 @@ function fixture(python: boolean, staleNode = false) {
 	const home = path.join(root, 'home');
 	const socket = 'status-launch';
 	// The agent's hook finds the stores under its home directory.
-	const stateDir = path.join(home, '.pappardelle');
+	const stateDir = path.join(home, '.lasagna');
 	const statusSocket = path.join(stateDir, 'status-1.sock');
 	for (const dir of [bin, repo, home, stateDir, path.join(root, 'tmux')])
 		mkdirSync(dir, {mode: 0o700});

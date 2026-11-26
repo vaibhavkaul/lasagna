@@ -13,7 +13,7 @@ function deps(loadConfig: () => PappardelleConfig) {
 		loadSources: () => ({
 			'codex-sol:high': [
 				'.pappardelle.local.yml',
-				'~/.pappardelle/.pappardelle.yml',
+				'~/.lasagna/.pappardelle.yml',
 			],
 		}),
 		out: text => out.push(text),
@@ -43,7 +43,7 @@ test('list --json gives each name with the files defining it as a list', () => {
 		{name: 'claude', sources: []},
 		{
 			name: 'codex-sol:high',
-			sources: ['.pappardelle.local.yml', '~/.pappardelle/.pappardelle.yml'],
+			sources: ['.pappardelle.local.yml', '~/.lasagna/.pappardelle.yml'],
 		},
 		{name: 'aider', sources: []},
 	]);

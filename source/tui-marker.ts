@@ -7,15 +7,16 @@ import {
 } from 'node:fs';
 import {homedir} from 'node:os';
 import path from 'node:path';
+import {STATE_DIR_NAME} from './state-dir.ts';
 
-// A running TUI records itself in ~/.pappardelle/repos/<repo>/tui.json once it
+// A running TUI records itself in ~/.lasagna/repos/<repo>/tui.json once it
 // has rendered, so `lasagna restart` can tell which build came up in the
 // pane it respawned. restart.lock in the same directory keeps two restarts of
 // one repo's TUI from overlapping.
 
 export const DEFAULT_REPO_STATE_ROOT = path.join(
 	homedir(),
-	'.pappardelle',
+	STATE_DIR_NAME,
 	'repos',
 );
 

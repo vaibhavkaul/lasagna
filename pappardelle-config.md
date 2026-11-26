@@ -20,7 +20,7 @@ Config is assembled from up to three files, deep-merged lowest → highest prior
 
 | #   | Layer   | Path                                 | Purpose                                  | Committed?            |
 | --- | ------- | ------------------------------------ | ---------------------------------------- | --------------------- |
-| 1   | Home    | `~/.pappardelle/.pappardelle.yml`    | Your personal defaults across every repo | No (outside the repo) |
+| 1   | Home    | `~/.lasagna/.pappardelle.yml`        | Your personal defaults across every repo | No (outside the repo) |
 | 2   | Project | `<repo-root>/.pappardelle.yml`       | Repo-level settings shared with the team | Yes                   |
 | 3   | Local   | `<repo-root>/.pappardelle.local.yml` | Your per-repo overrides                  | No (gitignored)       |
 
@@ -914,7 +914,7 @@ agy --model gemini-4-argon-medium --conversation <recorded id> || <clear-error> 
 
 Relaunching a workspace's agent (the TUI recreating a dead session, `idow` reopening a space) resumes the workspace's own conversation by id. "Most recent" resume flags aren't safe for this: codex's `resume --last` picks the newest codex session from any directory, so it would pull another workspace's conversation in.
 
-- The agent's hooks record its session id in `~/.pappardelle/repos/<repo>/space-state/<KEY>.agent-sessions.json`, under its agent profile's name with the pid and start time of the agent process (`{<agent profile>: {session_id, pid, started}}`), on `SessionStart` and `UserPromptSubmit`. A new conversation in the pane (Claude's `/clear`, say) replaces that agent profile's id. While that process runs (the same pid with the same start time, since pids get reused), no other agent can replace it; a relaunch can.
+- The agent's hooks record its session id in `~/.lasagna/repos/<repo>/space-state/<KEY>.agent-sessions.json`, under its agent profile's name with the pid and start time of the agent process (`{<agent profile>: {session_id, pid, started}}`), on `SessionStart` and `UserPromptSubmit`. A new conversation in the pane (Claude's `/clear`, say) replaces that agent profile's id. While that process runs (the same pid with the same start time, since pids get reused), no other agent can replace it; a relaunch can.
 - `{session_id}` in `resume_args` is replaced with the id recorded under the launching agent profile. With nothing recorded, claude falls back to `--continue`, which only looks in the workspace's directory, so spaces from before id recording keep their conversation. Other agents skip the resume attempt and launch fresh.
 - Claude records through the `update-status.py` hook Pappardelle already installs. Codex records through `record-agent-session.py`, which `lasagna plugin install` adds to `~/.codex/hooks.json`. Codex asks to trust a new hook on its next launch; until it's trusted, codex spaces launch fresh.
 - agy records through the same `record-agent-session.py`, which the plugin registers for agy as the named hook `pappardelle-session` (see [`hooks.json`](plugins/pappardelle/hooks.json)), on `SessionStart` and `PreInvocation`. agy's subagents fire those hooks from the agy process with their own ids, so for agy the first id recorded stays until the process exits: a new conversation in the pane (`/clear`) isn't followed, and a relaunch reopens the first one
@@ -996,7 +996,7 @@ profiles:
         - Bash,Read,Write,Edit,Glob,Grep,Agent,Skill,Monitor
 ```
 
-When the TUI creates a space's session again (after a crash, or after the agent exits), it uses the profile that `idow` saved for the space in `~/.pappardelle/repos/<repo>/space-state/<KEY>.json` (or in the database, with [`experimental.sqliteState`](#experimental-sqlite-state) on). `lasagna space get KEY --field profile` prints it. Only a space with no saved profile (or a saved name that no profile has now) falls back to the issue title's keywords. So still give a restricted profile a keyword that its issue titles always contain, and put it above any profile that shares a keyword with it, because file order wins a tie. The same order applies to `agent_profile` and `companion_command`.
+When the TUI creates a space's session again (after a crash, or after the agent exits), it uses the profile that `idow` saved for the space in `~/.lasagna/repos/<repo>/space-state/<KEY>.json` (or in the database, with [`experimental.sqliteState`](#experimental-sqlite-state) on). `lasagna space get KEY --field profile` prints it. Only a space with no saved profile (or a saved name that no profile has now) falls back to the issue title's keywords. So still give a restricted profile a keyword that its issue titles always contain, and put it above any profile that shares a keyword with it, because file order wins a tie. The same order applies to `agent_profile` and `companion_command`.
 
 Omitting `model`, `effort` and `extra_args` everywhere leaves the launch command byte-identical to a config that predates them; nothing is passed to the CLI unless you ask for it.
 
@@ -1035,7 +1035,7 @@ issue_watchlist:
 4. If `key_prefixes` is configured, results are filtered client-side to only issues whose key prefix is in the allowlist
 5. If `labels` is configured, results are filtered client-side to only include issues with at least one matching label
 6. New issues (not already in the space list) are auto-spawned as full workspaces via `idow`
-7. If `max_workspaces` is set, only as many new issues as there are free slots are spawned, oldest first. Slots are recorded in `~/.pappardelle/repos/<repo>/watchlist-spawns.json`, so the cap holds across restarts and across several Pappardelle instances on the same repo. Workspaces opened before `max_workspaces` was set, or opened by hand, don't count
+7. If `max_workspaces` is set, only as many new issues as there are free slots are spawned, oldest first. Slots are recorded in `~/.lasagna/repos/<repo>/watchlist-spawns.json`, so the cap holds across restarts and across several Pappardelle instances on the same repo. Workspaces opened before `max_workspaces` was set, or opened by hand, don't count
 8. Each issue is only spawned once per Pappardelle session (tracked in memory)
 
 **Note:** The `assignee: me` value uses `currentUser()` in Jira JQL and `me` in linctl, both of which resolve to the authenticated user automatically. When `assignee` is omitted, issues from all assignees matching the configured statuses will be watched.
@@ -1154,7 +1154,7 @@ sous_chef?: boolean;
 
 ## Experimental: SQLite State
 
-`experimental.sqliteState` keeps Pappardelle's state in one SQLite database, `~/.pappardelle/state.db`, shared by every repo. Off by default.
+`experimental.sqliteState` keeps Pappardelle's state in one SQLite database, `~/.lasagna/state.db`, shared by every repo. Off by default.
 
 ```yaml
 experimental:
@@ -1165,7 +1165,7 @@ experimental:
 experimental?: {sqliteState?: boolean};
 ```
 
-- Set it in `~/.pappardelle/.pappardelle.yml` only. The database is shared by every repo, so config validation rejects the key in a project or local config
+- Set it in `~/.lasagna/.pappardelle.yml` only. The database is shared by every repo, so config validation rejects the key in a project or local config
 - **On:** state is read from the database, and every write also updates the JSON file it replaces. Turning the flag off again loses none of it. Claude hook status and program status are the exception: they are stored nowhere and go through the [status daemon](#status-daemon)
 - **Off:** the database is never opened, no status daemon is started, and state is read from and written to the files
 - What the database holds: the open spaces and watchlist reservations, each space's identity, its saved profile, issue title, rail status, recap and PR links, issue meta, highlight requests, state colors, agent sessions, companion widths and layout requests, scheduled wake-ups and queued messages, the TUI marker and the update check
@@ -1176,7 +1176,7 @@ experimental?: {sqliteState?: boolean};
 - The issue title is stored each time Pappardelle reads the issue from the tracker, and when `idow` opens the space. In the space's state file it is the `issueTitle` field
 - `lasagna space get` reads a space's stored values the same way in both modes. Scripts and hooks should use it rather than reading the database or the JSON files
 - Restart the TUI after changing the flag. A TUI that is already running keeps the mode it started with, and shows no status changes until it is restarted
-- Running agents need no restart. They follow within 5 seconds of that start: the hooks and each agent pane's status monitor read the flag from `~/.pappardelle/state-flag.json`, which Pappardelle rewrites when it starts
+- Running agents need no restart. They follow within 5 seconds of that start: the hooks and each agent pane's status monitor read the flag from `~/.lasagna/state-flag.json`, which Pappardelle rewrites when it starts
 - The hooks need a Python whose SQLite is 3.37 or newer to write to the database. With an older one they write files only, and each file is imported the next time it is read. Hook status does not use SQLite and is not affected
 - A database that cannot be opened or read does not stop the TUI. The rail keeps running without the spaces and other state it could not read, reports the failed reads in its error list, and reads the database again once it can, with no restart
 - Locks (`restart.lock`, `send-locks/`), the lease files in `program-status/`, `supervise.jsonl`, logs and config stay files in both modes
@@ -1186,7 +1186,7 @@ experimental?: {sqliteState?: boolean};
 
 With the flag on, the hooks and the agent panes' status monitors send Claude hook status and program status to the status daemon. It is one process per user, for every repo. It keeps the statuses in memory and pushes each change to the rail.
 
-- It listens on `~/.pappardelle/status-1.sock`, beside the database
+- It listens on `~/.lasagna/status-1.sock`, beside the database
 - It writes no state to disk. Its warnings and errors go to the log files
 - The TUI and the status monitors start it when none is running. Hooks and CLI commands never start it
 - It exits 10 seconds after its last connection closes. Each status monitor keeps a connection open, so it runs for as long as a TUI or a monitored agent pane exists
@@ -1680,6 +1680,6 @@ Profile-specific variables (like `IOS_APP_DIR`) are resolved by matching the iss
 
 After creating or reusing a PR/MR, run `lasagna link-pr <url>` from its source repository. For a nested repository, add `--workspace <outer-workspace-root>`. GitHub URLs are verified with `gh`; GitLab URLs with `glab`. The PR/MR must be open and its source repository must match the checkout's origin.
 
-The command saves a `prLinks` entry in `~/.pappardelle/repos/{repo}/space-state/{workspace-branch}.json`, including host, source project, local branch, published branch, URL and number. Rail polling uses the published branch for the matching host, source project and local branch; other repositories keep their discovered branches. Running the command again updates the existing mapping. Switching local branches stops applying the old mapping. Existing status and profile fields are preserved.
+The command saves a `prLinks` entry in `~/.lasagna/repos/{repo}/space-state/{workspace-branch}.json`, including host, source project, local branch, published branch, URL and number. Rail polling uses the published branch for the matching host, source project and local branch; other repositories keep their discovered branches. Running the command again updates the existing mapping. Switching local branches stops applying the old mapping. Existing status and profile fields are preserved.
 
 Agent workflow rule: after a successful PR/MR creation or reuse, run `link-pr` before reporting completion. For multi-repository workspaces, link each repository separately. Report a linking failure explicitly; the PR/MR itself remains intact.

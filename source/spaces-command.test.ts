@@ -37,7 +37,7 @@ function tempHome(
 		home,
 		testState({
 			repo: REPO,
-			stateDir: path.join(home, '.pappardelle'),
+			stateDir: path.join(home, '.lasagna'),
 			home,
 			...options,
 		}),
@@ -57,7 +57,7 @@ function writeJson(file: string, data: unknown): void {
 }
 
 const repoState = (home: string, ...rest: string[]) =>
-	path.join(home, '.pappardelle', 'repos', REPO, ...rest);
+	path.join(home, '.lasagna', 'repos', REPO, ...rest);
 
 const statusKey = (key: string, repo = REPO) => `${repo}-${key}`;
 

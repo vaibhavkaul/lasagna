@@ -45,7 +45,7 @@ test('newly created issues launch fresh; existing keys keep conversation resume'
 // of the new issue must not resume the old one's conversation.
 test('a new issue drops the sessions recorded under its key; an existing one keeps them', async () => {
 	const fixture = setup();
-	const stateDir = path.join(fixture.home, '.pappardelle');
+	const stateDir = path.join(fixture.home, '.lasagna');
 	const sessionsPath = path.join(
 		stateDir,
 		'repos/main checkout/space-state/test-abc.agent-sessions.json',
@@ -112,7 +112,7 @@ test('a bad claude config fails before the issue is created', async () => {
 	await rejectionOf(fixture.run({input: 'Make workspace startup faster'}));
 	expect(
 		fs.existsSync(
-			path.join(fixture.home, '.pappardelle', 'repos', 'main checkout'),
+			path.join(fixture.home, '.lasagna', 'repos', 'main checkout'),
 		),
 	).toBe(false);
 });

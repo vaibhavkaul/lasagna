@@ -88,7 +88,7 @@ def test_a_locked_database_costs_a_fraction_of_a_second_and_keeps_the_file(
     assert json.loads(file.read_text()) == {"a": "one"}
     assert elapsed < 1.0
     assert rows(notes_db, "SELECT * FROM notes") == []
-    log = (tmp_path / ".pappardelle" / "logs" / "hook-events.log").read_text()
+    log = (tmp_path / ".lasagna" / "logs" / "hook-events.log").read_text()
     assert "State database write failed" in log and str(file) in log
 
 
@@ -100,13 +100,13 @@ def test_a_python_without_sqlite_still_writes_the_file(tmp_path: Path, monkeypat
     write_note(tmp_path / "state.db", file, "one")
 
     assert json.loads(file.read_text()) == {"a": "one"}
-    log = (tmp_path / ".pappardelle" / "logs" / "hook-events.log").read_text()
+    log = (tmp_path / ".lasagna" / "logs" / "hook-events.log").read_text()
     assert "State database write failed" in log and str(file) in log
 
 
 def test_a_failure_that_repeats_is_logged_once_a_minute(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("HOME", str(tmp_path))
-    logs = tmp_path / ".pappardelle" / "logs"
+    logs = tmp_path / ".lasagna" / "logs"
 
     def lines() -> list[str]:
         return (logs / "hook-events.log").read_text().splitlines()
@@ -127,15 +127,15 @@ def test_the_flag_comes_from_the_override_then_the_recorded_config(tmp_path: Pat
     monkeypatch.setenv("HOME", str(tmp_path))
     assert state_db.state_db_path({}) is None
 
-    (tmp_path / ".pappardelle").mkdir()
-    (tmp_path / ".pappardelle" / "state-flag.json").write_text(
+    (tmp_path / ".lasagna").mkdir()
+    (tmp_path / ".lasagna" / "state-flag.json").write_text(
         json.dumps({"sqliteState": True, "db": "/recorded/state.db"})
     )
     assert state_db.state_db_path({}) == "/recorded/state.db"
     assert state_db.state_db_path({"PAPPARDELLE_SQLITE_STATE": "0"}) is None
     assert state_db.state_db_path({"PAPPARDELLE_STATE_DB": "/env/state.db"}) == "/env/state.db"
 
-    (tmp_path / ".pappardelle" / "state-flag.json").write_text(
+    (tmp_path / ".lasagna" / "state-flag.json").write_text(
         json.dumps({"sqliteState": False, "db": "/recorded/state.db"})
     )
     assert state_db.state_db_path({}) is None

@@ -77,7 +77,7 @@ export TMUX_TMPDIR
 TMPDIR_ROOT=$(mktemp -d)
 
 # The sessions' hooks and the pre-trust step write under HOME
-# (~/.pappardelle/repos, ~/.claude.json), so the run gets a HOME of its own.
+# (~/.lasagna/repos, ~/.claude.json), so the run gets a HOME of its own.
 # An empty rc keeps zsh's first-run wizard from taking over the shells tmux
 # starts. Cases that need another HOME set it on the command.
 export HOME="$TMPDIR_ROOT/home"

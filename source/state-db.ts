@@ -14,11 +14,12 @@ import path from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
 import {createLogger} from './logger.ts';
 import {ringStateBell} from './state-db-watch.ts';
+import {STATE_DIR_NAME} from './state-dir.ts';
 import {readStateEnv} from './state-env.ts';
 
 const log = createLogger('state-db');
 
-export const DEFAULT_STATE_DIR = path.join(homedir(), '.pappardelle');
+export const DEFAULT_STATE_DIR = path.join(homedir(), STATE_DIR_NAME);
 
 // The TUI renders on the thread that runs these queries. A write that finds
 // another process holding the lock gives up after this long and is retried

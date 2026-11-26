@@ -36,6 +36,7 @@ import {
 	type LaunchField,
 } from './config-launch-flags.ts';
 import {configErrors} from './config-validation.ts';
+import {STATE_DIR_NAME} from './state-dir.ts';
 
 // ============================================================================
 // Types
@@ -691,10 +692,10 @@ function isKeybindingList(value: unknown): value is KeybindingConfig[] {
 }
 
 /**
- * The default home config directory: ~/.pappardelle/
+ * The default home config directory: ~/.lasagna/
  */
 export function getDefaultHomeConfigDir(): string {
-	return path.join(os.homedir(), '.pappardelle');
+	return path.join(os.homedir(), STATE_DIR_NAME);
 }
 
 /**
@@ -720,7 +721,7 @@ export function loadConfigFromPaths(opts: ConfigPaths): PappardelleConfig {
 	return buildConfigFromLayers(layers);
 }
 
-const HOME_CONFIG_LABEL = '~/.pappardelle/.pappardelle.yml';
+const HOME_CONFIG_LABEL = `~/${STATE_DIR_NAME}/.pappardelle.yml`;
 
 /** The three config files, lowest priority first; `path` is unset for a missing file. */
 export function configLayerFiles({
@@ -992,7 +993,7 @@ export function mergedAgentProfiles(
 
 /**
  * Load the .pappardelle.yml config from the repository root.
- * Supports 3-layer merge: home (~/.pappardelle/.pappardelle.yml) →
+ * Supports 3-layer merge: home (~/.lasagna/.pappardelle.yml) →
  * project (.pappardelle.yml) → local (.pappardelle.local.yml).
  */
 export function loadConfig(): PappardelleConfig {

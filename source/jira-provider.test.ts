@@ -22,7 +22,7 @@ function makeEnoentError(): Error & {code: string} {
 // No-op sleep so tests don't wait
 const noopSleep: SleepFn = async () => {};
 
-/** A cache that keeps colors for the test only, never the real ~/.pappardelle. */
+/** A cache that keeps colors for the test only, never the real ~/.lasagna. */
 function tempCache(): StateColorCache {
 	return new StateColorCache();
 }

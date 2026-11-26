@@ -128,7 +128,7 @@ test('spaces_list answers from the CLI in a configured repo', async () => {
 	const f = fixture();
 	const registry = path.join(
 		f.home,
-		'.pappardelle',
+		'.lasagna',
 		'repos',
 		'project',
 		'open-spaces.json',
@@ -211,7 +211,7 @@ echo '{"state":"open","number":7,"head":{"repo":{"full_name":"o/child"},"ref":"s
 		fs.readFileSync(
 			path.join(
 				f.home,
-				'.pappardelle',
+				'.lasagna',
 				'repos',
 				'project',
 				'space-state',
@@ -459,13 +459,7 @@ tmuxTest(
 
 		const log = fs
 			.readFileSync(
-				path.join(
-					f.home,
-					'.pappardelle',
-					'repos',
-					'project',
-					'supervise.jsonl',
-				),
+				path.join(f.home, '.lasagna', 'repos', 'project', 'supervise.jsonl'),
 				'utf8',
 			)
 			.trim()

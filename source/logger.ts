@@ -6,6 +6,7 @@ import {homedir} from 'node:os';
 import path from 'node:path';
 import {format, stripVTControlCharacters} from 'node:util';
 import sonicBoom from 'sonic-boom';
+import {STATE_DIR_NAME} from './state-dir.ts';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -17,8 +18,8 @@ export interface LogEntry {
 	error?: string;
 }
 
-// Log directory: ~/.pappardelle/logs/
-const LOG_DIR = path.join(homedir(), '.pappardelle', 'logs');
+// Log directory: ~/.lasagna/logs/
+const LOG_DIR = path.join(homedir(), STATE_DIR_NAME, 'logs');
 const MAX_LOG_FILES = 7; // Keep last 7 days of logs
 const MAX_RECENT_ERRORS = 10; // Keep last 10 errors in memory for TUI display
 const ERROR_TTL_MS = 5 * 60 * 1000; // Auto-clear errors from UI after 5 minutes

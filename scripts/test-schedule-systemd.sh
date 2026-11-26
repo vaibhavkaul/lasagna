@@ -47,7 +47,7 @@ cleanup() {
     if [[ -n "$SOCKET" && "$SOCKET" == "$TMUX_TMPDIR"/* ]]; then
         env -u TMUX -u TMUX_PANE tmux -S "$SOCKET" kill-server 2>/dev/null
     fi
-    rm -rf "$ROOT" "$HOME/.pappardelle/repos/$REPO_NAME"
+    rm -rf "$ROOT" "$HOME/.lasagna/repos/$REPO_NAME"
     "$SCRIPT_DIR/../test/helpers/tmux-guard-env.sh" --finish "$TMUX_REFUSALS" || status=1
     exit "$status"
 }
@@ -133,7 +133,7 @@ if bun -e '
     import {readFileSync} from "node:fs";
     const entries = readFileSync(process.argv[1], "utf8").trim().split("\n").filter(Boolean).map(line => JSON.parse(line));
     process.exit(entries.some(e => typeof e.caller === "string" && e.caller.startsWith("timer:") && e.action === "send" && e.detail === "sent") ? 0 : 1);
-' "$HOME/.pappardelle/repos/$REPO_NAME/supervise.jsonl"; then
+' "$HOME/.lasagna/repos/$REPO_NAME/supervise.jsonl"; then
     pass "the send is logged as the timer's"
 else
     fail "no timer send entry in the log"

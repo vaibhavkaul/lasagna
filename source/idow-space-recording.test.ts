@@ -98,7 +98,7 @@ test('idow run by hand stops before starting sessions when the space cannot be r
 // as the TUI's, in whichever mode the run is in.
 test('a new issue is recorded as created by Pappardelle, with its profile, before post_workspace_init', async () => {
 	const fixture = setup();
-	const stateDir = path.join(fixture.home, '.pappardelle');
+	const stateDir = path.join(fixture.home, '.lasagna');
 	const repoState = path.join(stateDir, 'repos/main checkout');
 	fs.appendFileSync(
 		path.join(fixture.main, '.pappardelle.local.yml'),
@@ -165,7 +165,7 @@ test('an existing issue is not recorded as created by Pappardelle', async () => 
 	await fixture.run();
 	expect(
 		fs.existsSync(
-			path.join(fixture.home, '.pappardelle/repos/main checkout/issue-meta'),
+			path.join(fixture.home, '.lasagna/repos/main checkout/issue-meta'),
 		),
 	).toBe(false);
 });

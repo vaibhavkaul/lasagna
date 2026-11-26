@@ -26,7 +26,7 @@ If `pappardelle` is not on PATH, or its shim errors before the update starts (it
 curl -fsSL https://raw.githubusercontent.com/vaibhavkaul/lasagna/main/install.sh | bash
 ```
 
-3. If the update fails, read its output (`lasagna update` also keeps it in `~/.pappardelle/logs/update.log`) and help the user troubleshoot:
+3. If the update fails, read its output (`lasagna update` also keeps it in `~/.lasagna/logs/update.log`) and help the user troubleshoot:
    - Missing prerequisites → suggest `brew install <tool>`
    - Permission errors → suggest checking `~/.local/bin` ownership
    - Network errors → suggest checking internet connectivity

@@ -43,7 +43,7 @@ async function measure(loggerPath: string) {
 	delay.disable();
 	await sleep(500);
 
-	const logDir = path.join(homedir(), '.pappardelle', 'logs');
+	const logDir = path.join(homedir(), '.lasagna', 'logs');
 	const written = readdirSync(logDir)
 		.map(file => readFileSync(path.join(logDir, file), 'utf8'))
 		.join('')

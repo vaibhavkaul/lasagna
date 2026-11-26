@@ -25,8 +25,14 @@ LOG_INTERVAL_SECONDS = 60
 Statements = Sequence[tuple[str, Sequence[Any]]]
 
 
+# Lasagna's directory under $HOME, its own so an installed Pappardelle
+# (~/.pappardelle) and Lasagna never share state. STATE_DIR_NAME in
+# source/state-dir.ts is the same name.
+STATE_DIR_NAME = ".lasagna"
+
+
 def state_dir() -> Path:
-    return Path.home() / ".pappardelle"
+    return Path.home() / STATE_DIR_NAME
 
 
 def _recorded_flag() -> dict[str, Any]:

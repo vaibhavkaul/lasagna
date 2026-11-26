@@ -30,7 +30,7 @@ profiles:
 		const warnings = getRecentErrors().filter(
 			entry =>
 				entry.message.includes('shadowedhomewarn') &&
-				entry.message.includes('~/.pappardelle/.pappardelle.yml'),
+				entry.message.includes('~/.lasagna/.pappardelle.yml'),
 		);
 		expect(warnings.length).toBe(1);
 	} finally {

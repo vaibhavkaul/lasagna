@@ -1,6 +1,6 @@
 // Wake-ups for a supervised space: a message at a set time, `continue` once a
 // Codex usage limit resets, or a job that keeps an agent working by nudging it
-// when it sits idle. Jobs live in ~/.pappardelle/repos/{repo}/schedules/, and
+// when it sits idle. Jobs live in ~/.lasagna/repos/{repo}/schedules/, and
 // an OS user timer runs `lasagna schedule fire ID` for each.
 
 import type {SendToSpaceAgentResult} from './tmux.ts';

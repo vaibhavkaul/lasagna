@@ -61,7 +61,7 @@ def main():
 
         def records():
             return [json.loads(line.partition('[startup] ')[2])
-                    for file in (home / '.pappardelle/logs').glob('*.log')
+                    for file in (home / '.lasagna/logs').glob('*.log')
                     for line in file.read_text().splitlines() if '[startup] {' in line]
 
         def wait_ready(excluding=None):

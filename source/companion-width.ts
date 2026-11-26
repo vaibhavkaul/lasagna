@@ -1,6 +1,6 @@
 // Per-space companion widths, and the requests the CLI sends the TUI to lay
 // out a space's companion. The CLI and the TUI exchange a request and its
-// answer, as files under ~/.pappardelle/repos/{repo}/ in the stores here, so
+// answer, as files under ~/.lasagna/repos/{repo}/ in the stores here, so
 // `lasagna companion` can report whether the running TUI applied the
 // change. The widths store is written by the CLI and by the TUI when the user
 // drags the border, so every read-modify-write holds the store's file lock.

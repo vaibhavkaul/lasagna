@@ -290,7 +290,7 @@ IDOW_CALLS=$(grep -c 'resolve-agent-config\.sh"' "$SCRIPT_DIR/idow" || true)
 IDOW_HOME_CALLS=$(grep 'resolve-agent-config\.sh"' "$SCRIPT_DIR/idow" | grep -c -- '--home-config' || true)
 assert_eq "every idow resolver call passes --home-config" "$IDOW_CALLS" "$IDOW_HOME_CALLS"
 assert_eq "idow's home path matches getDefaultHomeConfigDir()" \
-    'HOME_CONFIG_PATH="$HOME/.pappardelle/.pappardelle.yml"' \
+    'HOME_CONFIG_PATH="$HOME/.lasagna/.pappardelle.yml"' \
     "$(grep -o 'HOME_CONFIG_PATH="\$HOME/[^"]*"' "$SCRIPT_DIR/idow" | head -1)"
 
 # ==========================================================================

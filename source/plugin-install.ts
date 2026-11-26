@@ -2,6 +2,7 @@ import {spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import {homedir} from 'node:os';
 import path from 'node:path';
+import {STATE_DIR_NAME} from './state-dir.ts';
 
 // Claude Code and agy load the plugin in place from the install this runs
 // from, so a new install is live after /reload-plugins (Claude Code) or in new
@@ -22,13 +23,13 @@ const MARKETPLACE = 'pappardelle-marketplace';
 const PLUGIN_ID = `pappardelle@${MARKETPLACE}`;
 
 // Before the hooks shipped in the plugin, install.sh copied them to
-// ~/.pappardelle/hooks and users merged commands running them into
+// ~/.lasagna/hooks and users merged commands running them into
 // ~/.claude/settings.json. Left in place, every hook would fire twice. The
 // scripts themselves stay: sessions open during an update keep running the old
 // commands until they reload.
-const LEGACY_HOOK_DIR = '.pappardelle/hooks/';
+const LEGACY_HOOK_DIR = `${STATE_DIR_NAME}/hooks/`;
 
-// Older installs pointed Codex's session hook at ~/.pappardelle/hooks or at
+// Older installs pointed Codex's session hook at ~/.lasagna/hooks or at
 // another install; any copy left beside this install's records every
 // session twice.
 const CODEX_SESSION_HOOK = 'record-agent-session.py';
@@ -259,7 +260,7 @@ function installForAgy(deps: PluginInstallDeps): Outcome {
 }
 
 // install-agy-hooks.sh merged this named hook, running the copy in
-// ~/.pappardelle/hooks, into agy's global hooks.json. Left there it records
+// ~/.lasagna/hooks, into agy's global hooks.json. Left there it records
 // every agy session a second time.
 const AGY_LEGACY_HOOK = 'pappardelle-session';
 

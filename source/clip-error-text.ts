@@ -1,7 +1,7 @@
 // Defense-in-depth clipping for error text rendered in the TUI. Even after
 // upstream sanitization, a noisy provider could push a multi-screen error
 // through `log.warn` and trash the rail layout. We cap displayed errors at a
-// few short lines and surface a hint pointing the user at ~/.pappardelle/logs/
+// few short lines and surface a hint pointing the user at ~/.lasagna/logs/
 // for the full text.
 //
 // `clipLogEntryForDisplay` is the chokepoint the TUI uses to prepare a log

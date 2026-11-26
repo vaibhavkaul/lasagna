@@ -127,7 +127,7 @@ try {
 	process.chdir(originalDirectory);
 	await harness.cleanup(repo, key);
 	if (repo)
-		rmSync(path.join(homedir(), '.pappardelle', 'repos', repo), {
+		rmSync(path.join(homedir(), '.lasagna', 'repos', repo), {
 			recursive: true,
 			force: true,
 		});

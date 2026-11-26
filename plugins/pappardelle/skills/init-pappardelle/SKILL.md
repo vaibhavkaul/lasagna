@@ -299,7 +299,7 @@ tmux does not forward the outer terminal's synchronized-output and truecolor sup
 Run the probe:
 
 ```bash
-bash ~/.pappardelle/scripts/init-pappardelle/detect-terminal-capabilities.sh
+bash ~/.lasagna/scripts/init-pappardelle/detect-terminal-capabilities.sh
 ```
 
 It prints one line, e.g. `TERM=xterm-ghostty tmux_ok=yes tmux_version=3.7c tmux_fix=no sync_ok=yes rgb_ok=yes ti_ok=yes usstyle_ok=yes`. Interpret it:

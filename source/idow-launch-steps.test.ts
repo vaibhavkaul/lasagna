@@ -220,7 +220,7 @@ test('an explicit profile pick on an existing space is persisted and reused', as
 	);
 	const statePath = path.join(
 		fixture.home,
-		'.pappardelle/repos/main checkout/space-state/test-abc.json',
+		'.lasagna/repos/main checkout/space-state/test-abc.json',
 	);
 	const persisted = () =>
 		(JSON.parse(fs.readFileSync(statePath, 'utf8')) as {profile: string})

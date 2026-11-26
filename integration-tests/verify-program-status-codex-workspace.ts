@@ -202,7 +202,7 @@ profiles:
 				readFileSync(
 					path.join(
 						home,
-						'.pappardelle',
+						'.lasagna',
 						'repos',
 						path.basename(repo),
 						'space-state',

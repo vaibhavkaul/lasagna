@@ -106,7 +106,7 @@ setTimeout(() => {
 	);
 	const registry = path.join(
 		home,
-		'.pappardelle',
+		'.lasagna',
 		'repos',
 		'project',
 		'open-spaces.json',
@@ -172,7 +172,7 @@ setTimeout(() => {
 	const existingWorktree = async (key: string) => {
 		const worktreePath = path.join(home, '.worktrees', 'project', key);
 		fs.mkdirSync(worktreePath, {recursive: true});
-		const stateDir = path.join(home, '.pappardelle');
+		const stateDir = path.join(home, '.lasagna');
 		const daos = createStateDaos({
 			repo: 'project',
 			stateDir,
@@ -226,7 +226,7 @@ test('CLI saves a normalized issue from a non-TTY sous-chef invocation', async (
 	});
 	expect(result.stdout.includes('Workspace STE-20 is ready!')).toBe(true);
 	expect(result.stderr.includes('idow diagnostic')).toBe(true);
-	const stateDir = path.join(f.home, '.pappardelle');
+	const stateDir = path.join(f.home, '.lasagna');
 	const daos = createStateDaos({
 		repo: 'project',
 		stateDir,
@@ -273,7 +273,7 @@ test('CLI saves a normalized issue from a non-TTY sous-chef invocation', async (
 	async () => {
 		const f = fixture();
 		await f.existingWorktree('STE-20');
-		const socketPath = statusSocketPath(path.join(f.home, '.pappardelle'));
+		const socketPath = statusSocketPath(path.join(f.home, '.lasagna'));
 		const child = f.start(['--resume', '--wait', 'STE-20']);
 		let stdout = '';
 		let stderr = '';
@@ -819,7 +819,7 @@ test('CLI help documents --resume', async () => {
 
 test('CLI highlight asks a running Pappardelle to select the space', async () => {
 	const f = fixture();
-	const stateDir = path.join(f.home, '.pappardelle');
+	const stateDir = path.join(f.home, '.lasagna');
 	teardown(() => {
 		closeStateDb(stateDbPath(stateDir));
 	});

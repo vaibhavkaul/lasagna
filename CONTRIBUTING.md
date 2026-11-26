@@ -31,7 +31,7 @@ bun run typecheck
 bun run test
 ```
 
-`install.sh` runs `bun run typecheck` before `bun run build`, since `bun build` doesn't typecheck; run from a clone, it installs a copy of the build to `~/.pappardelle/local/`.
+`install.sh` runs `bun run typecheck` before `bun run build`, since `bun build` doesn't typecheck; run from a clone, it installs a copy of the build to `~/.lasagna/local/`.
 
 `bun run build` embeds production React, OpenTUI, and Bun startup bytecode in
 `dist/lasagna`, the only file it builds besides its source map. `bun run dev`
@@ -64,7 +64,7 @@ The hook tests need `bun` on `PATH` for that run: the CLI creates the database t
 
 A run gets a **run tmpdir** of its own (`/tmp/ptr-*`) as `TMPDIR` for every test, removed when the run ends. Its **leak check** fails a run that otherwise passed when anything is still in the run tmpdir, a tmux server still listens on a socket under it, or a process still names it, and lists what it found. Make temp dirs in tests with `tempDir(prefix)` from `test/helpers/temp-dir.ts`, which removes the dir when the test ends, and undo anything else with `teardown()` from `test/helpers/teardown.ts`, which runs last-registered first when the test ends, pass or fail.
 
-The run also gets a **throwaway HOME** (`/tmp/ph-*`), so nothing a test starts writes to your `~/.pappardelle` or `~/.claude.json`. Bun reads `HOME` once at startup, so `scripts/unit-tests.ts` sets it before the workers start, along with `ZDOTDIR`, and drops the XDG config directories that would bring your zsh and tmux config back. `scripts/test-start-agent-session.sh` runs under a throwaway HOME of its own, with a `claude` shim in place of the real one.
+The run also gets a **throwaway HOME** (`/tmp/ph-*`), so nothing a test starts writes to your `~/.lasagna` or `~/.claude.json`. Bun reads `HOME` once at startup, so `scripts/unit-tests.ts` sets it before the workers start, along with `ZDOTDIR`, and drops the XDG config directories that would bring your zsh and tmux config back. `scripts/test-start-agent-session.sh` runs under a throwaway HOME of its own, with a `claude` shim in place of the real one.
 
 Every run also gets the test tmux guard: the unit tests and the shell tests that start tmux run with a private `TMUX_TMPDIR`, no `TMUX`, and a `tmux` on PATH that refuses any socket in your live tmux directory, where the inner server holding every agent session lives. A refused call fails the run and is listed at the end, even when the test swallowed the error. Fix such a test by giving it the run's `TMUX_TMPDIR` or a `-S` socket of its own.
 

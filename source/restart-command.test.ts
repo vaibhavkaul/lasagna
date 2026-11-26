@@ -195,7 +195,7 @@ for (const [name, behavior, message] of [
 	[
 		'the TUI exits during startup',
 		'exits',
-		'pappardelle-app exited during startup; see ~/.pappardelle/logs',
+		'pappardelle-app exited during startup; see ~/.lasagna/logs',
 	],
 	[
 		'the TUI never reports ready',

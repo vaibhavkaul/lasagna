@@ -231,7 +231,7 @@ test('sqlite: a session recorded by the hook and a profile renamed by another pr
 	});
 	const state = testState({
 		sqlite: true,
-		stateDir: path.join(home, '.pappardelle'),
+		stateDir: path.join(home, '.lasagna'),
 	});
 	const f = fixture(state);
 	const dbPath = stateDbPath(state.stateDir);

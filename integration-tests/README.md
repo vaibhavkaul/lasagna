@@ -14,7 +14,7 @@ bun integration-tests/verify-program-status-lifecycle.ts
 bun integration-tests/verify-program-status-cleanup.ts
 ```
 
-The transport test exercises both launch paths on an isolated tmux socket, including read-only capability-query handling, status persistence, source precedence, child records, resizing, pane replacement, and cleanup. The app test mounts the real `App` under OpenTUI, its watcher, and `WorkspaceRefresh`, with fixture issue and VCS providers. Narrow row rendering is covered by the transport harness and the component unit tests. It runs under a throwaway HOME, so your global `~/.pappardelle` config does not apply, and requires no automatic watchlists in the project and local configuration.
+The transport test exercises both launch paths on an isolated tmux socket, including read-only capability-query handling, status persistence, source precedence, child records, resizing, pane replacement, and cleanup. The app test mounts the real `App` under OpenTUI, its watcher, and `WorkspaceRefresh`, with fixture issue and VCS providers. Narrow row rendering is covered by the transport harness and the component unit tests. It runs under a throwaway HOME, so your global `~/.lasagna` config does not apply, and requires no automatic watchlists in the project and local configuration.
 
 Run them again with `PAPPARDELLE_SQLITE_STATE=1` to check the same behavior with state in SQLite and status sent through the status daemon. The harness keeps that database and the daemon's socket under its own temporary root, and fails a run that leaves a hook status file or a snapshot file. It starts its tmux servers with `-f /dev/null`, so your own tmux config does not apply.
 

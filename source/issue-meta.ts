@@ -1,7 +1,7 @@
 // Which issues Pappardelle created itself, as opposed to opening an issue
 // that already existed. idow records it when it creates one.
 //
-// Layout: ~/.pappardelle/repos/{repoName}/issue-meta/{ISSUE-KEY}.json
+// Layout: ~/.lasagna/repos/{repoName}/issue-meta/{ISSUE-KEY}.json
 
 import fs from 'node:fs';
 import path from 'node:path';

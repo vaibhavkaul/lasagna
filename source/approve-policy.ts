@@ -6,6 +6,12 @@
 // only costs the chef a look.
 
 import path from 'node:path';
+import {STATE_DIR_NAME} from './state-dir.ts';
+
+/** The state directory as a path segment: followed by /, the end, or what ends a word in a shell. */
+const STATE_DIR_REACHED = new RegExp(
+	`${STATE_DIR_NAME.replace('.', String.raw`\.`)}(?:\\/|$|[\\s;&|)])`,
+);
 
 export type ApprovalVerdict =
 	{kind: 'approve'; reason?: string} | {kind: 'hold'; reason: string};
@@ -1093,13 +1099,13 @@ export function checkApproval(
 		if (verdict.kind === 'hold') return verdict;
 	}
 
-	// Any spelling of ~/.pappardelle: "$HOME"/.pappardelle, ~/./.pappardelle,
-	// .papp"ardelle", .pappar{delle,}, and a glob such as ~/.pap* or .[p]a*.
+	// Any spelling of ~/.lasagna: "$HOME"/.lasagna, ~/./.lasagna,
+	// .lasa"gna", .lasa{gna,}, and a glob such as ~/.las* or .[l]a*.
 	const spelled = bare(text);
 	if (
-		/\.pappardelle(?:\/|$|[\s;&|)])/.test(spelled) ||
+		STATE_DIR_REACHED.test(spelled) ||
 		[...spelled.matchAll(/(?:^|[\s/='"])(\.[\w.-]*)[*?[{]/g)].some(match =>
-			'.pappardelle'.startsWith(match[1]!),
+			STATE_DIR_NAME.startsWith(match[1]!),
 		)
 	)
 		return hold("it reaches Lasagna's own state, where holds are approved");

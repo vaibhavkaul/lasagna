@@ -148,7 +148,7 @@ PROJECT_CONFIG_PATH=$(resolve_repo_config .pappardelle.yml)
 CONFIG_PATH="$PROJECT_CONFIG_PATH"
 # Personal defaults shared across every repo. Must stay in step with
 # getDefaultHomeConfigDir() in source/config.ts, which is what the TUI reads.
-HOME_CONFIG_PATH="$HOME/.pappardelle/.pappardelle.yml"
+HOME_CONFIG_PATH="$HOME/.lasagna/.pappardelle.yml"
 
 # Source $REPO_ROOT/.envrc if present so per-repo env vars (e.g. a non-default
 # LINCTL_API_KEY for a separate Linear workspace) reach downstream tools like

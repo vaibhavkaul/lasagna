@@ -20,7 +20,7 @@ test('a reopened space resumes the session its agent recorded', async () => {
 	);
 	const sessionsPath = path.join(
 		fixture.home,
-		'.pappardelle/repos/main checkout/space-state/test-abc.agent-sessions.json',
+		'.lasagna/repos/main checkout/space-state/test-abc.agent-sessions.json',
 	);
 	const record = (agentSessions: Record<string, string>) => {
 		fs.mkdirSync(path.dirname(sessionsPath), {recursive: true});
@@ -87,11 +87,11 @@ if (sqliteRun) {
 		);
 		const stateFile = path.join(
 			fixture.home,
-			'.pappardelle/repos/main checkout/space-state/test-abc.json',
+			'.lasagna/repos/main checkout/space-state/test-abc.json',
 		);
 		await fixture.run({profile: 'other'});
 		fs.rmSync(stateFile);
-		const db = new Database(path.join(fixture.home, '.pappardelle/state.db'));
+		const db = new Database(path.join(fixture.home, '.lasagna/state.db'));
 		db.query('DELETE FROM json_sync WHERE path = ?').run(stateFile);
 		db.close();
 		fs.mkdirSync(path.join(fixture.home, '.worktrees/main checkout/test-abc'), {
@@ -110,7 +110,7 @@ test('a state store that cannot be read stops idow before any session starts', a
 	fs.mkdirSync(
 		path.join(
 			fixture.home,
-			'.pappardelle/repos/main checkout/space-state/test-abc.json',
+			'.lasagna/repos/main checkout/space-state/test-abc.json',
 		),
 		{recursive: true},
 	);

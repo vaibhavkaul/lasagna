@@ -124,7 +124,7 @@ test('check-agent-profile reads the layers idow reads, from the roots it is give
 
 test('prepare-space stores an issue title that starts with a dash', () => {
 	const home = tempDir('papp-state-cli-');
-	const stateDir = path.join(home, '.pappardelle');
+	const stateDir = path.join(home, '.lasagna');
 	const result = spawnSync(
 		process.execPath,
 		[
@@ -155,7 +155,7 @@ test('prepare-space stores an issue title that starts with a dash', () => {
 
 test("launch-agent records the agent profile a space's agent session starts with", () => {
 	const home = tempDir('papp-state-cli-');
-	const stateDir = path.join(home, '.pappardelle');
+	const stateDir = path.join(home, '.lasagna');
 	const launch = (...args: string[]) =>
 		spawnSync(
 			process.execPath,
@@ -248,7 +248,7 @@ test('migrate takes one database path and nothing else', () => {
 // refused must not leave one behind.
 test('prepare-space --register without an owner records nothing', () => {
 	const home = tempDir('papp-state-cli-');
-	const stateDir = path.join(home, '.pappardelle');
+	const stateDir = path.join(home, '.lasagna');
 	const result = spawnSync(
 		process.execPath,
 		[

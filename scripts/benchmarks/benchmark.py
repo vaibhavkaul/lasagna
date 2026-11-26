@@ -65,8 +65,8 @@ try:
                 repo.mkdir()
                 subprocess.run(['git', 'init', '-q', '-b', 'main'], cwd=repo, check=True)
                 (repo / '.pappardelle.yml').write_text('version: 1\nissue_tracker:\n  provider: beads\nprofiles: {}\n')
-                (home / '.pappardelle').mkdir()
-                (home / '.pappardelle/update-check.json').write_text(json.dumps({'checkedAt': int(time.time() * 1000), 'latestVersion': 'v0.0.0'}))
+                (home / '.lasagna').mkdir()
+                (home / '.lasagna/update-check.json').write_text(json.dumps({'checkedAt': int(time.time() * 1000), 'latestVersion': 'v0.0.0'}))
                 env = {**os.environ, 'NODE_ENV': 'production' if name == 'opentui' or args.production else os.environ.get('NODE_ENV', ''), 'HOME': tmp, 'TERM': 'xterm-256color', 'NO_COLOR': '', 'BENCH_FRAMEWORK': name, 'BENCH_RESULT': str(home / 'frames.jsonl')}
                 for key in ['TMUX', 'TMUX_PANE', 'PAPPARDELLE_PROJECT_ROOT', 'PAPPARDELLE_MAIN_REPO_ROOT', 'PAPPARDELLE_BENCHMARK']:
                     env.pop(key, None)

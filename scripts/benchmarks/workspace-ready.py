@@ -175,7 +175,7 @@ def run_sample(binary, shell_delay_ms, traced, timeout, width=100, existing=Fals
     with fixture_directory() as tmp:
         root = Path(tmp)
         home, repo, bin_dir = (root / name for name in ('home', 'repo', 'bin'))
-        for directory in (home, repo, bin_dir, home / '.pappardelle'):
+        for directory in (home, repo, bin_dir, home / '.lasagna'):
             directory.mkdir(parents=True, exist_ok=True)
         real_tools = {name: shutil.which(name) for name in ('tmux', 'git')}
         provider_log = root / 'providers.jsonl'
@@ -253,7 +253,7 @@ signal.pause()
             **({'default_emoji': profile_emoji} if profile_emoji is not None else {}),
         }))
         (home / '.bashrc').write_text(f'sleep {shell_delay_ms / 1000}\n' if shell_delay_ms else '')
-        (home / '.pappardelle/update-check.json').write_text(json.dumps({
+        (home / '.lasagna/update-check.json').write_text(json.dumps({
             'checkedAt': int(time.time() * 1000), 'latestVersion': 'v0.0.0',
         }))
         for index in range(skill_count):
@@ -281,7 +281,7 @@ signal.pause()
             worktree.parent.mkdir(parents=True, exist_ok=True)
             subprocess.run([real_tools['git'], 'worktree', 'add', '-qb', key, str(worktree)],
                            cwd=repo, env=env, check=True)
-        registry = home / '.pappardelle/repos/repo/open-spaces.json'
+        registry = home / '.lasagna/repos/repo/open-spaces.json'
         registry.parent.mkdir(parents=True, exist_ok=True)
         registry.write_text(json.dumps(keys))
 
@@ -540,7 +540,7 @@ signal.pause()
                 deadline = time.monotonic() + timeout
                 while True:
                     records = [json.loads(line.partition('[startup] ')[2])
-                               for p in (home / '.pappardelle/logs').glob('*.log')
+                               for p in (home / '.lasagna/logs').glob('*.log')
                                for line in p.read_text().splitlines() if '[startup] {' in line]
                     finished = [r for r in records if r['pid'] == pid and r['stage'] == 'finished']
                     if finished:
@@ -553,7 +553,7 @@ signal.pause()
         except Exception as exc:
             error = str(exc).replace(tmp, '<fixture>')
         finally:
-            log = '\n'.join(p.read_text() for p in sorted((home / '.pappardelle/logs').glob('*.log')))
+            log = '\n'.join(p.read_text() for p in sorted((home / '.lasagna/logs').glob('*.log')))
             # Read traces before teardown so killed viewer wrappers stay incomplete.
             command_lines = trace_file.read_text().splitlines() if trace_file.exists() else []
             providers = [json.loads(line) for line in provider_log.read_text().splitlines()] if provider_log.exists() else []

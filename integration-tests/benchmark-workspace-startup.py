@@ -30,7 +30,7 @@ class Fixture:
     def __init__(self, root, repo, yq):
         self.root = root
         home, project, bin_dir, scripts = (root / name for name in ("home", "repo", "bin", "scripts"))
-        for directory in (home, project, bin_dir, scripts, home / ".pappardelle"):
+        for directory in (home, project, bin_dir, scripts, home / ".lasagna"):
             directory.mkdir(parents=True, exist_ok=True)
         for source in (repo / "scripts").iterdir():
             if source.is_file():
@@ -65,7 +65,7 @@ printf '{"worktree_path":"%s"}\\n' "$HOME/.worktrees/repo/bench-123"''')
         }
         (project / ".pappardelle.yml").write_text(json.dumps(config))
         (project / ".pappardelle.local.yml").write_text("claude:\n  model: sonnet\n")
-        (home / ".pappardelle" / ".pappardelle.yml").write_text("claude:\n  effort: high\n")
+        (home / ".lasagna" / ".pappardelle.yml").write_text("claude:\n  effort: high\n")
         self.env = {
             **os.environ, "HOME": str(home), "PATH": f'{bin_dir}:{os.environ["PATH"]}',
             "PAPPARDELLE_PROJECT_ROOT": str(project), "PAPPARDELLE_MAIN_REPO_ROOT": str(project),

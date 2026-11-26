@@ -1062,7 +1062,7 @@ profiles:
 });
 
 test('loadConfigFromPaths home config dir uses .pappardelle.yml filename', () => {
-	// The home config file should be at ~/.pappardelle/.pappardelle.yml
+	// The home config file should be at ~/.lasagna/.pappardelle.yml
 	const {dir, cleanup} = setupTempDir({
 		'.pappardelle.yml': `version: 1
 team_prefix: HOME
@@ -1072,7 +1072,7 @@ profiles:
 `,
 	});
 	try {
-		// dir itself is the "home config dir" (like ~/.pappardelle/)
+		// dir itself is the "home config dir" (like ~/.lasagna/)
 		const config = loadConfigFromPaths({
 			homeConfigDir: dir,
 		});
@@ -1530,7 +1530,7 @@ test('a schema error from the home file is labelled with it', () => {
 			'project/.pappardelle.yml': opusProfile,
 		}),
 	).toStrictEqual([
-		'~/.pappardelle/.pappardelle.yml: agent_profiles.opus.model: must be a string',
+		'~/.lasagna/.pappardelle.yml: agent_profiles.opus.model: must be a string',
 	]);
 });
 
@@ -1619,7 +1619,7 @@ test('an error under a name with a dot is labelled with its file', () => {
 				'agent_profiles:\n  codex:\n    command: codex\n',
 		}),
 	).toStrictEqual([
-		'~/.pappardelle/.pappardelle.yml: agent_profiles.gpt-4.1.command: required non-empty string',
+		'~/.lasagna/.pappardelle.yml: agent_profiles.gpt-4.1.command: required non-empty string',
 	]);
 	expect(
 		schemaErrors({
@@ -1898,7 +1898,7 @@ for (const file of ['.pappardelle.yml', '.pappardelle.local.yml']) {
 			);
 			expect(
 				error?.message.includes(
-					`${file}: experimental.sqliteState can only be set in ~/.pappardelle/.pappardelle.yml`,
+					`${file}: experimental.sqliteState can only be set in ~/.lasagna/.pappardelle.yml`,
 				),
 			).toBe(true);
 		} finally {

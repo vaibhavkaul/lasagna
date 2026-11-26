@@ -7,7 +7,7 @@ import {stripHostPappardelleEnv} from '../test/helpers/env.ts';
 
 /**
  * Run a check that mounts the real App in a process of its own under a
- * throwaway HOME. The App merges ~/.pappardelle/.pappardelle.yml, so a
+ * throwaway HOME. The App merges ~/.lasagna/.pappardelle.yml, so a
  * developer's global config can open dialogs over the rail, and Bun fixes
  * homedir() at startup.
  */

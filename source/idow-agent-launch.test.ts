@@ -136,7 +136,7 @@ test('the profile is persisted before post_workspace_init runs', async () => {
 		stringify({
 			post_workspace_init: [
 				{
-					run: 'cp "$HOME/.pappardelle/repos/main checkout/space-state/test-abc.json" "$WORKTREE_PATH/state-during-init.json"',
+					run: 'cp "$HOME/.lasagna/repos/main checkout/space-state/test-abc.json" "$WORKTREE_PATH/state-during-init.json"',
 				},
 			],
 		}),
@@ -162,7 +162,7 @@ test('--agent-profile launches another agent profile for that run only', async (
 	};
 	const statePath = path.join(
 		fixture.home,
-		'.pappardelle/repos/main checkout/space-state/test-abc.json',
+		'.lasagna/repos/main checkout/space-state/test-abc.json',
 	);
 	// The agent's hook records its session id under this.
 	const launched = () =>
@@ -217,7 +217,7 @@ test('--agent-profile on a space whose agent is running says it was not applied'
 		fs.readFileSync(
 			path.join(
 				fixture.home,
-				'.pappardelle/repos/main checkout/space-state/test-abc.json',
+				'.lasagna/repos/main checkout/space-state/test-abc.json',
 			),
 			'utf8',
 		),

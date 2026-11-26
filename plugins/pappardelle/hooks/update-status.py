@@ -54,6 +54,7 @@ if _state_db_spec and _state_db_spec.loader:
     status_socket_path = _state_db_mod.status_socket_path
     state_db_path = _state_db_mod.state_db_path
     space_at_path = _state_db_mod.space_at_path
+    state_dir = _state_db_mod.state_dir
 else:
     raise ImportError("Could not load state_db")
 
@@ -78,7 +79,7 @@ def log_debug(message: str, data: Any = None) -> None:
     """Log debug information to a file."""
     if not DEBUG:
         return
-    log_dir = Path.home() / ".pappardelle" / "logs"
+    log_dir = state_dir() / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / "hook-events.log"
 
@@ -169,12 +170,12 @@ def get_workspace_name(cwd: Optional[str] = None) -> Optional[str]:
 def get_status_dir() -> Path:
     """Get the status directory path.
 
-    Uses PAPPARDELLE_STATUS_DIR env var if set, otherwise defaults to ~/.pappardelle/claude-status/.
+    Uses PAPPARDELLE_STATUS_DIR env var if set, otherwise defaults to ~/.lasagna/claude-status/.
     """
     env_dir = os.environ.get("PAPPARDELLE_STATUS_DIR")
     if env_dir:
         return Path(env_dir)
-    return Path.home() / ".pappardelle" / "claude-status"
+    return state_dir() / "claude-status"
 
 
 def update_status(

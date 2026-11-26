@@ -5,7 +5,7 @@ import {
 	type RunResult,
 } from './plugin-install.ts';
 
-const REPO = '/home/me/.pappardelle/repo';
+const REPO = '/home/me/.lasagna/repo';
 const SETTINGS = '/home/me/.claude/settings.json';
 const CODEX_HOOKS = '/home/me/.codex/hooks.json';
 const AGY = '/home/me/.gemini/config';
@@ -18,7 +18,7 @@ const enoent = (command: string): RunResult => ({
 
 const legacy = (script: string) => ({
 	type: 'command',
-	command: `python3 ~/.pappardelle/hooks/${script}`,
+	command: `python3 ~/.lasagna/hooks/${script}`,
 });
 const mine = {type: 'command', command: 'bd prime'};
 
@@ -155,7 +155,7 @@ test("replaces session hooks from older installs, keeping the user's hooks and a
 			SessionStart: [
 				{
 					matcher: 'startup|resume|clear',
-					hooks: [sessionHook('~/.pappardelle/hooks/record-agent-session.py')],
+					hooks: [sessionHook('~/.lasagna/hooks/record-agent-session.py')],
 				},
 				{hooks: [mine]},
 			],
@@ -217,7 +217,7 @@ test('removes the session hook install-agy-hooks.sh merged into agy hooks.json, 
 			SessionStart: [
 				{
 					type: 'command',
-					command: 'python3 ~/.pappardelle/hooks/record-agent-session.py',
+					command: 'python3 ~/.lasagna/hooks/record-agent-session.py',
 				},
 			],
 		},

@@ -188,7 +188,7 @@ VIEW_SESSION="pappardelle-view-${TMUX_SESSION#agent-}"
 # Kept under $HOME rather than mktemp: `open` returns as soon as the terminal is
 # handed the file, so deleting it here would race the shell that has to read it.
 # One stable name per workspace, overwritten on each open, so it never piles up.
-LAUNCH_DIR="${HOME}/.pappardelle/launch"
+LAUNCH_DIR="${HOME}/.lasagna/launch"
 mkdir -p "$LAUNCH_DIR"
 CMD_FILE="${LAUNCH_DIR}/${TMUX_SESSION#agent-}.command"
 

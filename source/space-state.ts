@@ -4,7 +4,7 @@
 // sous-chef skill (and any other consumer) can brief the chef without
 // shelling out to gh or reading the raw conversation jsonl itself.
 //
-// Layout: ~/.pappardelle/repos/{repoName}/space-state/{ISSUE-KEY}.json
+// Layout: ~/.lasagna/repos/{repoName}/space-state/{ISSUE-KEY}.json
 //
 // Written by the Pappardelle TUI after each rail-status poll. Reads are
 // cheap and failure-tolerant — consumers should treat missing/malformed
@@ -17,8 +17,9 @@ import {homedir} from 'node:os';
 import path from 'node:path';
 import {PIPELINE_STATUSES, type PipelineStatus} from './providers/types.ts';
 import type {Unreadable} from './state-db.ts';
+import {STATE_DIR_NAME} from './state-dir.ts';
 
-const DEFAULT_BASE_DIR = path.join(homedir(), '.pappardelle');
+const DEFAULT_BASE_DIR = path.join(homedir(), STATE_DIR_NAME);
 
 export interface SpaceRecap {
 	customTitle?: string;

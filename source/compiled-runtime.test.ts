@@ -21,7 +21,7 @@ test('relocated executable renders and exits without Bun, Node, or node_modules'
 		path.join(install, 'dist'),
 		repo,
 		bin,
-		path.join(home, '.pappardelle'),
+		path.join(home, '.lasagna'),
 	])
 		fs.mkdirSync(dir, {recursive: true});
 	const executable = path.join(install, 'dist/lasagna');
@@ -44,7 +44,7 @@ test('relocated executable renders and exits without Bun, Node, or node_modules'
 		'version: 1\nissue_tracker:\n  provider: beads\nprofiles: {}\n',
 	);
 	fs.writeFileSync(
-		path.join(home, '.pappardelle/update-check.json'),
+		path.join(home, '.lasagna/update-check.json'),
 		JSON.stringify({checkedAt: Date.now(), latestVersion: 'v0.0.0'}),
 	);
 	const env = {
@@ -68,7 +68,7 @@ test('relocated executable renders and exits without Bun, Node, or node_modules'
 		spawnSync(tmux, ['-S', socket, 'kill-server'], {env, stdio: 'ignore'});
 		// With experimental.sqliteState on, the TUI started a status daemon
 		// that outlives it.
-		killProcessesNaming(path.join(home, '.pappardelle', 'status-1.sock'));
+		killProcessesNaming(path.join(home, '.lasagna', 'status-1.sock'));
 		fs.rmSync(root, {
 			recursive: true,
 			force: true,

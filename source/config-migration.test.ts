@@ -648,7 +648,7 @@ test('a multi-line extra arg is named as the reason it cannot be rewritten', () 
 	expect(planConfigMigrations(paths)).toStrictEqual({
 		kind: 'unsupported',
 		reason:
-			"~/.pappardelle/.pappardelle.yml: claude.extra_args has a multi-line value, and an agent profile's args must fit on one line",
+			"~/.lasagna/.pappardelle.yml: claude.extra_args has a multi-line value, and an agent profile's args must fit on one line",
 	});
 });
 

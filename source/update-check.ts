@@ -138,7 +138,7 @@ export type DisplayVersion = {
 //
 // Release tags (vX.Y.Z) live only on the standalone chardigio/pappardelle repo,
 // never in the stardust-labs monorepo. So:
-//   1. A real release checkout (run from ~/.pappardelle/repo) carries the tag in
+//   1. A real release checkout (run from ~/.lasagna/repo) carries the tag in
 //      its own git tree → report it as the released version (isDev: false).
 //   2. A dev/worktree build (run from the monorepo, where no release tag is
 //      reachable) reports the latest release the user has installed at
@@ -220,9 +220,9 @@ export class JsonUpdateCheckDao implements UpdateCheckDao {
 // LOCAL_MODE detection
 // ============================================================================
 
-// Pappardelle ships as a clone at ~/.pappardelle/repo/. When running from
+// Pappardelle ships as a clone at ~/.lasagna/repo/. When running from
 // anywhere else (a checkout, or the snapshot install.sh makes of one at
-// ~/.pappardelle/local/), we're in LOCAL_MODE and skip the update prompt: that
+// ~/.lasagna/local/), we're in LOCAL_MODE and skip the update prompt: that
 // build isn't a release, so comparing its version would always prompt.
 export function isLocalMode(projectDir: string): boolean {
 	const installedRoot = path.join(homedir(), STATE_DIR_NAME, 'repo');

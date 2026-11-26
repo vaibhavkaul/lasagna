@@ -46,7 +46,7 @@ function makeEnoentError(): Error & {code: string} {
 // No-op sleep so tests don't wait
 const noopSleep: SleepFn = async () => {};
 
-/** A cache that keeps colors for the test only, never the real ~/.pappardelle. */
+/** A cache that keeps colors for the test only, never the real ~/.lasagna. */
 function tempCache(): StateColorCache {
 	return new StateColorCache();
 }
@@ -371,7 +371,7 @@ test('createComment with ENOENT — fails immediately, no retry', async () => {
 
 // ============================================================================
 // State color disk persistence (STA-590)
-// The stateColorMap is persisted to ~/.pappardelle/state-colors.json so the
+// The stateColorMap is persisted to ~/.lasagna/state-colors.json so the
 // main worktree color works even when no active issue has "Done" state.
 // ============================================================================
 

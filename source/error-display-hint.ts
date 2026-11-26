@@ -1,8 +1,9 @@
 // Footer hint string for ErrorDisplay. Combines the two signals (hidden
 // overflow + per-error truncation) so neither is silently dropped when both
 // are true.
+import {STATE_DIR_NAME} from './state-dir.ts';
 
-const LOGS_PATH = '~/.pappardelle/logs/';
+const LOGS_PATH = `~/${STATE_DIR_NAME}/logs/`;
 
 export function buildLogsHint(
 	hiddenCount: number,

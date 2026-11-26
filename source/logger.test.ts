@@ -624,7 +624,7 @@ ${script}`,
 		],
 		{env: {...process.env, HOME: home}, encoding: 'utf8'},
 	);
-	const logDir = path.join(home, '.pappardelle', 'logs');
+	const logDir = path.join(home, '.lasagna', 'logs');
 	const text = existsSync(logDir)
 		? readdirSync(logDir)
 				.map(file => readFileSync(path.join(logDir, file), 'utf8'))

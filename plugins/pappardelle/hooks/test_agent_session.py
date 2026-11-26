@@ -33,8 +33,8 @@ AGENT_PANE_PID = 50
 
 # pid: (ppid, command line), from the hook process up to tmux.
 TOP_LEVEL_CLAUDE = {
-    100: (99, "python3 /Users/me/.pappardelle/hooks/update-status.py"),
-    99: (98, "/bin/sh -c python3 ~/.pappardelle/hooks/update-status.py"),
+    100: (99, "python3 /Users/me/.lasagna/hooks/update-status.py"),
+    99: (98, "/bin/sh -c python3 ~/.lasagna/hooks/update-status.py"),
     98: (97, "claude --model opus"),
     97: (96, "/bin/zsh -ic claude --model opus"),
     96: (95, "/bin/sh -c \"$1\" -ic \"$2\""),
@@ -84,7 +84,7 @@ CODEX_IN_CLAUDE_MCP = {
 # between, so the two claudes form one run.
 CLAUDE_IN_CLAUDE_MCP = {
     **TOP_LEVEL_CLAUDE,
-    99: (90, "/bin/sh -c python3 ~/.pappardelle/hooks/update-status.py"),
+    99: (90, "/bin/sh -c python3 ~/.lasagna/hooks/update-status.py"),
     90: (91, "claude -p summarize"),
     91: (98, "node mcp-server.js"),
 }
@@ -102,7 +102,7 @@ RELAUNCHED_CODEX = {
 
 # A Python agent that runs its hooks without a shell in between.
 TOP_LEVEL_PYTHON_AGENT = {
-    100: (99, "python3 /Users/me/.pappardelle/hooks/record-agent-session.py"),
+    100: (99, "python3 /Users/me/.lasagna/hooks/record-agent-session.py"),
     99: (98, "python3 /usr/local/bin/aider"),
     98: (97, "-zsh"),
     97: (1, "tmux"),
@@ -110,7 +110,7 @@ TOP_LEVEL_PYTHON_AGENT = {
 
 # codex 0.159+ runs hooks in its shared app-server daemon, outside tmux.
 CODEX_DAEMON = {
-    100: (99, "python3 /Users/me/.pappardelle/hooks/record-agent-session.py"),
+    100: (99, "python3 /Users/me/.lasagna/hooks/record-agent-session.py"),
     99: (98, "sh -c python3 record-agent-session.py"),
     98: (1, "/Users/me/.codex/packages/app-server-daemon/bin/codex app-server --managed-daemon"),
 }
@@ -157,8 +157,8 @@ def test_the_agent_run_under_tmux(table, in_tmux, run):
 
 # A claude-local wrapper script that runs claude without exec.
 CLAUDE_WRAPPER = {
-    100: (99, "python3 /Users/me/.pappardelle/hooks/update-status.py"),
-    99: (98, "/bin/sh -c python3 ~/.pappardelle/hooks/update-status.py"),
+    100: (99, "python3 /Users/me/.lasagna/hooks/update-status.py"),
+    99: (98, "/bin/sh -c python3 ~/.lasagna/hooks/update-status.py"),
     98: (97, "claude --settings /Users/me/.claude-local.json"),
     97: (96, "bash /Users/me/bin/claude-local"),
     96: (95, "/bin/zsh -ic claude-local"),
@@ -168,7 +168,7 @@ CLAUDE_WRAPPER = {
 
 # agy runs its hook commands without a shell in between (seen on agy 1.5.0).
 TOP_LEVEL_AGY = {
-    100: (99, "python3 /Users/me/.pappardelle/hooks/record-agent-session.py"),
+    100: (99, "python3 /Users/me/.lasagna/hooks/record-agent-session.py"),
     99: (98, "agy --model gemini-4-argon-medium -i /idow STA-1"),
     98: (97, "zsh -ic agy --model gemini-4-argon-medium -i '/idow STA-1'"),
     97: (96, "/bin/sh -c \"$1\" -ic \"$2\""),
@@ -177,7 +177,7 @@ TOP_LEVEL_AGY = {
 
 # The space's agy after a relaunch.
 RELAUNCHED_AGY = {
-    100: (89, "python3 /Users/me/.pappardelle/hooks/record-agent-session.py"),
+    100: (89, "python3 /Users/me/.lasagna/hooks/record-agent-session.py"),
     89: (88, "agy --model gemini-4-argon-medium --conversation first"),
     88: (87, "zsh -ic agy --model gemini-4-argon-medium --conversation first"),
     87: (86, "/bin/sh -c \"$1\" -ic \"$2\""),
@@ -186,7 +186,7 @@ RELAUNCHED_AGY = {
 
 # codex running agy through its shell tool, in an agy profile's pane.
 AGY_INSIDE_CODEX = {
-    100: (99, "python3 /Users/me/.pappardelle/hooks/record-agent-session.py"),
+    100: (99, "python3 /Users/me/.lasagna/hooks/record-agent-session.py"),
     99: (98, "agy -p review"),
     98: (97, "/bin/bash -c agy -p review"),
     97: (96, "/opt/homebrew/lib/node_modules/@openai/codex/vendor/codex"),
@@ -205,13 +205,13 @@ def every_process_alive(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """The home directory whose ~/.pappardelle holds the space's files."""
+    """The home directory whose ~/.lasagna holds the space's files."""
     monkeypatch.setenv("HOME", str(tmp_path))
     return tmp_path
 
 
 def sessions_path(home: Path, key: str) -> Path:
-    return home / ".pappardelle" / "repos" / "repo" / "space-state" / f"{key}.agent-sessions.json"
+    return home / ".lasagna" / "repos" / "repo" / "space-state" / f"{key}.agent-sessions.json"
 
 
 @pytest.fixture
@@ -246,7 +246,7 @@ def launch(key: str = "STA-1", agent_profile: str = "codex", is_claude: bool = F
         finally:
             connection.close()
         return
-    state_file = Path.home() / ".pappardelle" / "repos" / "repo" / "space-state" / f"{key}.json"
+    state_file = Path.home() / ".lasagna" / "repos" / "repo" / "space-state" / f"{key}.json"
     state_file.parent.mkdir(parents=True, exist_ok=True)
     state_file.write_text(json.dumps({"agentProfile": {"name": agent_profile, "isClaude": is_claude}}))
 
@@ -588,7 +588,7 @@ def test_the_codex_daemon_does_not_record_into_a_claude_space(sessions_file: Pat
 # The daemon runs codex's shell commands, so an agent the pane's codex runs
 # through its shell tool sits under the daemon with its own hooks.
 CODEX_EXEC_UNDER_DAEMON = {
-    100: (99, "python3 /Users/me/.pappardelle/hooks/record-agent-session.py"),
+    100: (99, "python3 /Users/me/.lasagna/hooks/record-agent-session.py"),
     99: (98, "sh -c python3 record-agent-session.py"),
     98: (97, "/opt/homebrew/lib/node_modules/@openai/codex/vendor/codex exec review"),
     97: (96, "node /opt/homebrew/bin/codex exec review"),
@@ -597,8 +597,8 @@ CODEX_EXEC_UNDER_DAEMON = {
 }
 
 CLAUDE_UNDER_DAEMON = {
-    100: (99, "python3 /Users/me/.pappardelle/hooks/update-status.py"),
-    99: (98, "/bin/sh -c python3 ~/.pappardelle/hooks/update-status.py"),
+    100: (99, "python3 /Users/me/.lasagna/hooks/update-status.py"),
+    99: (98, "/bin/sh -c python3 ~/.lasagna/hooks/update-status.py"),
     98: (96, "claude -p summarize"),
     96: (95, "/bin/bash -c claude -p summarize"),
     95: (1, "/Users/me/.codex/packages/app-server-daemon/bin/codex app-server --managed-daemon"),
@@ -623,7 +623,7 @@ def test_an_agent_run_by_the_daemons_shell_tool_is_not_recorded(sessions_file: P
 # As seen on Linux with codex 0.169: the hook runs straight under the daemon,
 # which a pid-update-loop restarts on auto-update.
 CODEX_DAEMON_UNDER_UPDATER = {
-    100: (98, "python3 /home/me/.pappardelle/hooks/record-agent-session.py"),
+    100: (98, "python3 /home/me/.lasagna/hooks/record-agent-session.py"),
     98: (97, "/home/me/.codex/packages/app-server-daemon/releases/0.169.1/bin/codex app-server --listen unix:// --managed-daemon"),
     97: (1, "/home/me/.codex/packages/app-server-daemon/releases/0.169.1/bin/codex app-server daemon pid-update-loop"),
 }
@@ -684,7 +684,7 @@ def test_an_agent_the_daemon_runs_under_its_starters_pane_is_not_recorded(sessio
         (
             True,
             {
-                100: (99, "python3 /Users/me/.pappardelle/hooks/update-status.py"),
+                100: (99, "python3 /Users/me/.lasagna/hooks/update-status.py"),
                 99: (98, "claude"),
                 98: (97, "-zsh"),
                 97: (1, "/Applications/Ghostty.app/Contents/MacOS/ghostty"),
@@ -694,7 +694,7 @@ def test_an_agent_the_daemon_runs_under_its_starters_pane_is_not_recorded(sessio
         (
             False,
             {
-                100: (99, "python3 /Users/me/.pappardelle/hooks/record-agent-session.py"),
+                100: (99, "python3 /Users/me/.lasagna/hooks/record-agent-session.py"),
                 99: (98, "codex app-server"),
                 98: (1, "node /Users/me/.claude/plugins/codex/scripts/app-server-broker.mjs serve"),
             },
@@ -897,7 +897,7 @@ def test_a_locked_database_still_gets_the_file_written(state_db: Path, sessions_
     assert recorded(sessions_file) == {"codex": "01a117bd-5978"}
     assert session_rows(state_db) == []
     # The failure is logged under the home directory.
-    log = (home / ".pappardelle" / "logs" / "hook-events.log").read_text()
+    log = (home / ".lasagna" / "logs" / "hook-events.log").read_text()
     assert "State database write failed" in log and str(sessions_file) in log
 
 
