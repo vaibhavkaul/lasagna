@@ -11,8 +11,9 @@ import {
 	type PappardelleConfig,
 } from './config.ts';
 import type {TrackerIssue} from './providers/types.ts';
-import {resetRepoContexts} from './repo-context.ts';
+import {repoContext, resetRepoContexts} from './repo-context.ts';
 import {
+	closeHooksDepsFor,
 	defaultCloseHooksDeps,
 	resolveDeinitCommands,
 	runCloseHooks,
@@ -172,6 +173,44 @@ test("a repo's .envrc reaches its deinit commands, in their environment and in t
 	expect(fs.readFileSync(path.join(root, 'deinit-saw'), 'utf8')).toBe(
 		'from-envrc from-envrc',
 	);
+});
+
+test("on a rail of several repos, a space's deinit commands run with its own repo's .envrc", async () => {
+	teardown(resetRepoContexts);
+	const hook = (repo: string) =>
+		[
+			'version: 1',
+			'profiles:',
+			'  t:',
+			'    display_name: T',
+			'pre_workspace_deinit:',
+			'  - name: note',
+			`    run: printf "%s %s" "$DEINIT_TOKEN" "\${DEINIT_TOKEN}" > deinit-saw-${repo}`,
+			'',
+		].join('\n');
+	const {repos} = workdirFixture({
+		repos: {
+			api: {
+				'.envrc': 'export DEINIT_TOKEN=token-of-api\n',
+				'.pappardelle.yml': hook('api'),
+			},
+			web: {
+				'.envrc': 'export DEINIT_TOKEN=token-of-web\n',
+				'.pappardelle.yml': hook('web'),
+			},
+		},
+	});
+	for (const label of ['api', 'web']) {
+		const {root} = repos[label]!;
+		const result = await runCloseHooks(
+			{name: 'STA-1', worktreePath: root, trackerIssue: null},
+			closeHooksDepsFor(repoContext(root)),
+		);
+		expect(result).toStrictEqual({kind: 'ran'});
+		expect(
+			fs.readFileSync(path.join(root, `deinit-saw-${label}`), 'utf8'),
+		).toBe(`token-of-${label} token-of-${label}`);
+	}
 });
 
 test('a row the registry no longer lists is not attached', () => {

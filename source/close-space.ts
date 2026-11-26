@@ -100,6 +100,7 @@ export function closeHooksDepsFor(repo: {
 	mainRoot: string;
 	name: string;
 	readConfig: () => ConfigLoad;
+	env: NodeJS.ProcessEnv;
 }): CloseHooksDeps {
 	return {
 		readConfig: () => repo.readConfig(),
@@ -108,6 +109,7 @@ export function closeHooksDepsFor(repo: {
 			repoRoot: repo.root,
 			mainRepoRoot: repo.mainRoot,
 			repoName: repo.name,
+			env: repo.env,
 		}),
 	};
 }
