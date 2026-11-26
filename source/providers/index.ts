@@ -315,9 +315,27 @@ export function createIssueTracker(
  */
 export function issueTrackerFor(repo: string): IssueTrackerProvider {
 	const providers = providersOf(repo);
-	return issueTrackerOf(
-		providers,
-		providers.issueTracker ? undefined : providers.trackerConfig,
+	if (providers.issueTracker) return providers.issueTracker;
+	try {
+		return issueTrackerOf(providers, providers.trackerConfig);
+	} catch (error) {
+		reportUnusable(repo, 'issue tracker', error);
+		providers.trackerConfig = undefined;
+		return issueTrackerOf(providers);
+	}
+}
+
+/**
+ * One repo's settings that no provider can be built from (a Jira tracker
+ * with no base_url, a provider nobody knows) are that repo's problem alone:
+ * a rail that shows several repos asks for each one's providers on every
+ * refresh, and must not fall over because of one. The repo is named once in
+ * the rail's errors and gets the default provider, which is what the
+ * process's own repo gets at startup.
+ */
+function reportUnusable(repo: string, what: string, error: unknown): void {
+	log.error(
+		`The ${what} of ${repo} could not be set up; using the default: ${error instanceof Error ? error.message : String(error)}`,
 	);
 }
 
@@ -398,10 +416,14 @@ export function createVcsHost(config?: VcsHostConfig): VcsHostProvider {
 /** The VCS host of a repo by name, as `issueTrackerFor` is its tracker. */
 export function vcsHostFor(repo: string): VcsHostProvider {
 	const providers = providersOf(repo);
-	return vcsHostOf(
-		providers,
-		providers.vcsHost ? undefined : providers.vcsConfig,
-	);
+	if (providers.vcsHost) return providers.vcsHost;
+	try {
+		return vcsHostOf(providers, providers.vcsConfig);
+	} catch (error) {
+		reportUnusable(repo, 'VCS host', error);
+		providers.vcsConfig = undefined;
+		return vcsHostOf(providers);
+	}
 }
 
 /**

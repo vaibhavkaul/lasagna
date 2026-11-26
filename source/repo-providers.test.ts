@@ -13,6 +13,7 @@ import {
 	setRepoProviderSources,
 	vcsHostFor,
 } from './providers/index.ts';
+import {clearRecentErrors, getRecentErrors} from './logger.ts';
 import {bootstrapRepo} from './repo-bootstrap.ts';
 import {repoContext, resetRepoContexts} from './repo-context.ts';
 import {setSpaceScopes} from './space-scope.ts';
@@ -64,6 +65,39 @@ test('each repo gets the tracker and VCS host its own config names', () => {
 	expect(issueTrackerFor(web.repoName).name).toBe('jira');
 	expect(vcsHostFor(api.repoName).name).toBe('gitlab');
 	expect(vcsHostFor(web.repoName).name).toBe('github');
+});
+
+test('a repo whose tracker and VCS host cannot be built is named once and gets the defaults', async () => {
+	const {repos} = workdirFixture({
+		repos: {
+			// A Jira tracker needs its base_url, and nobody knows this host.
+			bad: {
+				'.pappardelle.yml': `version: 1\nissue_tracker:\n  provider: jira\nvcs_host:\n  provider: bitbucket\n${PROFILES}`,
+			},
+			web: {
+				'.pappardelle.yml': `version: 1\nissue_tracker:\n  provider: jira\n  base_url: https://example.atlassian.net\n${PROFILES}`,
+			},
+		},
+	});
+	clearRecentErrors();
+	teardown(clearRecentErrors);
+	const bad = bootstrapRepo(repoContext(repos['bad']!.root)).repoName;
+	const web = bootstrapRepo(repoContext(repos['web']!.root)).repoName;
+	// A rail asks on every refresh, from inside a state update.
+	const tracker = issueTrackerFor(bad);
+	expect(tracker.name).toBe('linear');
+	expect(issueTrackerFor(bad)).toBe(tracker);
+	expect(tracker.getIssueCached('STA-1')).toBeNull();
+	const host = vcsHostFor(bad);
+	expect(host.name).toBe('github');
+	expect(vcsHostFor(bad)).toBe(host);
+	// The other repo is untouched.
+	expect(issueTrackerFor(web).name).toBe('jira');
+	const errors = getRecentErrors().map(entry => entry.message);
+	expect(errors).toEqual([
+		`The issue tracker of ${bad} could not be set up; using the default: issue_tracker.base_url is required when provider is "jira"`,
+		`The VCS host of ${bad} could not be set up; using the default: Unknown VCS host provider: "bitbucket"`,
+	]);
 });
 
 test("a repo's providers are built once", () => {
