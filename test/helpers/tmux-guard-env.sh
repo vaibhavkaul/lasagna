@@ -24,7 +24,7 @@ if [[ ${1:-} == --finish ]]; then
 	exit "$status"
 fi
 
-guard_home=/tmp/pappardelle-test-tmux-$(id -u)
+guard_home=/tmp/lasagna-test-tmux-$(id -u)
 wrapper=$guard_home/bin/tmux
 private_prefix=/tmp/pt-
 

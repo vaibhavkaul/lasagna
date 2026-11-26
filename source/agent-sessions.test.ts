@@ -245,7 +245,7 @@ test('sqlite: a session recorded by the hook and a profile renamed by another pr
 				repo: 'repo',
 				key,
 				worktreePath: path.join(home, key),
-				socket: 'pappardelle_inner',
+				socket: 'lasagna_inner',
 			}),
 		);
 		await state.daos.spaceState.write(key, {
@@ -277,7 +277,7 @@ table = {
     99: (98, "sh -c python3 record-agent-session.py"),
     98: (97, "codex --yolo"),
     97: (96, "zsh -ic codex --yolo"),
-    96: (1, "tmux -L pappardelle_inner new-session"),
+    96: (1, "tmux -L lasagna_inner new-session"),
 }
 for key in sys.argv[2:]:
     assert agent_session.record_agent_session(

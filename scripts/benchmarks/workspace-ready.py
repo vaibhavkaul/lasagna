@@ -289,7 +289,7 @@ signal.pause()
             # Observer calls bypass wrappers and are excluded from command traces.
             if outside_tmux and socket == 'bench-outer':
                 socket = 'default'
-                args = tuple('pappardelle-repo' + arg[5:] if arg == 'bench' or arg.startswith('bench:') else arg for arg in args)
+                args = tuple('lasagna-repo' + arg[5:] if arg == 'bench' or arg.startswith('bench:') else arg for arg in args)
             return subprocess.run([real_tools['tmux'], '-L', socket, *args],
                                   cwd=repo, env=env, capture_output=True, text=True, timeout=5)
 

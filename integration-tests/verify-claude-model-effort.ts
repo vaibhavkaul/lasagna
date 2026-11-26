@@ -23,7 +23,7 @@
  *
  * Step 6 makes a real (tiny) API call and is skipped with --no-live; step 5 is
  * macOS-only (osascript). Everything else is hermetic: temp dirs, a temp HOME,
- * and per-run tmux sockets. Nothing touches the shared pappardelle_inner socket
+ * and per-run tmux sockets. Nothing touches the shared lasagna_inner socket
  * or a real repo.
  */
 

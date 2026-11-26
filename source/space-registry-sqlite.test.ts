@@ -31,7 +31,7 @@ const named = {
 				repo: 'repo',
 				key,
 				worktreePath: `/w/${key}`,
-				socket: 'pappardelle_inner',
+				socket: 'lasagna_inner',
 			}),
 		}) as const,
 };
@@ -243,7 +243,7 @@ test('settle opens a starting space whose stored session is live and drops one w
 			key,
 			worktreePath: `/w/${key}`,
 			tmux: {
-				socket: 'pappardelle_inner',
+				socket: 'lasagna_inner',
 				agentSession: `hand-named-${key}`,
 				companionSession: `hand-named-companion-${key}`,
 			},
@@ -272,7 +272,7 @@ test('nothing is settled while a space being set up or torn down has no stored n
 		key: 'NAMED-1',
 		worktreePath: '/w/NAMED-1',
 		tmux: {
-			socket: 'pappardelle_inner',
+			socket: 'lasagna_inner',
 			agentSession: 'agent-repo-NAMED-1',
 			companionSession: 'companion-repo-NAMED-1',
 		},

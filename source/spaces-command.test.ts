@@ -312,7 +312,7 @@ test('a session belongs to the space whose stored worktree holds it', async () =
 		key: 'STA-410',
 		worktreePath: worktree,
 		tmux: {
-			socket: 'pappardelle_inner',
+			socket: 'lasagna_inner',
 			agentSession: `agent-${REPO}-STA-410`,
 			companionSession: `companion-${REPO}-STA-410`,
 		},

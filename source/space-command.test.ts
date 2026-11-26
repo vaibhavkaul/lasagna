@@ -101,7 +101,7 @@ async function openSpace(
 				key === 'main'
 					? MAIN_ROOT
 					: worktreePathFor(options.home ?? HOME, state.repo, key),
-			socket: options.socket ?? 'pappardelle_inner',
+			socket: options.socket ?? 'lasagna_inner',
 		}),
 	);
 	if (key !== 'main' && options.register !== false)
@@ -248,7 +248,7 @@ test('session names and targets encode dots and underscores, and name main', asy
 		return JSON.parse(stdout) as unknown;
 	};
 	expect(await tmuxOf('a.b_c')).toStrictEqual({
-		socket: 'pappardelle_inner',
+		socket: 'lasagna_inner',
 		socketFlag: '-L',
 		agentSession: 'agent-repo-a_b__c',
 		companionSession: 'companion-repo-a_b__c',
@@ -472,7 +472,7 @@ test('with no key, a worktree outside ~/.worktrees is found by its stored path',
 			repo: 'repo',
 			key: 'STA-1',
 			worktreePath: worktree,
-			socket: 'pappardelle_inner',
+			socket: 'lasagna_inner',
 		}),
 	);
 	await state.daos.registry.add('STA-1');

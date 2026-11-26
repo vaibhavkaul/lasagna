@@ -205,7 +205,7 @@ TMUX_SOCKET_ARGS=(-L "$PAPPARDELLE_TMUX_SOCKET")
 if [[ "$PAPPARDELLE_TMUX_SOCKET" == /* ]]; then
     TMUX_SOCKET_ARGS=(-S "$PAPPARDELLE_TMUX_SOCKET")
 fi
-STARTUP_GATE_OPTION="@pappardelle_startup_gate"
+STARTUP_GATE_OPTION="@lasagna_startup_gate"
 
 # Set on the tmux session rather than exported here: these sessions are created
 # on a long-lived server that inherited its environment from whatever started
@@ -271,7 +271,7 @@ new_launch_session() {
         shell_handoff='"$1" -ic "$2$(printf "\n:")"; printf "\033]133;A\007"; exec "$1" -l'
     fi
     if [[ "$session" == "$AGENT_SESSION" && ${#STATUS_MONITOR[@]} -gt 0 ]]; then
-        STATUS_GATE="pappardelle-status-$$"
+        STATUS_GATE="lasagna-status-$$"
         # shellcheck disable=SC2016 # expanded by the inner sh, not here
         new_inner_session "$session" "$@" \
             /bin/sh -c 'tmux "$1" "$2" wait-for "$3"; shift 3; exec "$@"' sh "${TMUX_SOCKET_ARGS[@]}" "$STATUS_GATE" \

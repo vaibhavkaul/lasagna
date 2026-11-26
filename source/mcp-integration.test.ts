@@ -251,7 +251,7 @@ tmuxTest(
 		const f = fixture();
 		const tmuxEnv = f.env;
 		const tmux = (...args: string[]) => {
-			const r = spawnSync('tmux', ['-L', 'pappardelle_inner', ...args], {
+			const r = spawnSync('tmux', ['-L', 'lasagna_inner', ...args], {
 				encoding: 'utf8',
 				env: tmuxEnv,
 				timeout: 5000,
@@ -341,7 +341,7 @@ tmuxTest(
 		const f = fixture();
 		const tmuxEnv = f.env;
 		const tmux = (...args: string[]) => {
-			const r = spawnSync('tmux', ['-L', 'pappardelle_inner', ...args], {
+			const r = spawnSync('tmux', ['-L', 'lasagna_inner', ...args], {
 				encoding: 'utf8',
 				env: tmuxEnv,
 				timeout: 5000,

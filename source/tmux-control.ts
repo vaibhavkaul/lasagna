@@ -14,7 +14,7 @@ type Pending = {
 // tmux answers each command of a list separately and drops the rest of a
 // list at the first failure, so every list sent ends by printing this: its
 // reply, or a failure before it, is where the list's answer ends.
-const REPLY_END = 'pappardelle-control-reply-end';
+const REPLY_END = 'lasagna-control-reply-end';
 
 /** One argument as tmux's command parser reads it back unchanged. */
 export function quoteTmuxArgument(value: string): string {

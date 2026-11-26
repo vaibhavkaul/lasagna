@@ -27,7 +27,7 @@ TEST_REPO="testrepo-$$"
 # Sessions created by start-agent-session.sh live on the Pappardelle inner
 # tmux socket (see STA-860). Use a unique per-run socket name so parallel test
 # runs don't interfere with each other or with a developer's live session.
-PAPPARDELLE_TMUX_SOCKET="pappardelle_inner_test_$$"
+PAPPARDELLE_TMUX_SOCKET="lasagna_inner_test_$$"
 export PAPPARDELLE_TMUX_SOCKET
 
 # The traps go in before the first mktemp so a signal at any point removes what
@@ -490,7 +490,7 @@ chmod +x "$SHIM_DIR/claude"
 
 # The sessions below need a server whose environment already has the shim on
 # PATH, so they get their own socket (the shared one may already be running).
-SHIM_SOCKET="pappardelle_inner_shim_$$"
+SHIM_SOCKET="lasagna_inner_shim_$$"
 PATH="$SHIM_DIR:$PATH" HOME="$SHIM_HOME" PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET" \
     start_session \
     --issue-key "$ISSUE_KEY7" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH7" \
@@ -545,7 +545,7 @@ exit 0
 SHIM
 chmod +x "$SHIM_DIR/claude"
 
-SHIM_SOCKET8="pappardelle_inner_shim8_$$"
+SHIM_SOCKET8="lasagna_inner_shim8_$$"
 PATH="$SHIM_DIR:$PATH" HOME="$SHIM_HOME" PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET8" \
     start_session \
     --issue-key "$ISSUE_KEY8" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH8" \
@@ -576,7 +576,7 @@ exit 0
 SHIM
 chmod +x "$SHIM_DIR/claude"
 
-SHIM_SOCKET9="pappardelle_inner_shim9_$$"
+SHIM_SOCKET9="lasagna_inner_shim9_$$"
 PATH="$SHIM_DIR:$PATH" HOME="$SHIM_HOME" PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET9" \
     start_session \
     --issue-key "$ISSUE_KEY9" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH9" \
@@ -605,7 +605,7 @@ exit 0
 SHIM
 chmod +x "$SHIM_DIR/claude"
 
-SHIM_SOCKET10="pappardelle_inner_shim10_$$"
+SHIM_SOCKET10="lasagna_inner_shim10_$$"
 PATH="$SHIM_DIR:$PATH" HOME="$SHIM_HOME" PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET10" \
     start_session \
     --issue-key "$ISSUE_KEY10" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH10" \
@@ -656,7 +656,7 @@ ZSHRC
         sleep 2
     }
 
-    HIST_SOCKET="pappardelle_inner_hist_$$"
+    HIST_SOCKET="lasagna_inner_hist_$$"
     KEY9="${TEST_PREFIX}-900"
     start_hist_session "$HIST_SOCKET" "$KEY9" "GIT_OPTIONAL_LOCKS=0 gitui"
 
@@ -683,7 +683,7 @@ ZSHRC
     # A user-authored companion command that ends in a comment or exits the
     # shell itself must still leave a shell behind.
     for companion in 'true # trailing comment' 'exit 3'; do
-        SOCK="pappardelle_inner_hist_${RANDOM}_$$"
+        SOCK="lasagna_inner_hist_${RANDOM}_$$"
         KEY="${TEST_PREFIX}-9${RANDOM}"
         start_hist_session "$SOCK" "$KEY" "$companion"
         assert_eq "companion '$companion' leaves a shell" "zsh" \
@@ -727,7 +727,7 @@ exit 0
 SHIM
 chmod +x "$SHIM_DIR/codex"
 
-SHIM_SOCKET9="pappardelle_inner_shim9_$$"
+SHIM_SOCKET9="lasagna_inner_shim9_$$"
 PATH="$SHIM_DIR:$PATH" HOME="$CODEX_HOME" PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET9" \
     start_session \
     --issue-key "$ISSUE_KEY9" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH9" \
@@ -767,7 +767,7 @@ exit 0
 SHIM
 chmod +x "$SHIM_DIR/codex"
 
-SHIM_SOCKET10="pappardelle_inner_shim10_$$"
+SHIM_SOCKET10="lasagna_inner_shim10_$$"
 PATH="$SHIM_DIR:$PATH" HOME="$CODEX_HOME" PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET10" \
     start_session \
     --issue-key "$ISSUE_KEY10" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH10" \
@@ -799,7 +799,7 @@ exit 0
 SHIM
 chmod +x "$SHIM_DIR/codex"
 
-SHIM_SOCKET_LF="pappardelle_inner_shim_lf_$$"
+SHIM_SOCKET_LF="lasagna_inner_shim_lf_$$"
 PATH="$SHIM_DIR:$PATH" HOME="$CODEX_HOME" PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET_LF" \
     start_session \
     --issue-key "$ISSUE_KEY_LF" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH_LF" \
@@ -830,7 +830,7 @@ exit 0
 SHIM
 chmod +x "$SHIM_DIR/claude-local"
 
-SHIM_SOCKET11="pappardelle_inner_shim11_$$"
+SHIM_SOCKET11="lasagna_inner_shim11_$$"
 PATH="$SHIM_DIR:$PATH" HOME="$SHIM_HOME" PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET11" \
     start_session \
     --issue-key "$ISSUE_KEY11" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH11" \
@@ -961,7 +961,7 @@ tmux -L "$PAPPARDELLE_TMUX_SOCKET" kill-session -t "=companion-${TEST_REPO}-${IS
 # longer guesses it from the command.
 echo -e "\n${BOLD}Test: --agent-command without --agent-is-claude is an error${RESET}"
 ISSUE_KEY14="${TEST_PREFIX}-1400"
-SHIM_SOCKET14="pappardelle_inner_shim14_$$"
+SHIM_SOCKET14="lasagna_inner_shim14_$$"
 if PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET14" start_session \
     --issue-key "$ISSUE_KEY14" --repo-name "$TEST_REPO" --worktree "$TMPDIR_ROOT" \
     --agent-command codex 2>/dev/null; then
@@ -998,7 +998,7 @@ exit 0
 SHIM
 chmod +x "$SHIM_DIR/codex"
 
-SHIM_SOCKET15="pappardelle_inner_shim15_$$"
+SHIM_SOCKET15="lasagna_inner_shim15_$$"
 SHELL=/bin/bash PATH="$SHIM_DIR:$PATH" HOME="$CODEX_HOME" PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET15" \
     start_session \
     --issue-key "$ISSUE_KEY15" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH15" \
@@ -1024,7 +1024,7 @@ echo -e "\n${BOLD}Test: the inner server outlives the worktree it was started fr
 WORKTREE_PATH16="$TMPDIR_ROOT/worktree16"
 WORKTREE_PATH17="$TMPDIR_ROOT/worktree17"
 mkdir -p "$WORKTREE_PATH16" "$WORKTREE_PATH17"
-SHIM_SOCKET16="pappardelle_inner_shim16_$$"
+SHIM_SOCKET16="lasagna_inner_shim16_$$"
 start_space() {
     (cd "$2" && PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET16" \
         start_session \
@@ -1074,7 +1074,7 @@ WORKTREE_PATH_PA="$TMPDIR_ROOT/worktree-prompt-args"
 ARGV_LOG_PA="$TMPDIR_ROOT/agy-argv-prompt-args.log"
 mkdir -p "$WORKTREE_PATH_PA"
 make_argv_shim agy "$ARGV_LOG_PA"
-SHIM_SOCKET_PA="pappardelle_inner_shim_pa_$$"
+SHIM_SOCKET_PA="lasagna_inner_shim_pa_$$"
 PATH="$SHIM_DIR:$PATH" HOME="$SHIM_HOME" PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET_PA" \
     start_session \
     --issue-key "$ISSUE_KEY_PA" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH_PA" \
@@ -1097,7 +1097,7 @@ WORKTREE_PATH_PK="$TMPDIR_ROOT/worktree-prompt-key"
 ARGV_LOG_PK="$TMPDIR_ROOT/agy-argv-prompt-key.log"
 mkdir -p "$WORKTREE_PATH_PK"
 make_argv_shim agy "$ARGV_LOG_PK"
-SHIM_SOCKET_PK="pappardelle_inner_shim_pk_$$"
+SHIM_SOCKET_PK="lasagna_inner_shim_pk_$$"
 PATH="$SHIM_DIR:$PATH" HOME="$SHIM_HOME" PAPPARDELLE_TMUX_SOCKET="$SHIM_SOCKET_PK" \
     start_session \
     --issue-key "$ISSUE_KEY_PK" --repo-name "$TEST_REPO" --worktree "$WORKTREE_PATH_PK" \
@@ -1117,7 +1117,7 @@ for np_case in "claude|true|--resume RESUME_FAIL|" "codex|false|resume RESUME_FA
     np_key="${TEST_PREFIX}-19${NP_INDEX}0"
     np_worktree="$TMPDIR_ROOT/worktree-no-prompt-$np_agent"
     np_log="$TMPDIR_ROOT/$np_agent-argv-no-prompt.log"
-    np_socket="pappardelle_inner_shim_np${NP_INDEX}_$$"
+    np_socket="lasagna_inner_shim_np${NP_INDEX}_$$"
     mkdir -p "$np_worktree"
     make_argv_shim "$np_agent" "$np_log"
     np_args=(--issue-key "$np_key" --repo-name "$TEST_REPO" --worktree "$np_worktree" --no-prompt
@@ -1140,7 +1140,7 @@ done
 echo -e "\n${BOLD}Test: sessions survive a tmux.conf that drops unattached sessions${RESET}"
 KEEP_KEY="${TEST_PREFIX}-keep"
 KEEP_HOME="$TMPDIR_ROOT/keep-home"
-KEEP_SOCKET="pappardelle_inner_keep_$$"
+KEEP_SOCKET="lasagna_inner_keep_$$"
 mkdir -p "$KEEP_HOME" "$TMPDIR_ROOT/keep-worktree"
 touch "$KEEP_HOME/.zshrc"
 printf 'set -g destroy-unattached on\nset -g exit-unattached on\n' > "$KEEP_HOME/.tmux.conf"
@@ -1158,7 +1158,7 @@ tmux -L "$KEEP_SOCKET" kill-server 2>/dev/null || true
 
 echo -e "\n${BOLD}Test: the inner server outlives its last space, so the next one starts${RESET}"
 EMPTY_KEY="${TEST_PREFIX}-empty"
-EMPTY_SOCKET="pappardelle_inner_empty_$$"
+EMPTY_SOCKET="lasagna_inner_empty_$$"
 mkdir -p "$TMPDIR_ROOT/empty-worktree"
 start_empty_space() {
     PAPPARDELLE_TMUX_SOCKET="$EMPTY_SOCKET" start_session --issue-key "$EMPTY_KEY" \

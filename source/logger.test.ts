@@ -266,7 +266,7 @@ test('console.error reaches the log, except React reports of an error a boundary
 // ============================================================================
 
 function makeLogDir(): string {
-	return mkdtempSync(path.join(tmpdir(), 'pappardelle-logs-'));
+	return mkdtempSync(path.join(tmpdir(), 'lasagna-logs-'));
 }
 
 function entry(message: string, date = '2026-10-05'): LogEntry {
@@ -279,7 +279,7 @@ function entry(message: string, date = '2026-10-05'): LogEntry {
 }
 
 function readLogLines(dir: string, date = '2026-10-05'): string[] {
-	return readFileSync(path.join(dir, `pappardelle-${date}.log`), 'utf8')
+	return readFileSync(path.join(dir, `lasagna-${date}.log`), 'utf8')
 		.split('\n')
 		.filter(Boolean);
 }
@@ -295,7 +295,7 @@ test('log sink keeps the event loop free while storage is stalled', async () => 
 	});
 	// A FIFO nobody reads stands in for stalled storage: once its kernel buffer
 	// fills, every write to it blocks until the reader drains it.
-	const fifo = path.join(dir, 'pappardelle-2026-10-05.log');
+	const fifo = path.join(dir, 'lasagna-2026-10-05.log');
 	execFileSync('mkfifo', [fifo]);
 	// eslint-disable-next-line no-bitwise
 	const reader = openSync(fifo, constants.O_RDONLY | constants.O_NONBLOCK);
@@ -450,7 +450,7 @@ test('log sink survives a failed write and retries it on the next write', async 
 	teardown(() => {
 		rmSync(dir, {recursive: true, force: true});
 	});
-	const fifo = path.join(dir, 'pappardelle-2026-10-05.log');
+	const fifo = path.join(dir, 'lasagna-2026-10-05.log');
 	execFileSync('mkfifo', [fifo]);
 	// eslint-disable-next-line no-bitwise
 	const nonBlockingRead = constants.O_RDONLY | constants.O_NONBLOCK;
@@ -484,7 +484,7 @@ test('log sink drains a failed batch once storage recovers, even after the queue
 	teardown(() => {
 		rmSync(dir, {recursive: true, force: true});
 	});
-	const fifo = path.join(dir, 'pappardelle-2026-10-05.log');
+	const fifo = path.join(dir, 'lasagna-2026-10-05.log');
 	execFileSync('mkfifo', [fifo]);
 	// eslint-disable-next-line no-bitwise
 	const nonBlockingRead = constants.O_RDONLY | constants.O_NONBLOCK;
@@ -561,7 +561,7 @@ test('log sink prunes all but the newest seven log files', async () => {
 	});
 	const now = Date.now() / 1000;
 	for (let day = 1; day <= 9; day++) {
-		const file = path.join(dir, `pappardelle-2026-09-0${day}.log`);
+		const file = path.join(dir, `lasagna-2026-09-0${day}.log`);
 		writeFileSync(file, '');
 		const age = now - (10 - day) * 86_400;
 		utimesSync(file, age, age);
@@ -572,13 +572,13 @@ test('log sink prunes all but the newest seven log files', async () => {
 	await sink.settle();
 
 	expect(readdirSync(dir).sort()).toStrictEqual([
-		'pappardelle-2026-09-04.log',
-		'pappardelle-2026-09-05.log',
-		'pappardelle-2026-09-06.log',
-		'pappardelle-2026-09-07.log',
-		'pappardelle-2026-09-08.log',
-		'pappardelle-2026-09-09.log',
-		'pappardelle-2026-10-05.log',
+		'lasagna-2026-09-04.log',
+		'lasagna-2026-09-05.log',
+		'lasagna-2026-09-06.log',
+		'lasagna-2026-09-07.log',
+		'lasagna-2026-09-08.log',
+		'lasagna-2026-09-09.log',
+		'lasagna-2026-10-05.log',
 	]);
 });
 
@@ -589,7 +589,7 @@ test('log sink never prunes the file it has open', async () => {
 	});
 	const future = Date.now() / 1000 + 86_400;
 	for (let day = 1; day <= 9; day++) {
-		const file = path.join(dir, `pappardelle-2026-11-0${day}.log`);
+		const file = path.join(dir, `lasagna-2026-11-0${day}.log`);
 		writeFileSync(file, '');
 		utimesSync(file, future + day, future + day);
 	}
@@ -600,7 +600,7 @@ test('log sink never prunes the file it has open', async () => {
 
 	const remaining = readdirSync(dir).sort();
 	expect(remaining.length).toBe(7);
-	expect(remaining.includes('pappardelle-2026-10-05.log')).toBe(true);
+	expect(remaining.includes('lasagna-2026-10-05.log')).toBe(true);
 	expect(messages(readLogLines(dir))).toStrictEqual(['today']);
 });
 
@@ -609,7 +609,7 @@ test('log sink never prunes the file it has open', async () => {
 // ============================================================================
 
 function runChild(script: string) {
-	const home = mkdtempSync(path.join(tmpdir(), 'pappardelle-home-'));
+	const home = mkdtempSync(path.join(tmpdir(), 'lasagna-home-'));
 	teardown(() => {
 		rmSync(home, {recursive: true, force: true});
 	});

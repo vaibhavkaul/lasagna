@@ -454,7 +454,7 @@ cleanup; unset TMPDIR_ROOT
 
 echo -e "\n${BOLD}Test: open-iterm-agent.sh launch flags${RESET}"
 iterm_flags() {
-    PAPPARDELLE_TMUX_SOCKET=pappardelle_inner "$SCRIPT_DIR/open-iterm-agent.sh" --worktree /tmp --issue-key STA-1 \
+    PAPPARDELLE_TMUX_SOCKET=lasagna_inner "$SCRIPT_DIR/open-iterm-agent.sh" --worktree /tmp --issue-key STA-1 \
         --repo-name testrepo --agent-session agent-testrepo-STA-1 --companion-session companion-testrepo-STA-1 \
         --prompt "" "$@" --print-launch-flags 2>/dev/null
 }
@@ -480,7 +480,7 @@ assert_eq "flag order: dsp → args → launch flags" \
 
 echo -e "\n${BOLD}Test: open-iterm-agent.sh assembled command line${RESET}"
 iterm_command() {
-    PAPPARDELLE_TMUX_SOCKET=pappardelle_inner "$SCRIPT_DIR/open-iterm-agent.sh" --worktree /tmp/wt --issue-key QA-1 \
+    PAPPARDELLE_TMUX_SOCKET=lasagna_inner "$SCRIPT_DIR/open-iterm-agent.sh" --worktree /tmp/wt --issue-key QA-1 \
         --repo-name testrepo --agent-session agent-testrepo-QA-1 --companion-session companion-testrepo-QA-1 \
         --prompt "" "$@" --print-command 2>/dev/null | head -1
 }

@@ -299,7 +299,7 @@ tmuxTest(
 		const settled = companionSplitPaneIds();
 
 		// A split client that left forces new split panes only.
-		const logsTty = await display(settled[1]!, '#{@pappardelle_client_tty}');
+		const logsTty = await display(settled[1]!, '#{@lasagna_client_tty}');
 		await innerTmux('detach-client', '-t', logsTty);
 		expect(await syncCompanionSplits(layout, a, {run})).toBe('applied');
 		const rebuilt = companionSplitPaneIds();

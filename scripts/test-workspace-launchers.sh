@@ -44,7 +44,7 @@ assert_eq() {
 }
 
 # idow exports the space's socket from `lasagna space get`.
-export PAPPARDELLE_TMUX_SOCKET=pappardelle_inner
+export PAPPARDELLE_TMUX_SOCKET=lasagna_inner
 
 summarize() {
     echo ""
@@ -179,8 +179,8 @@ open_viewer() {
         --repo-name testrepo --agent-session agent-testrepo-QA-1 --companion-session companion-testrepo-QA-1 \
         --companion-command "" --prompt "" >/dev/null 2>&1 || true
 }
-VIEWER="=pappardelle-view-testrepo-QA-1:"
-vtmux new-session -d -s pappardelle-view-testrepo-QA-1 "sleep 600"
+VIEWER="=lasagna-view-testrepo-QA-1:"
+vtmux new-session -d -s lasagna-view-testrepo-QA-1 "sleep 600"
 BEFORE=$(vtmux display-message -p -t "$VIEWER" '#{pid} #{session_id}')
 open_viewer
 assert_eq "the last session on the server is the same one afterwards" "$BEFORE" \

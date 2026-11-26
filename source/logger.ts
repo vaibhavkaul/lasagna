@@ -52,7 +52,7 @@ async function pruneOldLogs(dir: string, openFile: string): Promise<void> {
 		const names = await readdir(dir);
 		const files = await Promise.all(
 			names
-				.filter(f => f.startsWith('pappardelle-') && f.endsWith('.log'))
+				.filter(f => f.startsWith('lasagna-') && f.endsWith('.log'))
 				.map(name => path.join(dir, name))
 				.filter(filePath => filePath !== openFile)
 				.map(async filePath => {
@@ -134,7 +134,7 @@ export function createLogSink({
 	}
 
 	function openStream(date: string): LogStream | undefined {
-		const filePath = path.join(dir, `pappardelle-${date}.log`);
+		const filePath = path.join(dir, `lasagna-${date}.log`);
 		let fd: number;
 		try {
 			mkdirSync(dir, {recursive: true});

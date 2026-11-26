@@ -36,7 +36,7 @@ export TMUX_TMPDIR="$ROOT/t"
 mkdir -p "$REPO" "$TMUX_TMPDIR"
 SOCKET=""
 
-T() { env -u TMUX -u TMUX_PANE tmux -L pappardelle_inner "$@"; }
+T() { env -u TMUX -u TMUX_PANE tmux -L lasagna_inner "$@"; }
 
 cleanup() {
     local status=$?

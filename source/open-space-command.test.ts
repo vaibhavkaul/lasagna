@@ -185,7 +185,7 @@ setTimeout(() => {
 				repo: 'project',
 				key,
 				worktreePath,
-				socket: 'pappardelle_inner',
+				socket: 'lasagna_inner',
 			}),
 		);
 		daos.disconnectStatusDaemon();

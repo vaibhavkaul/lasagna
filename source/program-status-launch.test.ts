@@ -325,7 +325,7 @@ for (const launcher of ['tui', 'shell'] as const) {
 							'-qv',
 							'-t',
 							'=agent-repo-TEST-1:',
-							'@pappardelle_startup_gate',
+							'@lasagna_startup_gate',
 						)
 						.trim(),
 				).toBe('');

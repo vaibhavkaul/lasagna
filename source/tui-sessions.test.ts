@@ -34,7 +34,7 @@ function setup(
 	tuiPane: Record<string, string> = {},
 ) {
 	const {repoStateRoot: root, tuiMarker} = tuiStateRoot(
-		sessions.map(name => name.replace(/^pappardelle-/, '')),
+		sessions.map(name => name.replace(/^lasagna-/, '')),
 	);
 	const printed: string[] = [];
 	const {tmux, calls} = fakeTuiTmux({
@@ -59,23 +59,23 @@ function setup(
 	};
 }
 
-const app = {session: 'pappardelle-app', repo: 'app'};
+const app = {session: 'lasagna-app', repo: 'app'};
 
 test('only pappardelle sessions with a repo state dir count as TUIs', () => {
 	const {repoStateRoot: root, tuiMarker} = tuiStateRoot(['app', 'web']);
 	const {tmux} = fakeTuiTmux({
 		tuiMarker,
 		sessions: [
-			'pappardelle-app',
-			'pappardelle-decoy',
+			'lasagna-app',
+			'lasagna-decoy',
 			'claude-app-STA-1',
-			'pappardelle-web',
+			'lasagna-web',
 		],
 	});
 
 	expect(listRunningTuis(tmux, root)).toStrictEqual([
-		{session: 'pappardelle-app', repo: 'app'},
-		{session: 'pappardelle-web', repo: 'web'},
+		{session: 'lasagna-app', repo: 'app'},
+		{session: 'lasagna-web', repo: 'web'},
 	]);
 });
 
@@ -83,12 +83,12 @@ test('a dotted repo name matches with or without tmux rewriting the dot', () => 
 	const {repoStateRoot: root, tuiMarker} = tuiStateRoot(['my.repo', 'next.js']);
 	const {tmux} = fakeTuiTmux({
 		tuiMarker,
-		sessions: ['pappardelle-my_repo', 'pappardelle-next.js'],
+		sessions: ['lasagna-my_repo', 'lasagna-next.js'],
 	});
 
 	expect(listRunningTuis(tmux, root)).toStrictEqual([
-		{session: 'pappardelle-my_repo', repo: 'my.repo'},
-		{session: 'pappardelle-next.js', repo: 'next.js'},
+		{session: 'lasagna-my_repo', repo: 'my.repo'},
+		{session: 'lasagna-next.js', repo: 'next.js'},
 	]);
 });
 
@@ -100,24 +100,24 @@ test('when two repos could own a session, the one named exactly like it does', (
 		const {repoStateRoot: root, tuiMarker} = tuiStateRoot(repos);
 		const {tmux} = fakeTuiTmux({
 			tuiMarker,
-			sessions: ['pappardelle-my_app'],
+			sessions: ['lasagna-my_app'],
 		});
 		// Readdir order is the filesystem's; neither order may change the answer.
 		expect(listRunningTuis(tmux, root)).toStrictEqual([
-			{session: 'pappardelle-my_app', repo: 'my_app'},
+			{session: 'lasagna-my_app', repo: 'my_app'},
 		]);
 	}
 });
 
 test("a restart closes the viewers and reruns the command in the TUI's own pane", async () => {
-	const h = setup(['pappardelle-web', 'pappardelle-app']);
+	const h = setup(['lasagna-web', 'lasagna-app']);
 
 	expect(await restartAndVerifyTui(app, COMMAND, FAKE_CLI_PATH, h.deps)).toBe(
 		true,
 	);
 
 	expect(h.calls.filter(args => args[0] !== 'display-message')).toStrictEqual([
-		['list-panes', '-t', '=pappardelle-app:^', '-F', '#{pane_id}'],
+		['list-panes', '-t', '=lasagna-app:^', '-F', '#{pane_id}'],
 		[
 			'kill-pane',
 			'-a',
@@ -134,35 +134,35 @@ test("a restart closes the viewers and reruns the command in the TUI's own pane"
 		],
 	]);
 	expect(h.printed.at(-1)).toBe(
-		`pappardelle-app is running ${FAKE_CLI_PATH} (${FAKE_SHA})`,
+		`lasagna-app is running ${FAKE_CLI_PATH} (${FAKE_SHA})`,
 	);
 	expect(fs.existsSync(restartLockPath(h.root, 'app'))).toBe(false);
 });
 
 test("a refused restart reports tmux's own error", async () => {
-	const h = setup(['pappardelle-app'], {'pappardelle-app': 'refused'});
+	const h = setup(['lasagna-app'], {'lasagna-app': 'refused'});
 
 	expect(await restartAndVerifyTui(app, COMMAND, null, h.deps)).toBe(false);
-	expect(h.printed.at(-1)).toBe(`Couldn't restart pappardelle-app: ${REFUSAL}`);
+	expect(h.printed.at(-1)).toBe(`Couldn't restart lasagna-app: ${REFUSAL}`);
 	expect(fs.existsSync(restartLockPath(h.root, 'app'))).toBe(false);
 });
 
 test('a TUI that comes up on another cli.js fails, naming both', async () => {
-	const h = setup(['pappardelle-app'], {
-		'pappardelle-app': {cliPath: '/old/dist/cli.js'},
+	const h = setup(['lasagna-app'], {
+		'lasagna-app': {cliPath: '/old/dist/cli.js'},
 	});
 
 	expect(await restartAndVerifyTui(app, COMMAND, FAKE_CLI_PATH, h.deps)).toBe(
 		false,
 	);
 	expect(h.printed.at(-1)).toBe(
-		`pappardelle-app is running /old/dist/cli.js, not ${FAKE_CLI_PATH}`,
+		`lasagna-app is running /old/dist/cli.js, not ${FAKE_CLI_PATH}`,
 	);
 });
 
 test('with no expected cli.js, whichever build comes up is reported', async () => {
-	const h = setup(['pappardelle-app'], {
-		'pappardelle-app': {cliPath: '/old/dist/cli.js'},
+	const h = setup(['lasagna-app'], {
+		'lasagna-app': {cliPath: '/old/dist/cli.js'},
 	});
 
 	expect(await restartAndVerifyTui(app, COMMAND, null, h.deps)).toBe(true);
@@ -170,26 +170,26 @@ test('with no expected cli.js, whichever build comes up is reported', async () =
 });
 
 test('a TUI that exits during startup fails without waiting out the timeout', async () => {
-	const h = setup(['pappardelle-app'], {'pappardelle-app': 'exits'});
+	const h = setup(['lasagna-app'], {'lasagna-app': 'exits'});
 	h.deps.timing = {...FAST, readyTimeoutMs: 60_000};
 
 	expect(await restartAndVerifyTui(app, COMMAND, null, h.deps)).toBe(false);
 	expect(
-		h.printed.at(-1)!.startsWith('pappardelle-app exited during startup'),
+		h.printed.at(-1)!.startsWith('lasagna-app exited during startup'),
 	).toBe(true);
 });
 
 test('a TUI that never reports ready times out', async () => {
-	const h = setup(['pappardelle-app'], {'pappardelle-app': 'silent'});
+	const h = setup(['lasagna-app'], {'lasagna-app': 'silent'});
 
 	expect(await restartAndVerifyTui(app, COMMAND, null, h.deps)).toBe(false);
-	expect(
-		h.printed.at(-1)!.startsWith('pappardelle-app did not report ready'),
-	).toBe(true);
+	expect(h.printed.at(-1)!.startsWith('lasagna-app did not report ready')).toBe(
+		true,
+	);
 });
 
 test('a marker left by the previous TUI does not count as ready', async () => {
-	const h = setup(['pappardelle-app'], {'pappardelle-app': 'silent'});
+	const h = setup(['lasagna-app'], {'lasagna-app': 'silent'});
 	fs.writeFileSync(
 		path.join(h.root, 'app', 'tui.json'),
 		JSON.stringify({
@@ -205,7 +205,7 @@ test('a marker left by the previous TUI does not count as ready', async () => {
 });
 
 test("a marker written from another pane does not count as this TUI's", async () => {
-	const h = setup(['pappardelle-app'], {'pappardelle-app': 'silent'});
+	const h = setup(['lasagna-app'], {'lasagna-app': 'silent'});
 	setTimeout(() => {
 		fs.writeFileSync(
 			path.join(h.root, 'app', 'tui.json'),
@@ -220,13 +220,13 @@ test("a marker written from another pane does not count as this TUI's", async ()
 	}, 30);
 
 	expect(await restartAndVerifyTui(app, COMMAND, null, h.deps)).toBe(false);
-	expect(
-		h.printed.at(-1)!.startsWith('pappardelle-app did not report ready'),
-	).toBe(true);
+	expect(h.printed.at(-1)!.startsWith('lasagna-app did not report ready')).toBe(
+		true,
+	);
 });
 
 test('a TUI whose panes were rearranged is restarted in the pane its marker names', async () => {
-	const h = setup(['pappardelle-app'], {}, {'pappardelle-app': '%5'});
+	const h = setup(['lasagna-app'], {}, {'lasagna-app': '%5'});
 	fs.writeFileSync(
 		path.join(h.root, 'app', 'tui.json'),
 		JSON.stringify({
@@ -245,7 +245,7 @@ test('a TUI whose panes were rearranged is restarted in the pane its marker name
 });
 
 test('a marker naming a pane that left the window falls back to the first pane', async () => {
-	const h = setup(['pappardelle-app']);
+	const h = setup(['lasagna-app']);
 	fs.writeFileSync(
 		path.join(h.root, 'app', 'tui.json'),
 		JSON.stringify({
@@ -264,47 +264,45 @@ test('a marker naming a pane that left the window falls back to the first pane',
 });
 
 test('a state dir the lock cannot be created in fails at once with the reason', async () => {
-	const h = setup(['pappardelle-app']);
+	const h = setup(['lasagna-app']);
 	fs.rmSync(path.join(h.root, 'app'), {recursive: true});
 	fs.writeFileSync(path.join(h.root, 'app'), 'not a directory');
 	h.deps.timing = {...FAST, lockTimeoutMs: 60_000};
 
 	expect(await restartAndVerifyTui(app, COMMAND, null, h.deps)).toBe(false);
 	expect(h.printed.at(-1)!).toMatch(
-		/^Couldn't restart pappardelle-app: E(EXIST|NOTDIR)/,
+		/^Couldn't restart lasagna-app: E(EXIST|NOTDIR)/,
 	);
-	expect(restarted(h.calls, ['pappardelle-app'])).toStrictEqual([]);
+	expect(restarted(h.calls, ['lasagna-app'])).toStrictEqual([]);
 });
 
 test('a second restart waits for the first instead of overlapping it', async () => {
-	const h = setup(['pappardelle-app']);
+	const h = setup(['lasagna-app']);
 	// The release below can run late when the suite is busy.
 	h.deps.timing = {...FAST, lockTimeoutMs: 60_000};
 	fs.writeFileSync(restartLockPath(h.root, 'app'), `${process.pid}\n`);
 	setTimeout(() => {
-		expect(restarted(h.calls, ['pappardelle-app'])).toStrictEqual([]);
+		expect(restarted(h.calls, ['lasagna-app'])).toStrictEqual([]);
 		fs.unlinkSync(restartLockPath(h.root, 'app'));
 	}, 60);
 
 	expect(await restartAndVerifyTui(app, COMMAND, null, h.deps)).toBe(true);
-	expect(restarted(h.calls, ['pappardelle-app'])).toStrictEqual([
-		'pappardelle-app',
-	]);
+	expect(restarted(h.calls, ['lasagna-app'])).toStrictEqual(['lasagna-app']);
 });
 
 test('a restart that stays locked gives up and leaves the TUI alone', async () => {
-	const h = setup(['pappardelle-app']);
+	const h = setup(['lasagna-app']);
 	fs.writeFileSync(restartLockPath(h.root, 'app'), `${process.pid}\n`);
 
 	expect(await restartAndVerifyTui(app, COMMAND, null, h.deps)).toBe(false);
-	expect(restarted(h.calls, ['pappardelle-app'])).toStrictEqual([]);
+	expect(restarted(h.calls, ['lasagna-app'])).toStrictEqual([]);
 	expect(
 		h.printed.at(-1)!.includes(`another restart (pid ${process.pid})`),
 	).toBe(true);
 });
 
 test('a lock left by a dead process is taken over', async () => {
-	const h = setup(['pappardelle-app']);
+	const h = setup(['lasagna-app']);
 	// Pids are capped far below this on every supported platform.
 	fs.writeFileSync(restartLockPath(h.root, 'app'), '2147483646\n');
 
@@ -312,23 +310,23 @@ test('a lock left by a dead process is taken over', async () => {
 });
 
 test('several TUIs restart one at a time, the current session last', async () => {
-	const sessions = ['pappardelle-app', 'pappardelle-web', 'pappardelle-api'];
-	const h = setup(sessions, {'pappardelle-web': 'refused'});
+	const sessions = ['lasagna-app', 'lasagna-web', 'lasagna-api'];
+	const h = setup(sessions, {'lasagna-web': 'refused'});
 
 	const failed = await restartTuis(
 		sessions.map(session => ({
 			session,
-			repo: session.replace('pappardelle-', ''),
+			repo: session.replace('lasagna-', ''),
 		})),
 		COMMAND,
-		{...h.deps, currentSession: () => 'pappardelle-app'},
+		{...h.deps, currentSession: () => 'lasagna-app'},
 	);
 
-	expect(failed).toStrictEqual(['pappardelle-web']);
+	expect(failed).toStrictEqual(['lasagna-web']);
 	expect(restarted(h.calls, sessions)).toStrictEqual([
-		'pappardelle-web',
-		'pappardelle-api',
-		'pappardelle-app',
+		'lasagna-web',
+		'lasagna-api',
+		'lasagna-app',
 	]);
 });
 
@@ -344,8 +342,8 @@ function ownHarness(
 		splitPanes?: string[];
 	} = {},
 ) {
-	const h = setup(['pappardelle-app'], options.behavior, {
-		'pappardelle-app': '%3',
+	const h = setup(['lasagna-app'], options.behavior, {
+		'lasagna-app': '%3',
 	});
 	// Key waits and session kills, in the order they happened.
 	const events: string[] = [];
@@ -365,7 +363,7 @@ function ownHarness(
 			},
 			splitPanes: () => options.splitPanes ?? [],
 			currentSession: () =>
-				options.current === undefined ? 'pappardelle-app' : options.current,
+				options.current === undefined ? 'lasagna-app' : options.current,
 			killSession(name: string) {
 				events.push(`kill ${name}`);
 			},
@@ -434,14 +432,14 @@ test('U reruns its own pane and leaves the lock for the next restart to clear', 
 });
 
 test('U shows why tmux refused, waits for a key, then closes the TUI-less session', () => {
-	const h = ownHarness({behavior: {'pappardelle-app': 'refused'}});
+	const h = ownHarness({behavior: {'lasagna-app': 'refused'}});
 
 	restartOwnTui(own, h.deps);
 
 	expect(h.printed.at(-1)!.startsWith(`Couldn't restart: ${REFUSAL}.`)).toBe(
 		true,
 	);
-	expect(h.events).toStrictEqual(['wait for key', 'kill pappardelle-app']);
+	expect(h.events).toStrictEqual(['wait for key', 'kill lasagna-app']);
 	expect(fs.existsSync(restartLockPath(h.root, 'app'))).toBe(false);
 });
 
@@ -454,7 +452,7 @@ test('U that cannot create its lock reports that and restarts nothing', () => {
 
 	expect(h.printed.at(-1)!).toMatch(/^Couldn't restart: E(EXIST|NOTDIR)/);
 	expect(h.calls).toStrictEqual([]);
-	expect(h.events).toStrictEqual(['wait for key', 'kill pappardelle-app']);
+	expect(h.events).toStrictEqual(['wait for key', 'kill lasagna-app']);
 });
 
 test("U inside the user's own tmux session closes only the viewer panes and restarts nothing", () => {
@@ -490,7 +488,7 @@ test('q in its own session closes the whole session', () => {
 
 	closeTuiLayout('app', layout, h.deps);
 
-	expect(h.events).toStrictEqual(['kill pappardelle-app']);
+	expect(h.events).toStrictEqual(['kill lasagna-app']);
 	expect(h.layoutCalls).toStrictEqual([]);
 });
 

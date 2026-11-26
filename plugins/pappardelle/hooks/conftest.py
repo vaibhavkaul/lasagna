@@ -49,7 +49,7 @@ def record_space(db: Path, repo: str, key: str, worktree_path: str, agent_sessio
         connection.execute(
             """INSERT INTO space_identities
             (repo, key, worktree_path, tmux_socket, agent_session, companion_session)
-            VALUES (?, ?, ?, 'pappardelle_inner', ?, ?)""",
+            VALUES (?, ?, ?, 'lasagna_inner', ?, ?)""",
             (repo, key, worktree_path, agent_session or f"agent-{repo}-{key}", f"companion-{repo}-{key}"),
         )
         if key != "main":

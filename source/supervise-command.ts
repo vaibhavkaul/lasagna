@@ -905,7 +905,7 @@ function describeJob(job: Job): string {
 const PANE_FIELDS = [
 	'#{session_name}',
 	'#{pane_id}',
-	'#{@pappardelle_title}',
+	'#{@lasagna_title}',
 	'#{pane_current_command}',
 	'#{pane_start_command}',
 ].join('\t');
@@ -920,7 +920,7 @@ function tuiPanes(deps: SuperviseDeps): string {
 
 	const rows = result.stdout
 		.split('\n')
-		.filter(line => line.startsWith('pappardelle-'))
+		.filter(line => line.startsWith('lasagna-'))
 		.map(line => line.split('\t'));
 	return [['SESSION', 'PANE', 'TITLE', 'RUNNING', 'STARTED AS'], ...rows]
 		.map(row => row.join('\t'))
@@ -943,7 +943,7 @@ async function focusLog(seconds: number, deps: SuperviseDeps): Promise<void> {
 			'#{session_name}:#{pane_id}:#{pane_active}',
 		])
 			.split('\n')
-			.filter(line => line.startsWith('pappardelle-') && line.endsWith(':1'))
+			.filter(line => line.startsWith('lasagna-') && line.endsWith(':1'))
 			.map(line => line.slice(0, -2))
 			.join(' ');
 		const clients = read([

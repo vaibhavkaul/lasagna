@@ -260,7 +260,7 @@ def tmux_agent_pane(cwd: str) -> Optional[AgentPane]:
     tmux = shutil.which("tmux")
     if not tmux:
         return None
-    socket = os.environ.get("PAPPARDELLE_TMUX_SOCKET") or "pappardelle_inner"
+    socket = os.environ.get("PAPPARDELLE_TMUX_SOCKET") or "lasagna_inner"
 
     def run(*args: str) -> Optional[str]:
         result = subprocess.run(

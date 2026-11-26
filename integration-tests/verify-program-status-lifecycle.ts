@@ -153,7 +153,7 @@ try {
 		'-qv',
 		'-t',
 		`=${probe}:`,
-		'@pappardelle_status_pane',
+		'@lasagna_status_pane',
 	]);
 	assert.equal(pin.trim(), '');
 	await harness.tmux(['kill-session', '-t', `=${probe}`]);

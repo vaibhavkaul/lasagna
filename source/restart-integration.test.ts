@@ -14,7 +14,7 @@ import {shellQuote} from './shell-quote.ts';
 
 const tmuxTest = spawnSync('tmux', ['-V']).status === 0 ? test : test.skip;
 
-const SESSION = 'pappardelle-itest';
+const SESSION = 'lasagna-itest';
 
 // The test's own view of the default server, whatever TMUX says.
 function tmux(...args: string[]): string {
@@ -57,7 +57,7 @@ async function waitForAttachedClient(): Promise<void> {
 tmuxTest(
 	'restart from a claude pane keeps the server up and the terminal attached',
 	async () => {
-		const dir = mkdtempSync(join(tmpdir(), 'pappardelle-restart-'));
+		const dir = mkdtempSync(join(tmpdir(), 'lasagna-restart-'));
 		const savedTmpdir = process.env['TMUX_TMPDIR'];
 		process.env['TMUX_TMPDIR'] = dir;
 		teardown(() => {
@@ -115,7 +115,7 @@ setInterval(() => {}, 1000);`,
 
 		// The claude pane's server. Nothing listens there, so any call that
 		// followed TMUX instead of going to the default server would fail.
-		process.env['TMUX'] = `${join(dir, 'pappardelle_inner')},1,0`;
+		process.env['TMUX'] = `${join(dir, 'lasagna_inner')},1,0`;
 
 		const innerCalls: string[][] = [];
 		const printed: string[] = [];
@@ -173,7 +173,7 @@ setInterval(() => {}, 1000);`,
 
 		expect(
 			printed.filter(line =>
-				/^pappardelle-itest is running .*stub-tui\.cjs \(stub\)$/.test(line),
+				/^lasagna-itest is running .*stub-tui\.cjs \(stub\)$/.test(line),
 			).length,
 		).toBe(3);
 		expect(innerCalls).toStrictEqual([]);

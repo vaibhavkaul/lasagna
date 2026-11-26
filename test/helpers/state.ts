@@ -185,7 +185,7 @@ export function idowIdentities(
 			repo,
 			key,
 			worktreePath: `/w/${key}`,
-			socket: 'pappardelle_inner',
+			socket: 'lasagna_inner',
 		});
 	return {
 		get: key =>

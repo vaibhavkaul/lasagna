@@ -255,7 +255,7 @@ if (sqliteRun) {
 				repo: path.basename(fixture.main),
 				key: 'test-abc',
 				worktreePath: stored,
-				socket: 'pappardelle_inner',
+				socket: 'lasagna_inner',
 			}),
 		);
 		await fixture.run();

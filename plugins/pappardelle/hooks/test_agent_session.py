@@ -38,7 +38,7 @@ TOP_LEVEL_CLAUDE = {
     98: (97, "claude --model opus"),
     97: (96, "/bin/zsh -ic claude --model opus"),
     96: (95, "/bin/sh -c \"$1\" -ic \"$2\""),
-    95: (1, "/opt/homebrew/bin/tmux -L pappardelle_inner new-session"),
+    95: (1, "/opt/homebrew/bin/tmux -L lasagna_inner new-session"),
 }
 
 # codex installed through npm: a node wrapper around the native binary.
@@ -162,7 +162,7 @@ CLAUDE_WRAPPER = {
     98: (97, "claude --settings /Users/me/.claude-local.json"),
     97: (96, "bash /Users/me/bin/claude-local"),
     96: (95, "/bin/zsh -ic claude-local"),
-    95: (1, "/opt/homebrew/bin/tmux -L pappardelle_inner new-session"),
+    95: (1, "/opt/homebrew/bin/tmux -L lasagna_inner new-session"),
 }
 
 
@@ -172,7 +172,7 @@ TOP_LEVEL_AGY = {
     99: (98, "agy --model gemini-4-argon-medium -i /idow STA-1"),
     98: (97, "zsh -ic agy --model gemini-4-argon-medium -i '/idow STA-1'"),
     97: (96, "/bin/sh -c \"$1\" -ic \"$2\""),
-    96: (1, "/opt/homebrew/bin/tmux -L pappardelle_inner new-session"),
+    96: (1, "/opt/homebrew/bin/tmux -L lasagna_inner new-session"),
 }
 
 # The space's agy after a relaunch.
@@ -181,7 +181,7 @@ RELAUNCHED_AGY = {
     89: (88, "agy --model gemini-4-argon-medium --conversation first"),
     88: (87, "zsh -ic agy --model gemini-4-argon-medium --conversation first"),
     87: (86, "/bin/sh -c \"$1\" -ic \"$2\""),
-    86: (1, "/opt/homebrew/bin/tmux -L pappardelle_inner new-session"),
+    86: (1, "/opt/homebrew/bin/tmux -L lasagna_inner new-session"),
 }
 
 # codex running agy through its shell tool, in an agy profile's pane.
@@ -232,7 +232,7 @@ def launch(key: str = "STA-1", agent_profile: str = "codex", is_claude: bool = F
             connection.execute(
                 """INSERT OR IGNORE INTO space_identities
                 (repo, key, worktree_path, tmux_socket, agent_session, companion_session)
-                VALUES ('repo', ?, ?, 'pappardelle_inner', ?, ?)""",
+                VALUES ('repo', ?, ?, 'lasagna_inner', ?, ?)""",
                 (key, f"/w/{key}", agent_session_name(key), f"companion-repo-{key}"),
             )
             connection.execute(
@@ -635,7 +635,7 @@ CODEX_DAEMON_UNDER_ITS_STARTER = {
     97: (60, "/home/me/.codex/packages/app-server-daemon/releases/0.169.1/bin/codex app-server daemon pid-update-loop"),
     60: (59, "/home/me/.local/share/mise/installs/codex/latest/bin/codex --yolo"),
     59: (58, "zsh -ic codex --yolo"),
-    58: (1, "/usr/bin/tmux -L pappardelle_inner new-session"),
+    58: (1, "/usr/bin/tmux -L lasagna_inner new-session"),
 }
 
 

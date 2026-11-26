@@ -6,7 +6,7 @@
 // when it believes the client's terminal supports Sync, and it infers that from
 // the client's TERM. Pappardelle's clients routinely report `tmux-256color`
 // (nested tmux is this app's normal shape; the claude and companion panes each
-// host a `tmux -L pappardelle_inner attach`), which advertises no Sync. With
+// host a `tmux -L lasagna_inner attach`), which advertises no Sync. With
 // `terminal-features` left at tmux's defaults a typing burst produced 0
 // synchronized updates downstream; with `*:Sync` appended the same burst
 // produced 11. Unbatched repaints let the outer terminal present a half-drawn
@@ -53,7 +53,7 @@ test('the inner-socket call keeps the -L flag', async () => {
 	});
 
 	expect(calls).toStrictEqual([
-		['-L', 'pappardelle_inner', ...synchronizedOutputArgs()],
+		['-L', 'lasagna_inner', ...synchronizedOutputArgs()],
 	]);
 });
 
@@ -71,7 +71,7 @@ test('a failing tmux never breaks layout setup', async () => {
 test('real tmux adds the feature once, and only a whole entry counts as present', async () => {
 	// `terminal-features` is server-scope, so an unguarded append piles on
 	// another copy with every launch against a long-lived server: 19 `*:Sync`
-	// entries were observed on a live pappardelle_inner socket. `*:Sync` must
+	// entries were observed on a live lasagna_inner socket. `*:Sync` must
 	// match a whole array entry, because `foo*:Sync` is the same feature on a
 	// different terminal pattern.
 	try {

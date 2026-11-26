@@ -91,7 +91,7 @@ The center and right panes in the Pappardelle session are "viewers" — they run
 This means:
 
 - **Workspaces are independent.** Each agent session runs in its own tmux session. If Pappardelle crashes, your agent sessions keep running.
-- **Attach from anywhere.** You can attach to any workspace's agent session from a separate terminal: `tmux -L pappardelle_inner attach -t agent-stardust-labs-STA-631`.
+- **Attach from anywhere.** You can attach to any workspace's agent session from a separate terminal: `tmux -L lasagna_inner attach -t agent-stardust-labs-STA-631`.
 - **Switching is instant.** After the first attachment, switching between workspaces uses tmux's fast `switch-client` path — no process restart, no visible flash.
 
 ### Program status
@@ -155,17 +155,17 @@ Ensure `~/.local/bin` precedes other tmux installations in your `PATH`, or regis
 **Existing servers keep using the old binary.** When ready to end all running workspace processes, run this from a terminal outside tmux, then launch `lasagna` again:
 
 ```bash
-tmux -L pappardelle_inner kill-server
+tmux -L lasagna_inner kill-server
 tmux kill-server
 ```
 
-A "no server running" message is harmless. Closing the Pappardelle window or every space leaves the inner server running, so it keeps the old tmux binary and your old `~/.tmux.conf` until you run these commands or `lasagna restart --hard`. After relaunching, check the running servers with `tmux display-message -p '#{version}'` and `tmux -L pappardelle_inner display-message -p '#{version}'`.
+A "no server running" message is harmless. Closing the Pappardelle window or every space leaves the inner server running, so it keeps the old tmux binary and your old `~/.tmux.conf` until you run these commands or `lasagna restart --hard`. After relaunching, check the running servers with `tmux display-message -p '#{version}'` and `tmux -L lasagna_inner display-message -p '#{version}'`.
 
 ### Recommended tmux config
 
 Pappardelle works with any tmux configuration, but these settings improve the experience — mouse support, Ctrl+Shift+arrow pane navigation, and a clean status bar. See [`examples/tmux.conf`](examples/tmux.conf) and append to your `~/.tmux.conf`. If you don't have one yet:
 
-The file also turns on tmux's extended keys. Without them Shift+Enter (newline in Claude Code) arrives in the panes as a plain Enter. tmux reads `~/.tmux.conf` at server start only, and Pappardelle runs two servers, the TUI one and `pappardelle_inner` for the Claude and companion sessions, so after editing reload both: `tmux source-file ~/.tmux.conf` and `tmux -L pappardelle_inner source-file ~/.tmux.conf`.
+The file also turns on tmux's extended keys. Without them Shift+Enter (newline in Claude Code) arrives in the panes as a plain Enter. tmux reads `~/.tmux.conf` at server start only, and Pappardelle runs two servers, the TUI one and `lasagna_inner` for the Claude and companion sessions, so after editing reload both: `tmux source-file ~/.tmux.conf` and `tmux -L lasagna_inner source-file ~/.tmux.conf`.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vaibhavkaul/lasagna/main/examples/tmux.conf -o ~/.tmux.conf
@@ -182,7 +182,7 @@ Press `q` in the workspace list pane to quit. This kills the Pappardelle tmux se
 To also kill all workspace sessions, use `Delete` on each workspace from the TUI before quitting, or run `lasagna close <issue-key>` from a shell (`--yes` skips the question, and is required without a terminal). It runs the same close as `Delete`: deinit hooks, then its sessions end and it leaves the list; the worktree stays on disk. `K` closes every workspace whose issue is already done or canceled in one confirmed step. Or nuke everything with:
 
 ```bash
-tmux -L pappardelle_inner kill-server
+tmux -L lasagna_inner kill-server
 tmux kill-server
 ```
 
@@ -615,7 +615,7 @@ Outside the TUI, `lasagna update` runs the same installer from any directory. It
 
 `lasagna restart` restarts this repo's TUI in its tmux pane, so your terminal stays attached and the layout rebuilds. Run from a plain terminal, it then attaches to the TUI. If no TUI is running for the repo, it says so and starts nothing.
 
-Restarting doesn't touch agent and companion sessions; they live on a separate tmux server (`pappardelle_inner`). `lasagna restart --hard` ends that server too, then restarts every running TUI. Each agent resumes its own conversation the next time you select its space, so conversations survive but anything in flight stops. It asks first; `--yes` skips the question, and without a terminal it refuses unless `--yes` is passed. Your other tmux sessions are never touched.
+Restarting doesn't touch agent and companion sessions; they live on a separate tmux server (`lasagna_inner`). `lasagna restart --hard` ends that server too, then restarts every running TUI. Each agent resumes its own conversation the next time you select its space, so conversations survive but anything in flight stops. It asks first; `--yes` skips the question, and without a terminal it refuses unless `--yes` is passed. Your other tmux sessions are never touched.
 
 The version shown in the help (`?`) overlay follows the same source-of-truth but degrades differently, since `package.json` is never bumped on release and so is always a stale `0.1.0`:
 
@@ -631,10 +631,10 @@ The TUI writes its logs to `~/.lasagna/logs/` with daily rotation (7-day retenti
 
 ```bash
 # View today's log
-cat ~/.lasagna/logs/pappardelle-$(date +%Y-%m-%d).log
+cat ~/.lasagna/logs/lasagna-$(date +%Y-%m-%d).log
 
 # Tail logs in real-time
-tail -f ~/.lasagna/logs/pappardelle-*.log
+tail -f ~/.lasagna/logs/lasagna-*.log
 
 # View errors only
 grep '\[ERROR\]' ~/.lasagna/logs/*.log

@@ -152,7 +152,7 @@ test('space_get maps onto space get, and all onto space list', async () => {
 			repo: state.repo,
 			key: 'STA-1',
 			worktreePath: '/home/u/.worktrees/repo/STA-1',
-			socket: 'pappardelle_inner',
+			socket: 'lasagna_inner',
 		}),
 	);
 	await state.daos.registry.add('STA-1');

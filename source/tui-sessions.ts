@@ -36,7 +36,7 @@ function repoSpelledOuterName(repoName: string): string {
 export type RunningTui = {session: string; repo: string};
 
 // cli.tsx creates ~/.lasagna/repos/<repo> before opening the TUI's
-// `pappardelle-<repo>` session, so only sessions named after a state dir are
+// `lasagna-<repo>` session, so only sessions named after a state dir are
 // TUIs; a user's own `pappardelle-*` session stays off the list.
 export function listRunningTuis(
 	tmux: OuterTmuxRunner,

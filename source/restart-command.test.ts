@@ -121,7 +121,7 @@ function mutations(h: Harness): string[] {
 
 test("restart reruns only this repo's TUI, on the build that ran the command", async () => {
 	const h = harness({
-		sessions: ['pappardelle-app', 'pappardelle-web'],
+		sessions: ['lasagna-app', 'lasagna-web'],
 		repos: ['app', 'web'],
 	});
 
@@ -129,13 +129,13 @@ test("restart reruns only this repo's TUI, on the build that ran the command", a
 	expect(mutations(h)).toStrictEqual([restartOf('%0')]);
 	expect(h.attached).toStrictEqual([]);
 	expect(h.printed.at(-1)).toBe(
-		`pappardelle-app is running ${FAKE_CLI_PATH} (${FAKE_SHA})`,
+		`lasagna-app is running ${FAKE_CLI_PATH} (${FAKE_SHA})`,
 	);
 });
 
 test('restart never talks to the inner server', async () => {
 	const h = harness({
-		sessions: ['pappardelle-app'],
+		sessions: ['lasagna-app'],
 		repos: ['app'],
 		onInnerServer: true,
 	});
@@ -147,7 +147,7 @@ test('restart never talks to the inner server', async () => {
 
 test('restart from a plain terminal attaches to the restarted TUI', async () => {
 	const h = harness({
-		sessions: ['pappardelle-app'],
+		sessions: ['lasagna-app'],
 		repos: ['app'],
 		inTmux: false,
 		isTTY: true,
@@ -155,12 +155,12 @@ test('restart from a plain terminal attaches to the restarted TUI', async () => 
 
 	await restartRepo('app', h.deps);
 
-	expect(h.attached).toStrictEqual(['pappardelle-app']);
+	expect(h.attached).toStrictEqual(['lasagna-app']);
 });
 
 test('restart without a terminal confirms the TUI and skips attaching', async () => {
 	const h = harness({
-		sessions: ['pappardelle-app'],
+		sessions: ['lasagna-app'],
 		repos: ['app'],
 		inTmux: false,
 		isTTY: false,
@@ -172,7 +172,7 @@ test('restart without a terminal confirms the TUI and skips attaching', async ()
 
 test('restart with no TUI running launches nothing', async () => {
 	const h = harness({
-		sessions: ['pappardelle-web'],
+		sessions: ['lasagna-web'],
 		repos: ['app', 'web'],
 		inTmux: false,
 	});
@@ -186,28 +186,28 @@ test('restart with no TUI running launches nothing', async () => {
 });
 
 for (const [name, behavior, message] of [
-	['tmux refuses', 'refused', `Couldn't restart pappardelle-app: ${REFUSAL}`],
+	['tmux refuses', 'refused', `Couldn't restart lasagna-app: ${REFUSAL}`],
 	[
 		'the TUI comes up on another build',
 		{cliPath: '/old/dist/cli.js'},
-		`pappardelle-app is running /old/dist/cli.js, not ${FAKE_CLI_PATH}`,
+		`lasagna-app is running /old/dist/cli.js, not ${FAKE_CLI_PATH}`,
 	],
 	[
 		'the TUI exits during startup',
 		'exits',
-		'pappardelle-app exited during startup; see ~/.lasagna/logs',
+		'lasagna-app exited during startup; see ~/.lasagna/logs',
 	],
 	[
 		'the TUI never reports ready',
 		'silent',
-		'pappardelle-app did not report ready within 0s',
+		'lasagna-app did not report ready within 0s',
 	],
 ] as const) {
 	test(`restart fails and says why when ${name}`, async () => {
 		const h = harness({
-			sessions: ['pappardelle-app'],
+			sessions: ['lasagna-app'],
 			repos: ['app'],
-			behavior: {'pappardelle-app': behavior},
+			behavior: {'lasagna-app': behavior},
 			inTmux: false,
 		});
 
@@ -223,10 +223,10 @@ for (const [name, behavior, message] of [
 
 test('--hard --yes kills the inner server before restarting every TUI', async () => {
 	const h = harness({
-		sessions: ['pappardelle-app', 'pappardelle-web'],
+		sessions: ['lasagna-app', 'lasagna-web'],
 		repos: ['app', 'web'],
 		innerSessions: ['claude-app-STA-1'],
-		currentSession: 'pappardelle-app',
+		currentSession: 'lasagna-app',
 	});
 
 	expect(await hardRestart(true, h.deps)).toBe(0);
@@ -239,20 +239,20 @@ test('--hard --yes kills the inner server before restarting every TUI', async ()
 
 test('--hard fails when a TUI is not confirmed running afterwards', async () => {
 	const h = harness({
-		sessions: ['pappardelle-app', 'pappardelle-web'],
+		sessions: ['lasagna-app', 'lasagna-web'],
 		repos: ['app', 'web'],
-		behavior: {'pappardelle-web': 'silent'},
+		behavior: {'lasagna-web': 'silent'},
 	});
 
 	expect(await hardRestart(true, h.deps)).toBe(1);
 	expect(
-		h.printed.some(line => line.startsWith('pappardelle-app is running')),
+		h.printed.some(line => line.startsWith('lasagna-app is running')),
 	).toBe(true);
 });
 
 test('--hard asks on a TTY and does nothing when declined', async () => {
 	const h = harness({
-		sessions: ['pappardelle-app'],
+		sessions: ['lasagna-app'],
 		repos: ['app'],
 		innerSessions: ['claude-app-STA-1', 'companion-app-STA-1'],
 		isTTY: true,
@@ -263,7 +263,7 @@ test('--hard asks on a TTY and does nothing when declined', async () => {
 	expect(h.confirmCalls[0]!.startsWith('End 2 agent/companion sessions')).toBe(
 		true,
 	);
-	expect(h.confirmCalls[0]!.includes('pappardelle-app')).toBe(true);
+	expect(h.confirmCalls[0]!.includes('lasagna-app')).toBe(true);
 	expect(mutations(h)).toStrictEqual([]);
 });
 
@@ -278,7 +278,7 @@ test('--hard with no TUIs running only mentions the agent sessions', async () =>
 });
 
 test('--hard without a TTY or --yes refuses', async () => {
-	const h = harness({sessions: ['pappardelle-app'], repos: ['app']});
+	const h = harness({sessions: ['lasagna-app'], repos: ['app']});
 
 	expect(await hardRestart(false, h.deps)).toBe(1);
 	expect(h.confirmCalls).toStrictEqual([]);
@@ -287,7 +287,7 @@ test('--hard without a TTY or --yes refuses', async () => {
 
 test('--hard from a claude pane hands the kill and restarts to a detached child, kill first', async () => {
 	const h = harness({
-		sessions: ['pappardelle-app', 'pappardelle-web'],
+		sessions: ['lasagna-app', 'lasagna-web'],
 		repos: ['app', 'web'],
 		onInnerServer: true,
 	});
@@ -309,13 +309,13 @@ test('--hard from a claude pane hands the kill and restarts to a detached child,
 		COMMAND,
 	];
 	expect(h.detached).toStrictEqual([
-		[['-L', 'pappardelle_inner', 'kill-server'], restart('%0'), restart('%1')],
+		[['-L', 'lasagna_inner', 'kill-server'], restart('%0'), restart('%1')],
 	]);
 });
 
 test('--hard with no inner server still restarts the TUIs', async () => {
 	const h = harness({
-		sessions: ['pappardelle-app'],
+		sessions: ['lasagna-app'],
 		repos: ['app'],
 		innerSessions: null,
 	});

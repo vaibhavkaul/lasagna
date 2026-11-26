@@ -28,8 +28,8 @@ import {createLogger} from './logger.ts';
 
 const execute = promisify(execFile);
 const log = createLogger('program-status');
-export const STATUS_MONITOR_OPTION = '@pappardelle_status_generation';
-export const STATUS_PANE_OPTION = '@pappardelle_status_pane';
+export const STATUS_MONITOR_OPTION = '@lasagna_status_generation';
+export const STATUS_PANE_OPTION = '@lasagna_status_pane';
 export type StatusTmuxRunner = (args: string[]) => Promise<string>;
 export const runStatusTmux: StatusTmuxRunner = async args => {
 	const result = await execute('tmux', args, {
@@ -40,7 +40,7 @@ export const runStatusTmux: StatusTmuxRunner = async args => {
 };
 
 export function statusSocket(env: NodeJS.ProcessEnv = process.env): string {
-	return env['PAPPARDELLE_TMUX_SOCKET'] ?? 'pappardelle_inner';
+	return env['PAPPARDELLE_TMUX_SOCKET'] ?? 'lasagna_inner';
 }
 /** tmux's flag for a socket: a path, or a name under tmux's own directory. */
 export function statusSocketFlag(socket: string): '-S' | '-L' {

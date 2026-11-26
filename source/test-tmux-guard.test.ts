@@ -106,33 +106,33 @@ function assertPassed(result: Run, args: string[]) {
 
 test('refuses a named socket when TMUX_TMPDIR is unset', () => {
 	const {run} = setup();
-	const args = ['-L', 'pappardelle_inner', 'kill-server'];
+	const args = ['-L', 'lasagna_inner', 'kill-server'];
 	assertRefused(
 		run(args, {liveDir: tmpLiveDir}),
-		`${tmpLiveDir}/pappardelle_inner`,
+		`${tmpLiveDir}/lasagna_inner`,
 		args,
 	);
 });
 
 test('refuses a named socket when TMUX_TMPDIR was removed, as tmux falls back to /tmp', () => {
 	const {root, run} = setup();
-	const args = ['-L', 'pappardelle_inner', 'kill-server'];
+	const args = ['-L', 'lasagna_inner', 'kill-server'];
 	assertRefused(
 		run(args, {
 			liveDir: tmpLiveDir,
 			env: {TMUX_TMPDIR: path.join(root, 'removed')},
 		}),
-		`${tmpLiveDir}/pappardelle_inner`,
+		`${tmpLiveDir}/lasagna_inner`,
 		args,
 	);
 });
 
 test('refuses -L clustered with another flag', () => {
 	const {run} = setup();
-	const args = ['-NLpappardelle_inner', 'kill-server'];
+	const args = ['-NLlasagna_inner', 'kill-server'];
 	assertRefused(
 		run(args, {liveDir: tmpLiveDir}),
-		`${tmpLiveDir}/pappardelle_inner`,
+		`${tmpLiveDir}/lasagna_inner`,
 		args,
 	);
 });
@@ -150,10 +150,10 @@ test('refuses -S paths into the live directory, however they are spelled', () =>
 	const {root, live, priv, run} = setup();
 	fs.symlinkSync(live, path.join(root, 'link'));
 	const spellings = [
-		path.join(live, 'pappardelle_inner'),
-		path.join(root, 'link', 'pappardelle_inner'),
-		`${priv}/../live/tmux-${uid}/pappardelle_inner`,
-		`live/tmux-${uid}/pappardelle_inner`,
+		path.join(live, 'lasagna_inner'),
+		path.join(root, 'link', 'lasagna_inner'),
+		`${priv}/../live/tmux-${uid}/lasagna_inner`,
+		`live/tmux-${uid}/lasagna_inner`,
 	];
 	for (const socket of spellings) {
 		const args = ['-S', socket, 'kill-server'];
@@ -163,14 +163,14 @@ test('refuses -S paths into the live directory, however they are spelled', () =>
 
 test('refuses -L names and paths that climb into the live directory', () => {
 	const {root, live, priv, run} = setup();
-	const climb = `../../live/tmux-${uid}/pappardelle_inner`;
+	const climb = `../../live/tmux-${uid}/lasagna_inner`;
 	const args = ['-L', climb, 'kill-server'];
 	assertRefused(
 		run(args, {env: {TMUX_TMPDIR: priv}}),
 		`${priv}/tmux-${uid}/${climb}`,
 		args,
 	);
-	const doubled = `/${live}/pappardelle_inner`;
+	const doubled = `/${live}/lasagna_inner`;
 	assertRefused(
 		run(['-S', doubled, 'ls'], {env: {TMUX_TMPDIR: root}}),
 		doubled,
@@ -191,7 +191,7 @@ test('the last -S wins, and -S beats -L', () => {
 
 test('refuses a bare call whose TMUX names a live socket', () => {
 	const {live, priv, run} = setup();
-	const socket = path.join(live, 'pappardelle_inner');
+	const socket = path.join(live, 'lasagna_inner');
 	assertRefused(
 		run(['kill-server'], {env: {TMUX: `${socket},123,0`, TMUX_TMPDIR: priv}}),
 		socket,

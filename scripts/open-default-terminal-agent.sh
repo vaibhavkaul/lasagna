@@ -183,7 +183,7 @@ fi
 
 # The viewer session sits on the default socket, so its panes can attach to the
 # inner socket without tmux's nesting check rejecting them.
-VIEW_SESSION="pappardelle-view-${TMUX_SESSION#agent-}"
+VIEW_SESSION="lasagna-view-${TMUX_SESSION#agent-}"
 
 # Kept under $HOME rather than mktemp: `open` returns as soon as the terminal is
 # handed the file, so deleting it here would race the shell that has to read it.

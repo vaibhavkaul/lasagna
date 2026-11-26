@@ -353,7 +353,7 @@ const titleAndFocus = (issueKey: string) => [
 	'-p',
 	'-t',
 	'%1',
-	'@pappardelle_title',
+	'@lasagna_title',
 	`agent · ${issueKey}`,
 	';',
 	'select-pane',
@@ -404,7 +404,7 @@ for (const {delayed, cancel} of [
 		expect(getCurrentlyViewingSpace()).toBe(null);
 		release();
 		expect(await attaching).toBe(false);
-		expect(fake.calls.some(args => args.includes('@pappardelle_title'))).toBe(
+		expect(fake.calls.some(args => args.includes('@lasagna_title'))).toBe(
 			false,
 		);
 		fake.calls.length = 0;
@@ -545,7 +545,7 @@ test('switching yields to input and sends both clients to the selected inner ses
 	const switches = fake.calls.filter(args => args.includes('switch-client'));
 	expect(switches.length).toBe(2);
 	expect(
-		switches.every(args => args[0] === '-L' && args[1] === 'pappardelle_inner'),
+		switches.every(args => args[0] === '-L' && args[1] === 'lasagna_inner'),
 	).toBe(true);
 	expect(switches[0]!.at(-1)!.endsWith('-TEST-1:')).toBe(true);
 	expect(switches[1]!.at(-1)!.endsWith('-TEST-1:')).toBe(true);
@@ -622,7 +622,7 @@ test('warm switches move both viewers in one request without setup probes', asyn
 	).toBe(true);
 	expect(fake.calls.length).toBe(2);
 	const batch = fake.calls[0]!;
-	expect(batch.slice(0, 2)).toStrictEqual(['-L', 'pappardelle_inner']);
+	expect(batch.slice(0, 2)).toStrictEqual(['-L', 'lasagna_inner']);
 	const commands = splitBatch(batch.slice(2));
 	expect(isSplitListing(commands.at(-1))).toBe(true);
 	const target = (prefix: string) =>
@@ -660,7 +660,7 @@ test('a switch and a session start use the names stored for the space', async ()
 			key,
 			worktreePath: '/tmp',
 			tmux: {
-				socket: 'pappardelle_inner',
+				socket: 'lasagna_inner',
 				agentSession: `hand-named-agent-${key}`,
 				companionSession: `hand-named-companion-${key}`,
 			},
@@ -1035,7 +1035,7 @@ test('cold companion creation completes its command before reporting success', a
 		'main',
 	]);
 	expect(
-		calls.every(args => args[0] === '-L' && args[1] === 'pappardelle_inner'),
+		calls.every(args => args[0] === '-L' && args[1] === 'lasagna_inner'),
 	).toBe(true);
 	expect(calls[1]!.includes('PAPPARDELLE_SPACE=TEST-NEW')).toBe(true);
 	expect(calls[1]!.includes('custom-ui')).toBe(true);

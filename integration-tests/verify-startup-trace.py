@@ -99,7 +99,7 @@ def main():
             parent = next(r for r in launches if r['pid'] == launcher.pid)
             assert first['pid'] != launcher.pid
             assert first['parentLaunchId'] == parent['launchId']
-            persisted = tmux('display-message', '-p', '-t', '=pappardelle-repo:^', '#{pane_start_command}').stdout
+            persisted = tmux('display-message', '-p', '-t', '=lasagna-repo:^', '#{pane_start_command}').stdout
             assert first['launchId'] not in persisted and parent['launchId'] not in persisted
             before_help = len(launches)
             subprocess.run([str(binary), '--help'], env=env, cwd=repo, capture_output=True, check=True, timeout=5)

@@ -44,7 +44,7 @@ const daos = createStateDaos({
 const {registry} = daos;
 initTmuxState(daos);
 for (const key of ['A', 'B'])
-  await daos.spaceIdentities.record(newSpaceIdentity({repo: 'fixture', key, worktreePath: '/w/' + key, socket: 'pappardelle_inner'}));
+  await daos.spaceIdentities.record(newSpaceIdentity({repo: 'fixture', key, worktreePath: '/w/' + key, socket: 'lasagna_inner'}));
 await registry.add('A');
 await registry.add('B');
 let ticks = 0;
