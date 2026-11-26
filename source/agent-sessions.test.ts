@@ -13,7 +13,7 @@ import {openStateDb, stateDbPath} from './state-db.ts';
 
 const run = promisify(execFile);
 const HOOK_MODULE = fileURLToPath(
-	new URL('../plugins/pappardelle/hooks/agent_session.py', import.meta.url),
+	new URL('../plugins/lasagna/hooks/agent_session.py', import.meta.url),
 );
 
 const STARTED = 'Mon Nov  2 10:00:00 2026';
@@ -273,8 +273,8 @@ def patient_state_db():
     return state_db
 agent_session._load_state_db = patient_state_db
 table = {
-    100: (99, "python3 record-agent-session.py"),
-    99: (98, "sh -c python3 record-agent-session.py"),
+    100: (99, "python3 record-lasagna-session.py"),
+    99: (98, "sh -c python3 record-lasagna-session.py"),
     98: (97, "codex --yolo"),
     97: (96, "zsh -ic codex --yolo"),
     96: (1, "tmux -L lasagna_inner new-session"),

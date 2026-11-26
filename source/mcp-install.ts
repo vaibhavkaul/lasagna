@@ -9,7 +9,7 @@ import {homedir} from 'node:os';
 import path from 'node:path';
 import {AUTO_APPROVED_TOOLS} from './mcp-tools.ts';
 
-const SERVER = 'pappardelle';
+const SERVER = 'lasagna';
 
 export type RunResult = {status: number | null; error?: Error};
 

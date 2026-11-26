@@ -43,9 +43,9 @@ https://github.com/user-attachments/assets/abeaf413-5a1e-448a-ac53-2956a8ada5bf
 
 ## 1. Installation and Getting Started
 
-The fastest way to get set up is with `/init-pappardelle`.
+The fastest way to get set up is with `/init-lasagna`.
 
-Install Pappardelle. This builds the CLI and installs its plugin into Claude Code, Codex and agy: the hooks below plus five skills — `/init-pappardelle` (setup wizard), `/update-pappardelle` (update to latest), `/configure-pappardelle` (interactive config editor), `/sous-chef` (optional workspace coordinator), and `/link-pr` (record a PR/MR for the workspace):
+Install Pappardelle. This builds the CLI and installs its plugin into Claude Code, Codex and agy: the hooks below plus five skills — `/init-lasagna` (setup wizard), `/update-lasagna` (update to latest), `/configure-lasagna` (interactive config editor), `/sous-chef` (optional workspace coordinator), and `/link-pr` (record a PR/MR for the workspace):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vaibhavkaul/lasagna/main/install.sh | bash
@@ -54,7 +54,7 @@ curl -fsSL https://raw.githubusercontent.com/vaibhavkaul/lasagna/main/install.sh
 Run the setup wizard from any repo where you want to use Pappardelle. It writes your `.pappardelle.yml`:
 
 ```bash
-claude /init-pappardelle
+claude /init-lasagna
 ```
 
 For manual installation, see [Section 8: Reference](#8-reference). For the full config format, see the [configuration reference](pappardelle-config.md).
@@ -324,7 +324,7 @@ A one-line prompt like "add dark mode to settings" leaves a lot of questions ope
 
 ### Automatic Q&A documentation
 
-Every `AskUserQuestion` exchange is automatically posted as a comment on the Linear, Jira or beads issue by the [`comment-question-answered.py`](plugins/pappardelle/hooks/comment-question-answered.py) hook. This means:
+Every `AskUserQuestion` exchange is automatically posted as a comment on the Linear, Jira or beads issue by the [`comment-question-answered.py`](plugins/lasagna/hooks/comment-question-answered.py) hook. This means:
 
 - **The issue becomes the single source of truth.** The original prompt, every clarifying question, and every answer are all captured in one place — not scattered across chat windows or terminal scrollback.
 - **Anyone reviewing the PR can see the full context.** The issue thread shows exactly what the agent asked, what the developer decided, and why.
@@ -334,7 +334,7 @@ Every `AskUserQuestion` exchange is automatically posted as a comment on the Lin
 
 ## 5. Customizing Your Configuration
 
-Use `/configure-pappardelle` to interactively edit your config — it walks you through adding profiles, keybindings, hooks, and more using `AskUserQuestion`. Available via the [skills](#skills) or by asking Claude directly (it's model-invocable).
+Use `/configure-lasagna` to interactively edit your config — it walks you through adding profiles, keybindings, hooks, and more using `AskUserQuestion`. Available via the [skills](#skills) or by asking Claude directly (it's model-invocable).
 
 Pappardelle is configured via a `.pappardelle.yml` file at your repo root. The key concepts:
 
@@ -375,7 +375,7 @@ Because Pappardelle runs entirely inside tmux, you can access your full workspac
 
 ### Nice-to-haves
 
-- **[ntfy](https://ntfy.sh/)** — Push notifications to your phone when Claude needs input. Pappardelle ships with a [`zap-notification.py`](plugins/pappardelle/hooks/zap-notification.py) hook that sends a push via ntfy whenever Claude asks a question or hits a permission prompt. To get it working, set the `PAPPARDELLE_NTFY_TOPIC` environment variable and subscribe to the same topic in the ntfy app on your phone. That variable is the only switch: leave it unset and the hook stays silent. This way you don't have to babysit the terminal, just wait for the buzz.
+- **[ntfy](https://ntfy.sh/)** — Push notifications to your phone when Claude needs input. Pappardelle ships with a [`zap-notification.py`](plugins/lasagna/hooks/zap-notification.py) hook that sends a push via ntfy whenever Claude asks a question or hits a permission prompt. To get it working, set the `PAPPARDELLE_NTFY_TOPIC` environment variable and subscribe to the same topic in the ntfy app on your phone. That variable is the only switch: leave it unset and the hook stays silent. This way you don't have to babysit the terminal, just wait for the buzz.
 - **[Wispr Flow](https://apps.apple.com/us/app/wispr-flow-ai-voice-keyboard/id6497229487)** — Voice-to-text dictation that works system-wide, including inside Termius. Lets you talk to Claude instead of thumb-typing on a phone keyboard.
 
 ### Recommended Termius keyboard shortcuts
@@ -512,7 +512,7 @@ Note the fallback to `${REPO_ROOT}/repo-a` here ensures this shortcut works in t
 
 ### Manual installation
 
-If you prefer to install without the `/init-pappardelle` skill:
+If you prefer to install without the `/init-lasagna` skill:
 
 **One-line install:**
 
@@ -571,14 +571,14 @@ lasagna plugin install  # installs the plugin (skills, hooks and MCP tools) into
 
 ### Agent hooks
 
-The Pappardelle plugin ships the hooks that connect agent sessions to the TUI: [Claude Code's](plugins/pappardelle/hooks/hooks.json) and [agy's](plugins/pappardelle/hooks.json) hooks files, and the session hook `lasagna plugin install` adds to `~/.codex/hooks.json` for Codex:
+The Pappardelle plugin ships the hooks that connect agent sessions to the TUI: [Claude Code's](plugins/lasagna/hooks/hooks.json) and [agy's](plugins/lasagna/hooks.json) hooks files, and the session hook `lasagna plugin install` adds to `~/.codex/hooks.json` for Codex:
 
 | Hook                           | Trigger                                                                       | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | ------------------------------ | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `update-status.py`             | Every Claude session and tool event                                           | Writes session status to `~/.lasagna/claude-status/<repo>-<space>.json` for live TUI updates, or with `experimental.sqliteState` on sends it to the [status daemon](pappardelle-config.md#status-daemon). The repo and space come from `PAPPARDELLE_REPO` and `PAPPARDELLE_SPACE`, set on the tmux session at launch, so a Claude you restart or `--resume` by hand in the pane keeps updating its space. Outside a pappardelle pane it falls back to the worktree path or `<repo>-<branch>`, or with `experimental.sqliteState` on to the stored space whose worktree holds its directory, reporting nothing outside one. On `SessionStart` and `UserPromptSubmit` it also records Claude's session id for resume |
 | `comment-question-answered.py` | `PostToolUse` (AskUserQuestion)                                               | Posts Q&A exchanges as comments on the issue (Linear, Jira, or beads)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `zap-notification.py`          | `PreToolUse`, `Notification` (`permission_prompt`)                            | Sends push notifications via ntfy when Claude needs user input                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `record-agent-session.py`      | Codex `SessionStart`, `UserPromptSubmit`; agy `SessionStart`, `PreInvocation` | Records the agent's session id for its space so a relaunch resumes the space's own conversation. See [Session resume](pappardelle-config.md#session-resume)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `record-lasagna-session.py`    | Codex `SessionStart`, `UserPromptSubmit`; agy `SessionStart`, `PreInvocation` | Records the agent's session id for its space so a relaunch resumes the space's own conversation. See [Session resume](pappardelle-config.md#session-resume)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 ### Versioning and updates
 
@@ -688,16 +688,16 @@ See [`integration-tests/README.md`](integration-tests/README.md) for env vars an
 
 ### Skills
 
-Pappardelle ships these skills in [`plugins/pappardelle/skills`](plugins/pappardelle/skills):
+Pappardelle ships these skills in [`plugins/lasagna/skills`](plugins/lasagna/skills):
 
-| Skill                    | Description                                                                                                                                                                                       | Model-invocable |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
-| `/init-pappardelle`      | Interactive setup wizard — installs Pappardelle, checks prerequisites, generates `.pappardelle.yml`                                                                                               | No              |
-| `/update-pappardelle`    | Re-runs the install script to update Pappardelle to the latest version                                                                                                                            | No              |
-| `/configure-pappardelle` | Interactive config editor for `.pappardelle.yml` and `.pappardelle.local.yml` — profiles, keybindings, hooks, watchlists, and more                                                                | Yes             |
-| `/sous-chef`             | Kitchen-style coordinator — quick overview of active spaces, drill into any space for a sitrep, watch the line and answer prompts on your word, relay instructions, open, reopen and close spaces | No              |
-| `/link-pr`               | Records a verified PR/MR for the current workspace with `lasagna link-pr`                                                                                                                         | Yes             |
-| `pappardelle-agent`      | Workspace layout, the CLI behind the MCP tools, and how to update or restart Pappardelle                                                                                                          | Yes             |
+| Skill                | Description                                                                                                                                                                                       | Model-invocable |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| `/init-lasagna`      | Interactive setup wizard — installs Pappardelle, checks prerequisites, generates `.pappardelle.yml`                                                                                               | No              |
+| `/update-lasagna`    | Re-runs the install script to update Pappardelle to the latest version                                                                                                                            | No              |
+| `/configure-lasagna` | Interactive config editor for `.pappardelle.yml` and `.pappardelle.local.yml` — profiles, keybindings, hooks, watchlists, and more                                                                | Yes             |
+| `/sous-chef`         | Kitchen-style coordinator — quick overview of active spaces, drill into any space for a sitrep, watch the line and answer prompts on your word, relay instructions, open, reopen and close spaces | No              |
+| `/link-pr`           | Records a verified PR/MR for the current workspace with `lasagna link-pr`                                                                                                                         | Yes             |
+| `lasagna-agent`      | Workspace layout, the CLI behind the MCP tools, and how to update or restart Pappardelle                                                                                                          | Yes             |
 
 ### MCP tools
 
@@ -737,17 +737,17 @@ An agent in a space is told to keep the companion showing its work, from `script
 | Claude Code, OpenCode | The MCP server's instructions                                                                  |
 | Codex                 | `-c developer_instructions=...` at launch, which replaces any you set in your own Codex config |
 | Pi                    | `--append-system-prompt` at launch                                                             |
-| Antigravity           | `.agents/rules/pappardelle.md`, written into the worktree at launch and git-excluded           |
+| Antigravity           | `.agents/rules/lasagna.md`, written into the worktree at launch and git-excluded               |
 
 They ship in the `lasagna` plugin with the [hooks](#agent-hooks). `install.sh` (and so `U` and `lasagna update`) runs `lasagna plugin install`, which installs the plugin from the install it made (`~/.lasagna/local` for a local clone) into each agent it finds:
 
-- **Claude Code** gets the `pappardelle-marketplace` marketplace from the install and the plugin at user scope. It loads a plugin from a local marketplace in place, so the skills and hooks always match that install. Run `/reload-plugins` in open sessions after an update or a local install
+- **Claude Code** gets the `lasagna-marketplace` marketplace from the install and the plugin at user scope. It loads a plugin from a local marketplace in place, so the skills and hooks always match that install. Run `/reload-plugins` in open sessions after an update or a local install
 - **Codex** gets the same marketplace and `codex plugin add` for the skills. Codex copies the plugin into its cache, which each install refreshes. Codex trusts a plugin's hooks by a hash of the whole plugin, so any update would make you trust the session hook again; instead `lasagna plugin install` adds it to `~/.codex/hooks.json`, pointing at the install. Codex asks to trust it on its next launch, and that trust lasts until the install moves. A local install always lands at `~/.lasagna/local`, so reinstalling keeps it
-- **agy** gets a symlink from `~/.gemini/config/plugins/pappardelle` to the install, so new agy sessions load the plugin in place
+- **agy** gets a symlink from `~/.gemini/config/plugins/lasagna` to the install, so new agy sessions load the plugin in place
 
-Earlier versions told you to add the marketplace from GitHub, which Claude Code caches by version, and to merge the hooks into `~/.claude/settings.json`. `lasagna plugin install` moves that marketplace over to the install and removes the old `~/.lasagna/hooks/` entries from your settings (backing it up to `settings.json.pappardelle.bak` first), so the hooks don't run twice. It also replaces the `record-agent-session.py` entries `install.sh` used to merge into `~/.codex/hooks.json` with one pointing at the install, backing the file up to `hooks.json.pappardelle.bak`. Codex keys hook trust by position in that file, so it asks you to review any of your own hooks listed after the old entries again. It removes the `pappardelle-session` hook that `install.sh` used to merge into `~/.gemini/config/hooks.json` for agy, with a `hooks.json.pappardelle.bak` backup. It leaves the `~/.lasagna/hooks/` scripts for sessions that were open during the update; delete the directory once those sessions have restarted.
+Earlier versions told you to add the marketplace from GitHub, which Claude Code caches by version, and to merge the hooks into `~/.claude/settings.json`. `lasagna plugin install` moves that marketplace over to the install and removes the old `~/.lasagna/hooks/` entries from your settings (backing it up to `settings.json.lasagna.bak` first), so the hooks don't run twice. It also replaces the `record-lasagna-session.py` entries `install.sh` used to merge into `~/.codex/hooks.json` with one pointing at the install, backing the file up to `hooks.json.lasagna.bak`. Codex keys hook trust by position in that file, so it asks you to review any of your own hooks listed after the old entries again. It removes the `lasagna-session` hook that `install.sh` used to merge into `~/.gemini/config/hooks.json` for agy, with a `hooks.json.lasagna.bak` backup. It leaves the `~/.lasagna/hooks/` scripts for sessions that were open during the update; delete the directory once those sessions have restarted.
 
-Because `/configure-pappardelle` is model-invocable, Claude will automatically offer to use it when you ask about configuring Pappardelle — no need to invoke it explicitly.
+Because `/configure-lasagna` is model-invocable, Claude will automatically offer to use it when you ask about configuring Pappardelle — no need to invoke it explicitly.
 
 ### Dependencies
 

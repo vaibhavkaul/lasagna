@@ -41,10 +41,7 @@ test('idow launches Codex with the companion rules and writes agy its rule file'
 	await fixture.run({profile: 'ag'});
 	expect(launchFlags()).toBe('');
 	expect(
-		fs.readFileSync(
-			path.join(worktree, '.agents/rules/pappardelle.md'),
-			'utf8',
-		),
+		fs.readFileSync(path.join(worktree, '.agents/rules/lasagna.md'), 'utf8'),
 	).toMatch(/first call companion_run/);
 });
 

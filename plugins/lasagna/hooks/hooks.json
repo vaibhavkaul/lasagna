@@ -1,0 +1,149 @@
+{
+	"hooks": {
+		"UserPromptSubmit": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/update-status.py\""
+					}
+				]
+			}
+		],
+		"PreToolUse": [
+			{
+				"matcher": "*",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/update-status.py\""
+					}
+				]
+			},
+			{
+				"matcher": "AskUserQuestion",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/zap-notification.py\""
+					}
+				]
+			},
+			{
+				"matcher": "mcp__plugin_lasagna_lasagna__(agent_profiles_list|companion_.*|space_(get|send|screen|state|question_tabs|wait|watch|answer|queue|schedule|schedules|unschedule|holds)|tui_(panes|focus_log))",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/approve-lasagna-tool.sh\""
+					}
+				]
+			}
+		],
+		"PostToolUse": [
+			{
+				"matcher": "*",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/update-status.py\""
+					}
+				]
+			},
+			{
+				"matcher": "AskUserQuestion",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/comment-question-answered.py\""
+					}
+				]
+			}
+		],
+		"PostToolUseFailure": [
+			{
+				"matcher": "*",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/update-status.py\""
+					}
+				]
+			}
+		],
+		"Stop": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/update-status.py\""
+					}
+				]
+			}
+		],
+		"SessionStart": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/update-status.py\""
+					}
+				]
+			}
+		],
+		"SessionEnd": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/update-status.py\""
+					}
+				]
+			}
+		],
+		"Notification": [
+			{
+				"matcher": "*",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/update-status.py\""
+					},
+					{
+						"type": "command",
+						"command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/zap-notification.py\""
+					}
+				]
+			}
+		],
+		"SubagentStop": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/update-status.py\""
+					}
+				]
+			}
+		],
+		"PreCompact": [
+			{
+				"matcher": "auto",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/update-status.py\""
+					}
+				]
+			},
+			{
+				"matcher": "manual",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/update-status.py\""
+					}
+				]
+			}
+		]
+	}
+}

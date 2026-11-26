@@ -48,14 +48,14 @@ bun run test:unit source/config.test.ts
 
 # Python hook tests
 pip install pytest
-pytest plugins/pappardelle/hooks/ -v
+pytest plugins/lasagna/hooks/ -v
 ```
 
 State can live in JSON files or, with `experimental.sqliteState`, in SQLite with the files kept beside it. With the flag on, hook status and program status are stored nowhere: they go through the status daemon, which keeps them in memory. CI runs every suite both ways. `PAPPARDELLE_SQLITE_STATE=1` selects the second for a run, and each test process then gets a database and a status socket of its own, never yours:
 
 ```bash
 PAPPARDELLE_SQLITE_STATE=1 bun run test:unit
-PAPPARDELLE_SQLITE_STATE=1 pytest plugins/pappardelle/hooks/ -v
+PAPPARDELLE_SQLITE_STATE=1 pytest plugins/lasagna/hooks/ -v
 ```
 
 The hook tests need `bun` on `PATH` for that run: the CLI creates the database they write to.
@@ -71,13 +71,13 @@ Every run also gets the test tmux guard: the unit tests and the shell tests that
 ## Code style
 
 - TypeScript source lives in `source/`
-- Python hooks live in `plugins/pappardelle/hooks/`
+- Python hooks live in `plugins/lasagna/hooks/`
 - Prettier handles formatting (see `.prettierignore`)
 - Keep changes focused — one logical change per PR
 
 ## Adding a built-in agent
 
-`scripts/builtin-agents.json` holds the defaults each known agent CLI gets (model, effort and prompt flag templates, resume args, skill prefix, and `rules_args`, the flag that hands it the companion rules at launch), keyed by the command's basename. An entry holds only what its CLI has, so pi's has just `rules_args`. The claude entry follows Claude gating (`is_claude`). Both the TUI (`source/builtin-agents.ts`) and `idow` (`scripts/resolve-agent-config.sh`) read it, so supporting a new CLI is one entry there. If the CLI has hooks, `plugins/pappardelle/hooks/record-agent-session.py` can record its session id for `{session_id}`; register it from `source/plugin-install.ts`, in the plugin the way `.antigravity-plugin/` does for agy, or in the CLI's own hooks file the way Codex gets it when the CLI trusts plugin hooks by the whole plugin's contents.
+`scripts/builtin-agents.json` holds the defaults each known agent CLI gets (model, effort and prompt flag templates, resume args, skill prefix, and `rules_args`, the flag that hands it the companion rules at launch), keyed by the command's basename. An entry holds only what its CLI has, so pi's has just `rules_args`. The claude entry follows Claude gating (`is_claude`). Both the TUI (`source/builtin-agents.ts`) and `idow` (`scripts/resolve-agent-config.sh`) read it, so supporting a new CLI is one entry there. If the CLI has hooks, `plugins/lasagna/hooks/record-lasagna-session.py` can record its session id for `{session_id}`; register it from `source/plugin-install.ts`, in the plugin the way `.antigravity-plugin/` does for agy, or in the CLI's own hooks file the way Codex gets it when the CLI trusts plugin hooks by the whole plugin's contents.
 
 ## Questions?
 

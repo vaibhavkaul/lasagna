@@ -20,7 +20,7 @@ function fixture(
 	const deps: McpInstallDeps = {
 		home: HOME,
 		codexHome: path.join(HOME, '.codex'),
-		serverCommand: '/shim/pappardelle',
+		serverCommand: '/shim/lasagna',
 		run(command, args) {
 			calls.push([command, args]);
 			if (options.missing?.includes(command)) {
@@ -46,15 +46,12 @@ function fixture(
 test('each agent gets the server through its own mcp add', () => {
 	const f = fixture();
 	expect(installMcpServer(f.deps)).toBe(0);
-	const server = ['/shim/pappardelle', 'mcp'];
+	const server = ['/shim/lasagna', 'mcp'];
 	expect(f.calls).toStrictEqual([
-		['codex', ['mcp', 'add', 'pappardelle', '--', ...server]],
-		['opencode', ['mcp', 'add', '--global', 'pappardelle', '--', ...server]],
-		['agy', ['mcp', 'add', 'pappardelle', ...server]],
-		[
-			'pi',
-			['mcp', 'add', 'pappardelle', '--exposure', 'direct', '--', ...server],
-		],
+		['codex', ['mcp', 'add', 'lasagna', '--', ...server]],
+		['opencode', ['mcp', 'add', '--global', 'lasagna', '--', ...server]],
+		['agy', ['mcp', 'add', 'lasagna', ...server]],
+		['pi', ['mcp', 'add', 'lasagna', '--exposure', 'direct', '--', ...server]],
 	]);
 });
 
@@ -86,7 +83,7 @@ test('Codex approves each auto-approved tool and keeps the rest of its config', 
 	for (const tool of AUTO_APPROVED_TOOLS) {
 		expect(
 			config.includes(
-				`[mcp_servers.pappardelle.tools.${tool}]\napproval_mode = "approve"\n`,
+				`[mcp_servers.lasagna.tools.${tool}]\napproval_mode = "approve"\n`,
 			),
 		).toBe(true);
 	}
@@ -106,18 +103,16 @@ test('running it again adds no duplicate Codex tables or agy rules', () => {
 
 test('a Codex table the user spelled another way is not added again', () => {
 	const mine =
-		'[ mcp_servers.pappardelle.tools.companion_run ]\napproval_mode = "prompt"\n' +
-		'[mcp_servers."pappardelle".tools."space_send"]\napproval_mode = "prompt"\n';
+		'[ mcp_servers.lasagna.tools.companion_run ]\napproval_mode = "prompt"\n' +
+		'[mcp_servers."lasagna".tools."space_send"]\napproval_mode = "prompt"\n';
 	const f = fixture({files: {[CODEX]: mine}});
 	installMcpServer(f.deps);
 	const config = f.files.get(CODEX)!;
-	expect(config.includes('[mcp_servers.pappardelle.tools.companion_run]')).toBe(
+	expect(config.includes('[mcp_servers.lasagna.tools.companion_run]')).toBe(
 		false,
 	);
-	expect(config.includes('[mcp_servers.pappardelle.tools.space_send]')).toBe(
-		false,
-	);
-	expect(config.includes('[mcp_servers.pappardelle.tools.space_screen]')).toBe(
+	expect(config.includes('[mcp_servers.lasagna.tools.space_send]')).toBe(false);
+	expect(config.includes('[mcp_servers.lasagna.tools.space_screen]')).toBe(
 		true,
 	);
 });
@@ -151,7 +146,7 @@ test('agy allows each auto-approved tool and keeps existing settings and rules',
 	expect(settings.permissions.deny).toStrictEqual(['mcp(x/*)']);
 	expect(settings.permissions.allow).toStrictEqual([
 		'shell(ls)',
-		...AUTO_APPROVED_TOOLS.map(tool => `mcp(pappardelle/${tool})`),
+		...AUTO_APPROVED_TOOLS.map(tool => `mcp(lasagna/${tool})`),
 	]);
 });
 

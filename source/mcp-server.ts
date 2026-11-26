@@ -51,7 +51,7 @@ export function workspaceInstructions(
 ): string {
 	if (!space) {
 		return [
-			"This repo uses Lasagna, which gives each issue a git worktree, an agent session and a companion pane. This session isn't in a space, so pass `space` to the companion tools. Use this server's tools rather than tmux. The pappardelle-agent skill covers updating and restarting Lasagna.",
+			"This repo uses Lasagna, which gives each issue a git worktree, an agent session and a companion pane. This session isn't in a space, so pass `space` to the companion tools. Use this server's tools rather than tmux. The lasagna-agent skill covers updating and restarting Lasagna.",
 			...(options.sousChef ? [SOUS_CHEF] : []),
 			...(options.sousChef && options.sousChefFile
 				? [
@@ -62,7 +62,7 @@ export function workspaceInstructions(
 		].join('\n\n');
 	}
 
-	return `You are in Lasagna space ${space}${repoName ? ` (repo ${repoName})` : ''}. Lasagna gives each issue a git worktree, an agent session and a companion pane next to it, and the user watches both. Use this server's tools rather than tmux; they target your own space unless you pass \`space\`. The pappardelle-agent skill covers updating and restarting Lasagna.
+	return `You are in Lasagna space ${space}${repoName ? ` (repo ${repoName})` : ''}. Lasagna gives each issue a git worktree, an agent session and a companion pane next to it, and the user watches both. Use this server's tools rather than tmux; they target your own space unless you pass \`space\`. The lasagna-agent skill covers updating and restarting Lasagna.
 
 ${options.sousChef ? `${MESSAGING} ${MESSAGE_SOUS_CHEF}` : MESSAGING}
 
@@ -106,7 +106,7 @@ export function createMcpServer(options: {
 	}
 
 	const server = new McpServer(
-		{name: 'pappardelle', version: '1.0.0'},
+		{name: 'lasagna', version: '1.0.0'},
 		instructions === undefined ? {} : {instructions},
 	);
 	if (awareness.kind !== 'on') return server;

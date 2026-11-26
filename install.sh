@@ -253,7 +253,7 @@ install_local_clone() {
 install_skill_scripts() {
     local dest="$LASAGNA_DIR/scripts" src skill script
     rm -rf "$dest"
-    for src in "$INSTALL_DIR"/plugins/pappardelle/skills/*/scripts; do
+    for src in "$INSTALL_DIR"/plugins/lasagna/skills/*/scripts; do
         [[ -d "$src" ]] || continue
         skill="$(basename "$(dirname "$src")")"
         mkdir -p "$dest/$skill"

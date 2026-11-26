@@ -16,7 +16,7 @@ import {spawnStatusDaemon} from './status-client.ts';
 const execute = promisify(execFile);
 const daosModule = fileURLToPath(new URL('state-daos.ts', import.meta.url));
 const hook = fileURLToPath(
-	new URL('../plugins/pappardelle/hooks/update-status.py', import.meta.url),
+	new URL('../plugins/lasagna/hooks/update-status.py', import.meta.url),
 );
 
 // The whole path of a status change with the flag on, each part in its own

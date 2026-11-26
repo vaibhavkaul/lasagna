@@ -9,8 +9,8 @@ const REPO = '/home/me/.lasagna/repo';
 const SETTINGS = '/home/me/.claude/settings.json';
 const CODEX_HOOKS = '/home/me/.codex/hooks.json';
 const AGY = '/home/me/.gemini/config';
-const AGY_LINK = `${AGY}/plugins/pappardelle`;
-const PLUGIN_DIR = `${REPO}/plugins/pappardelle`;
+const AGY_LINK = `${AGY}/plugins/lasagna`;
+const PLUGIN_DIR = `${REPO}/plugins/lasagna`;
 const enoent = (command: string): RunResult => ({
 	status: null,
 	error: Object.assign(new Error(`spawn ${command} ENOENT`), {code: 'ENOENT'}),
@@ -72,10 +72,10 @@ test('points the Claude Code and Codex marketplaces at the checkout, then instal
 	expect(installPlugin(deps)).toBe(0);
 	expect(calls).toStrictEqual([
 		`claude plugin marketplace add ${REPO}`,
-		'claude plugin install pappardelle@pappardelle-marketplace --scope user',
-		'codex plugin marketplace remove pappardelle-marketplace (quiet)',
+		'claude plugin install lasagna@lasagna-marketplace --scope user',
+		'codex plugin marketplace remove lasagna-marketplace (quiet)',
 		`codex plugin marketplace add ${REPO}`,
-		'codex plugin add pappardelle@pappardelle-marketplace',
+		'codex plugin add lasagna@lasagna-marketplace',
 	]);
 });
 
@@ -88,9 +88,9 @@ test('skips an agent whose CLI is missing, leaving its old hooks running', () =>
 	expect(installPlugin(deps)).toBe(0);
 	expect(printed[0]!.includes('not on PATH')).toBe(true);
 	expect(files.get(SETTINGS)).toBe(settings);
-	expect(
-		calls.includes('codex plugin add pappardelle@pappardelle-marketplace'),
-	).toBe(true);
+	expect(calls.includes('codex plugin add lasagna@lasagna-marketplace')).toBe(
+		true,
+	);
 });
 
 test("a failed marketplace add skips that agent's install and hook cleanup but not the others", () => {
@@ -105,10 +105,10 @@ test("a failed marketplace add skips that agent's install and hook cleanup but n
 	expect(calls.some(call => call.startsWith('claude plugin install'))).toBe(
 		false,
 	);
-	expect(files.has(`${SETTINGS}.pappardelle.bak`)).toBe(false);
-	expect(
-		calls.includes('codex plugin add pappardelle@pappardelle-marketplace'),
-	).toBe(true);
+	expect(files.has(`${SETTINGS}.lasagna.bak`)).toBe(false);
+	expect(calls.includes('codex plugin add lasagna@lasagna-marketplace')).toBe(
+		true,
+	);
 });
 
 test('a Codex marketplace that is not there to remove does not stop the install', () => {
@@ -117,16 +117,16 @@ test('a Codex marketplace that is not there to remove does not stop the install'
 			command === 'codex' && args[2] === 'remove' ? {status: 1} : undefined,
 	});
 	expect(installPlugin(deps)).toBe(0);
-	expect(
-		calls.includes('codex plugin add pappardelle@pappardelle-marketplace'),
-	).toBe(true);
+	expect(calls.includes('codex plugin add lasagna@lasagna-marketplace')).toBe(
+		true,
+	);
 });
 
 const sessionHook = (script: string) => ({
 	type: 'command',
 	command: `python3 ${script}`,
 });
-const CODEX_COMMAND = `python3 "${PLUGIN_DIR}/hooks/record-agent-session.py"`;
+const CODEX_COMMAND = `python3 "${PLUGIN_DIR}/hooks/record-lasagna-session.py"`;
 const codexSessionHooks = {
 	SessionStart: [
 		{
@@ -143,7 +143,7 @@ test('adds the Codex session hook to hooks.json, pointing at the checkout', () =
 	expect(JSON.parse(files.get(CODEX_HOOKS)!)).toStrictEqual({
 		hooks: codexSessionHooks,
 	});
-	expect(files.has(`${CODEX_HOOKS}.pappardelle.bak`)).toBe(false);
+	expect(files.has(`${CODEX_HOOKS}.lasagna.bak`)).toBe(false);
 	expect(printed.some(line => line.includes('trust the session hook'))).toBe(
 		true,
 	);
@@ -155,13 +155,15 @@ test("replaces session hooks from older installs, keeping the user's hooks and a
 			SessionStart: [
 				{
 					matcher: 'startup|resume|clear',
-					hooks: [sessionHook('~/.lasagna/hooks/record-agent-session.py')],
+					hooks: [sessionHook('~/.lasagna/hooks/record-lasagna-session.py')],
 				},
 				{hooks: [mine]},
 			],
 			UserPromptSubmit: [
 				{
-					hooks: [sessionHook('"/old/checkout/hooks/record-agent-session.py"')],
+					hooks: [
+						sessionHook('"/old/checkout/hooks/record-lasagna-session.py"'),
+					],
 				},
 			],
 		},
@@ -174,7 +176,7 @@ test("replaces session hooks from older installs, keeping the user's hooks and a
 			UserPromptSubmit: codexSessionHooks.UserPromptSubmit,
 		},
 	});
-	expect(files.get(`${CODEX_HOOKS}.pappardelle.bak`)).toBe(original);
+	expect(files.get(`${CODEX_HOOKS}.lasagna.bak`)).toBe(original);
 	expect(printed.some(line => line.includes('review your other hooks'))).toBe(
 		true,
 	);
@@ -205,7 +207,7 @@ test('links the plugin into agy in place', () => {
 
 test('repoints an agy link left by another checkout', () => {
 	const {deps, links} = fakeDeps({agy: true});
-	links.set(AGY_LINK, '/old/checkout/plugins/pappardelle');
+	links.set(AGY_LINK, '/old/checkout/plugins/lasagna');
 	expect(installPlugin(deps)).toBe(0);
 	expect(links.get(AGY_LINK)).toBe(PLUGIN_DIR);
 });
@@ -213,11 +215,11 @@ test('repoints an agy link left by another checkout', () => {
 test('removes the session hook install-agy-hooks.sh merged into agy hooks.json, keeping a backup', () => {
 	const lint = {PostToolUse: [{type: 'command', command: 'lint.sh'}]};
 	const original = JSON.stringify({
-		'pappardelle-session': {
+		'lasagna-session': {
 			SessionStart: [
 				{
 					type: 'command',
-					command: 'python3 ~/.lasagna/hooks/record-agent-session.py',
+					command: 'python3 ~/.lasagna/hooks/record-lasagna-session.py',
 				},
 			],
 		},
@@ -227,19 +229,19 @@ test('removes the session hook install-agy-hooks.sh merged into agy hooks.json, 
 	files.set(`${AGY}/hooks.json`, original);
 	expect(installPlugin(deps)).toBe(0);
 	expect(JSON.parse(files.get(`${AGY}/hooks.json`)!)).toStrictEqual({lint});
-	expect(files.get(`${AGY}/hooks.json.pappardelle.bak`)).toBe(original);
+	expect(files.get(`${AGY}/hooks.json.lasagna.bak`)).toBe(original);
 });
 
 test('warns when agy has the plugin disabled', () => {
 	const {deps, files, printed} = fakeDeps({agy: true});
 	files.set(
 		`${AGY}/config.json`,
-		JSON.stringify({plugins: {pappardelle: {enabled: false}}}),
+		JSON.stringify({plugins: {lasagna: {enabled: false}}}),
 	);
 	expect(installPlugin(deps)).toBe(0);
-	expect(
-		printed.some(line => line.includes('agy plugin enable pappardelle')),
-	).toBe(true);
+	expect(printed.some(line => line.includes('agy plugin enable lasagna'))).toBe(
+		true,
+	);
 });
 
 test('skips agy until it has been set up', () => {
@@ -280,7 +282,7 @@ test('removes only the old Pappardelle hooks from settings, keeping a backup', (
 			SessionStart: [{hooks: [mine]}],
 		},
 	});
-	expect(files.get(`${SETTINGS}.pappardelle.bak`)).toBe(original);
+	expect(files.get(`${SETTINGS}.lasagna.bak`)).toBe(original);
 });
 
 test('backs up settings as they were before claude rewrote them', () => {
@@ -300,7 +302,7 @@ test('backs up settings as they were before claude rewrote them', () => {
 	};
 
 	expect(installPlugin(deps)).toBe(0);
-	expect(files.get(`${SETTINGS}.pappardelle.bak`)).toBe(original);
+	expect(files.get(`${SETTINGS}.lasagna.bak`)).toBe(original);
 	expect(JSON.parse(files.get(SETTINGS)!)).toStrictEqual({
 		extraKnownMarketplaces: {},
 	});
@@ -317,12 +319,74 @@ test('drops the hooks key when only Pappardelle hooks were configured', () => {
 	expect(JSON.parse(files.get(SETTINGS)!)).toStrictEqual({model: 'opus'});
 });
 
+// Lasagna installs beside Pappardelle, whose entries sit in the same files.
+test("leaves an installed Pappardelle's marketplace, plugin and hooks alone", () => {
+	const pappardelle = '/home/me/.pappardelle';
+	const settings = JSON.stringify({
+		enabledPlugins: {'pappardelle@pappardelle-marketplace': true},
+		hooks: {
+			Stop: [
+				{
+					hooks: [
+						{
+							type: 'command',
+							command: `python3 ${pappardelle}/hooks/update-status.py`,
+						},
+					],
+				},
+			],
+		},
+	});
+	const theirSessionHook = sessionHook(
+		`"${pappardelle}/repo/plugins/pappardelle/hooks/record-agent-session.py"`,
+	);
+	const codexHooks = {
+		SessionStart: [
+			{matcher: 'startup|resume|clear', hooks: [theirSessionHook]},
+		],
+		UserPromptSubmit: [{hooks: [theirSessionHook]}],
+	};
+	const agyHooks = JSON.stringify({
+		'pappardelle-session': {SessionStart: [theirSessionHook]},
+	});
+	const {deps, calls, files, links} = fakeDeps({
+		settings,
+		codexHooks: JSON.stringify({hooks: codexHooks}),
+		agy: true,
+	});
+	const theirAgyLink = `${AGY}/plugins/pappardelle`;
+	links.set(theirAgyLink, `${pappardelle}/repo/plugins/pappardelle`);
+	files.set(`${AGY}/hooks.json`, agyHooks);
+
+	expect(installPlugin(deps)).toBe(0);
+
+	expect(calls.filter(call => call.includes('pappardelle'))).toStrictEqual([]);
+	expect(files.get(SETTINGS)).toBe(settings);
+	expect(JSON.parse(files.get(CODEX_HOOKS)!)).toStrictEqual({
+		hooks: {
+			SessionStart: [
+				...codexHooks.SessionStart,
+				...codexSessionHooks.SessionStart,
+			],
+			UserPromptSubmit: [
+				...codexHooks.UserPromptSubmit,
+				...codexSessionHooks.UserPromptSubmit,
+			],
+		},
+	});
+	expect(files.get(`${AGY}/hooks.json`)).toBe(agyHooks);
+	expect(links.get(theirAgyLink)).toBe(
+		`${pappardelle}/repo/plugins/pappardelle`,
+	);
+	expect(links.get(AGY_LINK)).toBe(PLUGIN_DIR);
+});
+
 test('leaves settings without old hooks untouched', () => {
 	const settings = JSON.stringify({hooks: {SessionStart: [{hooks: [mine]}]}});
 	const {deps, files} = fakeDeps({settings});
 	expect(installPlugin(deps)).toBe(0);
 	expect(files.get(SETTINGS)).toBe(settings);
-	expect(files.has(`${SETTINGS}.pappardelle.bak`)).toBe(false);
+	expect(files.has(`${SETTINGS}.lasagna.bak`)).toBe(false);
 });
 
 test('keeps hook groups it does not recognise', () => {

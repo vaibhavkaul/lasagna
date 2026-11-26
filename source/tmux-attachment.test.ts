@@ -1042,7 +1042,7 @@ test('cold companion creation completes its command before reporting success', a
 });
 
 // The agent's hook records its session id under the stored agent profile
-// (plugins/pappardelle/hooks/agent_session.py), never one the session carries.
+// (plugins/lasagna/hooks/agent_session.py), never one the session carries.
 test('a new agent session stores the agent profile it was started with', async () => {
 	const calls: string[][] = [];
 	const run: AsyncTmuxRunner = async args => {

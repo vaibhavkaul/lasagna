@@ -1,0 +1,16 @@
+{
+	"lasagna-session": {
+		"SessionStart": [
+			{
+				"type": "command",
+				"command": "python3 hooks/record-lasagna-session.py"
+			}
+		],
+		"PreInvocation": [
+			{
+				"type": "command",
+				"command": "python3 hooks/record-lasagna-session.py"
+			}
+		]
+	}
+}

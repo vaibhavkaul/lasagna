@@ -427,7 +427,7 @@ function builtCheckout(marker = 'first build'): string {
 	for (const file of [
 		'package.json',
 		'scripts/idow',
-		'plugins/pappardelle/hooks/update-status.py',
+		'plugins/lasagna/hooks/update-status.py',
 		'.claude-plugin/marketplace.json',
 		'node_modules/dep/index.js',
 	]) {
@@ -672,16 +672,16 @@ test('install_skill_scripts replaces the installed scripts with the checkout one
 	const repo = testDir();
 	const shipped = path.join(
 		repo,
-		'plugins/pappardelle/skills/init-pappardelle/scripts',
+		'plugins/lasagna/skills/init-lasagna/scripts',
 	);
 	fs.mkdirSync(shipped, {recursive: true});
 	fs.writeFileSync(path.join(shipped, 'detect.sh'), 'echo new\n');
-	fs.mkdirSync(path.join(repo, 'plugins/pappardelle/skills/sous-chef'));
+	fs.mkdirSync(path.join(repo, 'plugins/lasagna/skills/sous-chef'));
 	const installed = path.join(home, '.lasagna', 'scripts');
 	for (const file of [
 		'sous-chef/gather-spaces.sh',
-		'init-pappardelle/detect.sh',
-		'init-pappardelle/retired.sh',
+		'init-lasagna/detect.sh',
+		'init-lasagna/retired.sh',
 	]) {
 		fs.mkdirSync(path.dirname(path.join(installed, file)), {recursive: true});
 		fs.writeFileSync(path.join(installed, file), 'echo old\n');
@@ -693,11 +693,11 @@ test('install_skill_scripts replaces the installed scripts with the checkout one
 	);
 
 	expect(result.status, `stderr: ${result.stderr}`).toBe(0);
-	expect(fs.readdirSync(installed)).toStrictEqual(['init-pappardelle']);
-	expect(
-		fs.readdirSync(path.join(installed, 'init-pappardelle')),
-	).toStrictEqual(['detect.sh']);
-	const script = path.join(installed, 'init-pappardelle', 'detect.sh');
+	expect(fs.readdirSync(installed)).toStrictEqual(['init-lasagna']);
+	expect(fs.readdirSync(path.join(installed, 'init-lasagna'))).toStrictEqual([
+		'detect.sh',
+	]);
+	const script = path.join(installed, 'init-lasagna', 'detect.sh');
 	expect(fs.readFileSync(script, 'utf8')).toBe('echo new\n');
 	expect(() => {
 		fs.accessSync(script, fs.constants.X_OK);

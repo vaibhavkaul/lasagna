@@ -193,7 +193,7 @@ assert_eq "session env carries PAPPARDELLE_REPO" "PAPPARDELLE_REPO=$TEST_REPO" \
     "$(tmux -L "$PAPPARDELLE_TMUX_SOCKET" show-environment -t "$CLAUDE_SESSION" PAPPARDELLE_REPO 2>/dev/null)"
 
 # The agent's hook finds its space and agent profile in the stores
-# (plugins/pappardelle/hooks/agent_session.py), not in the session
+# (plugins/lasagna/hooks/agent_session.py), not in the session
 assert_eq "agent session env has no session-id variables" "" \
     "$(tmux -L "$PAPPARDELLE_TMUX_SOCKET" show-environment -t "$CLAUDE_SESSION" | grep '^PAPPARDELLE_AGENT_' || true)"
 # The agent profile's env

@@ -58,7 +58,7 @@ export interface SpaceState {
 	 * The agent profile whose agent was last started in the space's agent
 	 * session, which is the one running there: a picker override launches once
 	 * and is saved nowhere else. The hook that records the agent's session id
-	 * (plugins/pappardelle/hooks/agent_session.py) reads it.
+	 * (plugins/lasagna/hooks/agent_session.py) reads it.
 	 */
 	agentProfile?: LaunchedAgentProfile;
 }
@@ -285,7 +285,7 @@ export type AgentSessionsLookup =
 /**
  * Each agent profile's latest conversation in a space, by agent profile name,
  * written only by the agent's SessionStart/UserPromptSubmit hook
- * (plugins/pappardelle/hooks/agent_session.py). It lives beside the space-state file rather than
+ * (plugins/lasagna/hooks/agent_session.py). It lives beside the space-state file rather than
  * in it: the TUI rewrites that file after every rail poll, and a hook write
  * landing between the TUI's read and its rename would be lost. Keyed by agent
  * profile so a one-launch override doesn't take the profile's own

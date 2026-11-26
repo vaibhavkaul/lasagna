@@ -487,7 +487,7 @@ test('a tool call that answers prompts holds; a Bash command naming one goes to 
 		).replace(' Bash command', ' Tool use'),
 	]);
 	tool.hookReports({
-		currentTool: 'mcp__plugin_pappardelle_pappardelle__space_hold_resolve',
+		currentTool: 'mcp__plugin_lasagna_lasagna__space_hold_resolve',
 	});
 	expect(await tool.run('answer', 'STA-1', '--option', '1')).toBe(0);
 	expect(tool.classified).toStrictEqual([]);

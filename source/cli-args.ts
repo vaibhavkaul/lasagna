@@ -298,13 +298,13 @@ const subcommands = {
 
 	Installs the Lasagna plugin (skills, hooks and MCP tools) from this
 	install into Claude Code, Codex and agy, skipping any that isn't installed.
-	  Claude Code: points pappardelle-marketplace at the install; it loads the
+	  Claude Code: points lasagna-marketplace at the install; it loads the
 	    plugin in place, so a new install takes effect after /reload-plugins.
 	    Removes the hooks older installs merged into ~/.claude/settings.json.
 	  Codex: installs the plugin's skills, and points the session hook in
 	    ~/.codex/hooks.json at the install.
-	  agy: links ~/.gemini/config/plugins/pappardelle to the install.
-	Files it changes are backed up to <file>.pappardelle.bak first.
+	  agy: links ~/.gemini/config/plugins/lasagna to the install.
+	Files it changes are backed up to <file>.lasagna.bak first.
 `,
 	},
 } as const;

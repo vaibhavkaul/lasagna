@@ -14,7 +14,7 @@ command_word="${1%% *}"
 
 worktree="$2"
 rules_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-rule=".agents/rules/pappardelle.md"
+rule=".agents/rules/lasagna.md"
 
 mkdir -p "$worktree/.agents/rules"
 {
