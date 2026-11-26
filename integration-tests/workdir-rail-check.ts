@@ -256,13 +256,64 @@ try {
 	);
 
 	await view.stdin.write('n');
-	const picker = await expectFrame(
-		'n asks which repo the new space is made in',
-		lines => has(lines, '+ New Session in') && has(lines, '1 api-server'),
+	await expectFrame(
+		'n opens the new-space dialog on the first repo, with nothing typed',
+		lines =>
+			has(lines, '+ New Session in api-server') && has(lines, 'Tab for repos'),
 	);
-	assert.ok(has(picker, '2 web-app'), 'every repo is listed');
-	await view.stdin.write('2');
-	await expectFrame('picking a repo opens the new-space dialog for it', lines =>
+	await view.stdin.write('WEB-9');
+	await expectFrame(
+		"a key whose prefix a repo's own config names moves the dialog to that repo",
+		lines => has(lines, '+ New Session in web-app'),
+	);
+	await view.stdin.write('\t');
+	const picker = await expectFrame(
+		'Tab lists the repos, the one the key belongs in first',
+		lines => has(lines, '❯ 1 [ ] web-app  ← WEB'),
+	);
+	assert.ok(has(picker, '2 [ ] api-server'), 'every repo is listed');
+	await view.stdin.write('\u001B');
+	await expectFrame('escape goes back to the dialog', lines =>
+		has(lines, '+ New Session in web-app'),
+	);
+	await view.stdin.write('\u001B');
+	await expectFrame('escape closes the dialog', lines =>
+		has(lines, 'api-server (2)'),
+	);
+
+	// What `lasagna scan` leaves: B2B is worked on in both repos, and new
+	// B2B spaces go in web-app, which has the smaller share.
+	writeFileSync(
+		path.join(work, '.lasagna', 'scan.json'),
+		JSON.stringify({
+			version: 1,
+			prefixes: {
+				B2B: {
+					defaultRepo: 'web-app',
+					repos: {'api-server': 0.6, 'web-app': 0.4},
+				},
+			},
+		}),
+	);
+	await view.stdin.write('n');
+	await expectFrame('n opens the dialog again', lines =>
+		has(lines, '+ New Session in api-server'),
+	);
+	await view.stdin.write('B2B-40');
+	await expectFrame(
+		"a scanned prefix moves the dialog to the prefix's default repo",
+		lines => has(lines, '+ New Session in web-app'),
+	);
+	await view.stdin.write('\r');
+	const scanned = await expectFrame(
+		'Enter on a key worked on in several repos lists them by share, on the default',
+		lines =>
+			has(lines, '1 [ ] api-server  60% of B2B') &&
+			has(lines, '❯ 2 [ ] web-app  40% of B2B'),
+	);
+	assert.ok(!has(scanned, '+ New Ticket Space'), 'nothing is ticked yet');
+	await view.stdin.write('\u001B');
+	await expectFrame('escape goes back to the dialog', lines =>
 		has(lines, '+ New Session in web-app'),
 	);
 	await view.stdin.write('\u001B');

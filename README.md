@@ -466,7 +466,9 @@ Start `lasagna` at the work dir's root (or anywhere in it outside its configured
 - The work dir's own main space leads the rail. Its agent runs at the work dir's root, and its state is kept under `@<work dir>`.
 - Each repo's main space sits under a `repos` header, which `r` folds.
 - Every repo's spaces follow, grouped by repo. `t` groups them by ticket instead, so a ticket with a space in two repos reads as one. Each row carries a short tag for its repo.
-- `n` asks which repo the new space is made in, then opens the usual dialog with that repo's profiles.
+- `n` opens the usual dialog, for one repo: the one the selected space is in, else the one you last made a space in. Type an issue key and the dialog moves to the repo that key's prefix belongs in, with that repo's profiles. `Tab` lists every repo, the ones the prefix is worked on in first; `Space` ticks several. When a prefix is worked on in more than one repo, `Enter` shows that list first, on the suggested repo, and `Enter` again confirms it.
+
+Which repo a prefix belongs in comes from `<work dir>/.lasagna/scan.json`, when `lasagna scan` has written one: each prefix's repos by their share of its keys, and its default repo. In a work dir never scanned, a repo whose own config names the prefix (`team_prefix`, or a profile's `team_prefix` or `tracker_projects`) is suggested.
 
 Started inside a configured repo, Lasagna shows that repo alone, as before. Issue watchlists are not polled on a work dir's rail.
 

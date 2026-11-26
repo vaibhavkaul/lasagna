@@ -53,6 +53,8 @@ import {cutAgentProfileName} from '../agent-profile-picker.ts';
 import {ReadyWorkList, useReadyWork} from './ReadyWork.tsx';
 import {INPUT_INDEX, resolveSubmission} from './ready-picker.ts';
 import {promptDialogLayout} from './prompt-dialog-layout.ts';
+import RepoPicker from './RepoPicker.tsx';
+import type {RepoChoices} from '../repo-picker.ts';
 
 /** React key for the profile-less row, which has no profile name to use. */
 const DEFERRED_ROW_KEY = '__deferred__';
@@ -61,18 +63,38 @@ function rowKey(option: ProfileOption): string {
 	return option.name ?? DEFERRED_ROW_KEY;
 }
 
+/** The parts of a repo the dialog reads. */
+export type DialogRepo = Pick<
+	RepoContext,
+	'name' | 'readConfig' | 'configPaths'
+>;
+
+/** The repos a space can be made in, on a rail that shows a whole work dir. */
+export type RepoField = {
+	/**
+	 * The repos to offer for what is typed, the ones its issue key is worked
+	 * on in first, and the one the space goes in unless another is picked.
+	 */
+	choicesFor: (input: string) => RepoChoices;
+	contextOf: (name: string) => DialogRepo | undefined;
+};
+
 interface Props {
 	onSubmit: (
 		prompt: string,
 		profileName: string | null,
 		inputIsIssueKey: boolean,
 		agentProfileName: string | null,
+		/** The repos the space is made in, when the dialog offers a choice. */
+		repos?: string[],
 	) => void;
 	onCancel: () => void;
 	/** The profile a space was saved with, for input that names one. */
 	savedProfileFor?: (
 		input: string,
 		config: PappardelleConfig | null,
+		/** The repo the space would be made in, where the dialog offers a choice. */
+		repo?: string,
 	) => string | undefined;
 	/**
 	 * Columns available to the dialog, which ready-work rows truncate their
@@ -88,7 +110,13 @@ interface Props {
 	 * config, profiles and tracker are the dialog's. Unset for the repo the TUI
 	 * runs in.
 	 */
-	repo?: Pick<RepoContext, 'name' | 'readConfig' | 'configPaths'>;
+	repo?: DialogRepo;
+	/**
+	 * Set in place of `repo` when the space can be made in any of several: the
+	 * dialog starts on the one the typed issue key belongs in, Tab lists them
+	 * all, and more than one can be picked.
+	 */
+	repos?: RepoField;
 }
 
 export default function PromptDialog({
@@ -98,9 +126,35 @@ export default function PromptDialog({
 	availableWidth,
 	availableHeight,
 	isInTmux,
-	repo,
+	repo: fixedRepo,
+	repos,
 }: Props) {
 	const [prompt, setPrompt] = useState('');
+	// The repos picked from the list. Until one is, the repo follows what is
+	// typed: an issue key's own repo, else the one last worked in.
+	const [pickedRepos, setPickedRepos] = useState<string[] | null>(null);
+	const [repoStage, setRepoStage] = useState<'closed' | 'open' | 'confirming'>(
+		'closed',
+	);
+	const choices = useMemo(() => repos?.choicesFor(prompt), [repos, prompt]);
+	const suggestedRepo = choices?.rows[choices.defaultIndex]?.name;
+	const chosenRepos = useMemo(
+		() => pickedRepos ?? (suggestedRepo === undefined ? [] : [suggestedRepo]),
+		[pickedRepos, suggestedRepo],
+	);
+	const leadRepo = chosenRepos[0];
+	// Whose config, profiles and tracker the dialog reads for these repos.
+	const contextFor = (names: readonly string[]) =>
+		repos
+			? names[0] === undefined
+				? undefined
+				: repos.contextOf(names[0])
+			: fixedRepo;
+	const repo = useMemo(
+		() => contextFor(chosenRepos),
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[repos, chosenRepos, fixedRepo],
+	);
 	// Both boxes are always on screen; this is purely which one has focus.
 	const [isPicking, setIsPicking] = useState(false);
 	const [pickerState, setPickerState] = useState<FilterablePickerState>({
@@ -198,7 +252,7 @@ export default function PromptDialog({
 
 	const ready = useReadyWork(
 		tracker,
-		!isPicking && !isCompleting && !isSkillFocused,
+		!isPicking && !isCompleting && !isSkillFocused && repoStage === 'closed',
 	);
 	const widthMethod = useWidthMethod();
 	const errorMessage =
@@ -211,7 +265,8 @@ export default function PromptDialog({
 			: ready.errorMessage;
 	// The close confirmation takes over the whole dialog, so every other keymap
 	// stands down while it is up.
-	const isPromptStage = !isPicking && ready.closeTarget === null;
+	const isPromptStage =
+		!isPicking && ready.closeTarget === null && repoStage === 'closed';
 
 	const effectiveInput =
 		resolveSubmission(prompt, ready.identifiers, ready.index) ?? '';
@@ -243,10 +298,10 @@ export default function PromptDialog({
 						config,
 						effectiveInput,
 						canOverrideAgent,
-						savedProfileFor?.(effectiveInput, config),
+						savedProfileFor?.(effectiveInput, config, repo?.name),
 					)
 				: [],
-		[config, effectiveInput, canOverrideAgent, savedProfileFor],
+		[config, effectiveInput, canOverrideAgent, savedProfileFor, repo],
 	);
 
 	const shownOptions =
@@ -271,6 +326,12 @@ export default function PromptDialog({
 			return;
 		}
 		onCancel();
+	});
+
+	// Tab lists the repos, when there is nothing for it to complete.
+	useKeyboard(event => {
+		if (!repos || !isPromptStage || isSkillFocused || isCompleting) return;
+		if (event.name === 'tab') setRepoStage('open');
 	});
 
 	// Arrows and Tab. The text input keeps focus while the list is open, so
@@ -350,6 +411,7 @@ export default function PromptDialog({
 						chosen.name,
 						ready.onRow,
 						agentOverrides[rowKey(chosen)] ?? null,
+						repos ? chosenRepos : undefined,
 					);
 				}
 
@@ -447,18 +509,41 @@ export default function PromptDialog({
 		const resolved = resolveSubmission(value, ready.identifiers, ready.index);
 		if (resolved === null) return;
 
-		const decision = resolvePromptSubmit(
-			configLoad,
-			resolved,
-			canOverrideAgent,
-		);
+		// A key worked on in several repos is asked about once, on the repo its
+		// prefix defaults to. A ready row is its tracker's, so its repo is known.
+		if (
+			pickedRepos === null &&
+			!ready.onRow &&
+			(choices?.rows.filter(row => row.suggested).length ?? 0) > 1
+		) {
+			setRepoStage('confirming');
+			return;
+		}
+
+		startOrPick(resolved, chosenRepos, configLoad, canOverrideAgent);
+	};
+
+	/** What Enter does once the repos are settled: start, or go to the profiles. */
+	const startOrPick = (
+		resolved: string,
+		names: readonly string[],
+		load: typeof configLoad,
+		canOverride: boolean,
+	) => {
+		const decision = resolvePromptSubmit(load, resolved, canOverride);
 		switch (decision.kind) {
 			case 'none': {
 				break;
 			}
 
 			case 'spawn': {
-				onSubmit(resolved, decision.profileName, ready.onRow, null);
+				onSubmit(
+					resolved,
+					decision.profileName,
+					ready.onRow,
+					null,
+					repos ? [...names] : undefined,
+				);
 				break;
 			}
 
@@ -469,6 +554,47 @@ export default function PromptDialog({
 			}
 		}
 	};
+
+	/**
+	 * The repos picked from the list. When Enter asked for the list, the same
+	 * Enter carries on, with the config of the repos just picked: the dialog
+	 * has not been drawn for them yet.
+	 */
+	const pickRepos = (names: string[]) => {
+		const wasConfirming = repoStage === 'confirming';
+		setPickedRepos(names);
+		setRepoStage('closed');
+		if (!wasConfirming) return;
+		const resolved = resolveSubmission(prompt, ready.identifiers, INPUT_INDEX);
+		if (resolved === null) return;
+		const picked = contextFor(names);
+		const load = picked ? picked.readConfig() : configLoad;
+		startOrPick(
+			resolved,
+			names,
+			load,
+			isInTmux &&
+				load.kind === 'valid' &&
+				listAgentProfiles(load.config, {}).length > 1,
+		);
+	};
+
+	if (repoStage !== 'closed' && choices) {
+		return (
+			<RepoPicker
+				repos={choices.rows}
+				initialIndex={Math.max(
+					0,
+					choices.rows.findIndex(row => row.name === leadRepo),
+				)}
+				initialTicked={chosenRepos.length > 1 ? chosenRepos : undefined}
+				prefix={choices.prefix}
+				availableHeight={availableHeight}
+				onPick={pickRepos}
+				onCancel={() => setRepoStage('closed')}
+			/>
+		);
+	}
 
 	if (ready.closeTarget) {
 		const {identifier, title} = ready.closeTarget.issue;
@@ -517,7 +643,13 @@ export default function PromptDialog({
 	return (
 		<box flexDirection="column">
 			<TitledBox
-				title={repo ? `+ New Session in ${repo.name}` : '+ New Session'}
+				title={
+					chosenRepos.length > 1
+						? `+ New Ticket Space in ${chosenRepos.join(' + ')}`
+						: repo
+							? `+ New Session in ${repo.name}`
+							: '+ New Session'
+				}
 				borderColor="green"
 				titleColor="greenBright"
 				borderStyle={promptFrame.borderStyle}
@@ -588,6 +720,11 @@ export default function PromptDialog({
 											? 'start or pick an agent'
 											: 'choose a profile'
 										: 'start'}
+									{repos ? (
+										<>
+											, <span fg={terminalColor('cyan')}>Tab</span> for repos
+										</>
+									) : null}
 									, <span fg={terminalColor('yellow')}>Esc</span> to cancel
 								</>
 							)}

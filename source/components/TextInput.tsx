@@ -92,6 +92,12 @@ export default function TextInput({
 			});
 		}
 	}, [value, highlight, syntaxStyle, isMultiline]);
+	// A field that starts with text in it (a dialog coming back from one of
+	// its lists) has the caret after that text, where typing carries on.
+	useLayoutEffect(() => {
+		if (isMultiline && value) ref.current?.gotoBufferEnd();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 	// The textarea announces an edit on a microtask, after every key of the same
 	// input write has been dispatched, so the next key would act on the text
 	// from before the edit. Reporting as each key or paste is handled puts the

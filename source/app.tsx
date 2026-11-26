@@ -177,8 +177,8 @@ import {
 	workdirRowLabel,
 	type WorkdirGrouping,
 } from './workdir-rail.ts';
-import {defaultRepoIndex} from './repo-picker.ts';
-import RepoPicker from './components/RepoPicker.tsx';
+import {repoChoices} from './repo-picker.ts';
+import {readScanSuggestions} from './scan-suggestions.ts';
 import {
 	buildConfigFixConfirmContent,
 	buildConfigMigrationConfirmContent,
@@ -341,6 +341,24 @@ function validConfig(load: ReturnType<typeof readConfig>) {
 	return load.kind === 'valid' ? load.config : null;
 }
 
+/** Whether a repo's own config says tickets with this prefix are its. */
+function configNamesPrefix(
+	config: PappardelleConfig | null,
+	prefix: string,
+): boolean {
+	if (!config) return false;
+	const names = (value: string | undefined) =>
+		value?.trim().toUpperCase() === prefix;
+	return (
+		names(config.team_prefix) ||
+		Object.values(config.profiles).some(
+			profile =>
+				names(profile.team_prefix) ||
+				(profile.tracker_projects ?? []).some(project => names(project)),
+		)
+	);
+}
+
 export default function App({
 	daos,
 	workdir,
@@ -374,15 +392,11 @@ export default function App({
 			return 'unknown';
 		}
 	}, []);
-	// On a work dir's rail, the repo the new-space dialog is open for.
-	const [newSpaceRepo, setNewSpaceRepo] = useState<WorkdirRepo | null>(null);
-	const newSpaceRepoRef = useRef<WorkdirRepo | null>(null);
-	newSpaceRepoRef.current = newSpaceRepo;
-	const [showRepoPicker, setShowRepoPicker] = useState(false);
+	// On a work dir's rail, the repo the last space was made in.
 	const lastSpaceRepo = useRef<string | undefined>(undefined);
 	const savedProfileFor = React.useCallback(
-		(input: string, config: PappardelleConfig | null) => {
-			const repo = newSpaceRepoRef.current;
+		(input: string, config: PappardelleConfig | null, repoName?: string) => {
+			const repo = repoName === undefined ? undefined : workdir?.repo(repoName);
 			const key = resolveSpaceKey(
 				input,
 				config ? getTeamPrefix(config) : 'STA',
@@ -398,7 +412,7 @@ export default function App({
 			return spaceState.read(repo ? formatSpaceRef(repo.name, key) : key)
 				?.profile;
 		},
-		[spaceState],
+		[spaceState, workdir],
 	);
 
 	const {
@@ -677,14 +691,35 @@ export default function App({
 		return resolved;
 	}, [configMemo, workdir]);
 
+	// What the new-space dialog offers on a work dir's rail: the repos, with
+	// the ones the typed issue key is worked on in first. The last scan is read
+	// each time the dialog opens, so a scan run meanwhile counts.
+	const repoField = useMemo(() => {
+		if (!workdir || !showPromptDialog) return undefined;
+		const suggestions = readScanSuggestions(workdir.root);
+		const selected = selectedSpaceNow()?.repo;
+		return {
+			choicesFor: (input: string) =>
+				repoChoices({
+					repos: workdirRepoNames,
+					input,
+					suggestions,
+					declared: prefix =>
+						workdirRepoNames.filter(name =>
+							configNamesPrefix(repoConfigs.get(name) ?? null, prefix),
+						),
+					selected,
+					lastUsed: lastSpaceRepo.current,
+				}),
+			contextOf: (name: string) => workdir.repo(name)?.context,
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [workdir, showPromptDialog, workdirRepoNames, repoConfigs]);
+
 	const helpKeybindings = useMemo(
 		() => (workdir ? [...keybindings, ...WORKDIR_HELP_KEYS] : keybindings),
 		[workdir, keybindings],
 	);
-	const openPromptFor = useCallback((repo: WorkdirRepo | null) => {
-		setNewSpaceRepo(repo);
-		setShowPromptDialog(true);
-	}, []);
 
 	// Build a lookup map: key char → keybinding config
 	const keybindingMap = React.useMemo(() => {
@@ -813,7 +848,7 @@ export default function App({
 	}, [renderer]);
 
 	const railDialogState = {
-		showPromptDialog: showPromptDialog || showRepoPicker,
+		showPromptDialog,
 		showDeleteConfirm: deleteTarget !== null,
 		killDoneTargets,
 		showUpdateConfirm,
@@ -1962,17 +1997,14 @@ export default function App({
 			handleFocusAgent();
 		} else if (input === 'n') {
 			if (workdir) {
-				// A space is one repo's: with several, ask which. The repo picker
-				// of the next phase replaces this list.
+				// The dialog works out the repo from what is typed.
 				if (workdir.repos.length === 0) {
 					setHeaderWithTimeout(
 						'No repos: list them under repos: in .lasagna/workdir.yml',
 						4000,
 					);
-				} else if (workdir.repos.length === 1) {
-					openPromptFor(workdir.repos[0]!);
 				} else {
-					setShowRepoPicker(true);
+					setShowPromptDialog(true);
 				}
 			} else if (hasNoProfiles()) {
 				setHeaderWithTimeout(
@@ -2152,11 +2184,12 @@ export default function App({
 	});
 
 	const spawnSession = useCallback(
-		(pending: PendingSession, options?: {queued: boolean}) => {
+		// Settles once the space is up, or its start has failed and been reported.
+		async (pending: PendingSession, options?: {queued: boolean}) => {
 			// Show the pending row now, not when a queue slot frees up, so the
 			// user sees the start at once (as on main).
 			setPendingSession(pending);
-			void scheduleWorkspaceStart(
+			return scheduleWorkspaceStart(
 				startupQueue,
 				async () => {
 					if (pending.name && pending.inputIsIssueKey)
@@ -2358,7 +2391,7 @@ export default function App({
 							`Watchlist (${source}): spawning workspace for ${issue.identifier} (${issue.title})`,
 						);
 
-						spawnSession(
+						void spawnSession(
 							{
 								type: 'issue',
 								name: issue.identifier,
@@ -2762,60 +2795,82 @@ export default function App({
 		profileName: string | null,
 		inputIsIssueKey: boolean,
 		agentProfileName: string | null,
+		repoNames?: string[],
 	) => {
 		setShowPromptDialog(false);
-		// On a work dir's rail the dialog was opened for one repo, and the
-		// space's key, profile and tracker are that repo's.
-		const repo = newSpaceRepoRef.current;
-		if (repo) lastSpaceRepo.current = repo.name;
+		// On a work dir's rail the dialog says which repos the space is made in,
+		// and the space's key, profile and tracker are each repo's own.
+		const repos = (repoNames ?? []).flatMap(name => workdir?.repo(name) ?? []);
+		if (workdir && repos.length === 0) return;
+		if (repos[0]) lastSpaceRepo.current = repos[0].name;
 
-		// Try to normalize as an issue identifier (supports bare numbers like '400')
-		const load = repo ? repo.context.readConfig() : readReportedConfig();
-		if (load.kind === 'invalid') {
+		const pendingIn = (
+			repo: WorkdirRepo | undefined,
+		): PendingSession | null => {
+			// Try to normalize as an issue identifier (supports bare numbers like '400')
+			const load = repo ? repo.context.readConfig() : readReportedConfig();
+			if (load.kind === 'invalid') return null;
+			const config = load.kind === 'valid' ? load.config : null;
+
+			const teamPrefix = config ? getTeamPrefix(config) : DEFAULT_TEAM_PREFIX;
+			const normalizedIssueKey = inputIsIssueKey
+				? input.trim()
+				: normalizeIssueIdentifier(
+						input,
+						teamPrefix,
+						(repo ? issueTrackerFor(repo.name) : createIssueTracker()).name,
+						config
+							? getBeadsPrefixes(
+									config,
+									readBeadsIssuePrefix(repo?.context.mainRoot),
+								)
+							: [],
+					);
+
+			// Route the session: always pass just the issue key (or description) to idow.
+			// idow handles both new and existing issues correctly with a bare issue key.
+			const route = routeSession(normalizedIssueKey);
+			// The profile was picked from the first repo's; another repo takes it
+			// only when it has one by that name, and else lets idow choose.
+			const profile =
+				profileName !== null &&
+				repo !== repos[0] &&
+				config?.profiles[profileName] === undefined
+					? null
+					: profileName;
+			return {
+				repo: repo?.name,
+				type: route.type,
+				name:
+					route.issueKey && repo
+						? formatSpaceRef(repo.name, route.issueKey)
+						: (route.issueKey ?? ''),
+				idowArg: route.issueKey ?? input,
+				inputIsIssueKey,
+				pendingTitle: route.pendingTitle,
+				// Read through the ref: a popup submits through the closure captured
+				// when `n` was pressed, and the list can change while it is open.
+				prevSpaceCount: spacesRef.current.length,
+				profileName: profile,
+				agentProfileName,
+				profileEmoji: resolvePendingProfileEmoji(config, profile),
+			};
+		};
+
+		const pendings = (workdir ? repos : [undefined]).map(repo =>
+			pendingIn(repo),
+		);
+		if (pendings.includes(null)) {
 			const message = 'New space not created: the config is invalid';
 			setHeaderWithTimeout(message, 5000);
 			reportConfigEvent(message);
 			return;
 		}
 
-		const config = load.kind === 'valid' ? load.config : null;
-
-		const teamPrefix = config ? getTeamPrefix(config) : DEFAULT_TEAM_PREFIX;
-		const normalizedIssueKey = inputIsIssueKey
-			? input.trim()
-			: normalizeIssueIdentifier(
-					input,
-					teamPrefix,
-					(repo ? issueTrackerFor(repo.name) : createIssueTracker()).name,
-					config
-						? getBeadsPrefixes(
-								config,
-								readBeadsIssuePrefix(repo?.context.mainRoot),
-							)
-						: [],
-				);
-
-		// Route the session: always pass just the issue key (or description) to idow.
-		// idow handles both new and existing issues correctly with a bare issue key.
-		const route = routeSession(normalizedIssueKey);
-		const pending: PendingSession = {
-			repo: repo?.name,
-			type: route.type,
-			name:
-				route.issueKey && repo
-					? formatSpaceRef(repo.name, route.issueKey)
-					: (route.issueKey ?? ''),
-			idowArg: route.issueKey ?? input,
-			inputIsIssueKey,
-			pendingTitle: route.pendingTitle,
-			// Read through the ref: a popup submits through the closure captured
-			// when `n` was pressed, and the list can change while it is open.
-			prevSpaceCount: spacesRef.current.length,
-			profileName,
-			agentProfileName,
-			profileEmoji: resolvePendingProfileEmoji(config, profileName),
-		};
-		spawnSession(pending);
+		// One space per repo, one after the other: the rail has one pending row.
+		void (async () => {
+			for (const pending of pendings) await spawnSession(pending!);
+		})();
 	};
 
 	const writeIssueState = async (space: SpaceData, choice: StateChoice) => {
@@ -3231,21 +3286,6 @@ export default function App({
 					}}
 					onCancel={() => setConfigMigrations(null)}
 				/>
-			) : showRepoPicker && workdir ? (
-				<RepoPicker
-					repos={workdir.repos}
-					initialIndex={defaultRepoIndex(
-						workdirRepoNames,
-						selectedSpace?.repo,
-						lastSpaceRepo.current,
-					)}
-					availableHeight={dialogHeight}
-					onPick={name => {
-						setShowRepoPicker(false);
-						openPromptFor(workdir.repo(name) ?? null);
-					}}
-					onCancel={() => setShowRepoPicker(false)}
-				/>
 			) : showPromptDialog ? (
 				<PromptDialog
 					onSubmit={handleNewSession}
@@ -3254,7 +3294,7 @@ export default function App({
 					availableWidth={termDimensions.cols}
 					availableHeight={dialogHeight}
 					isInTmux={inTmux}
-					repo={newSpaceRepo?.context}
+					repos={repoField}
 				/>
 			) : killDoneTargets !== null ? (
 				<ConfirmDialog
